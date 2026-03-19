@@ -35,6 +35,8 @@ services:
     restart: always
     ports:
       - "8000:8000"
+    volumes:
+      - ./services/api:/app
     environment:
       DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-fomo}
       REDIS_URL: redis://redis:6379/0
