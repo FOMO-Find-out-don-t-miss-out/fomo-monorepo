@@ -46,5 +46,28 @@ services:
       redis:
         condition: service_healthy
 
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: fomo_harvester_n8n
+    restart: always
+    ports:
+      - "5678:5678"
+    environment:
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB:-fomo} # Use the same DB or ensure init-db.sh creates n8n__harvester
+      - DB_POSTGRESDB_HOST=db
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_USER=${POSTGRES_USER:-postgres}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD:-1995} # Match your DB password
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678/ # Use this instead of N8N_HOST for local browser access
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   postgres_data:
+  n8n_data:

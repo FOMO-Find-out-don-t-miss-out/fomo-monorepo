@@ -1,7 +1,7 @@
 from .user import User, Profile
-from .event import Event
+from .event import Event, PendingEvent
 from .social import SocialConnection
 from .hype import HypeLedger
 
 # To ensure all models are registered with SQLModel.metadata
-__all__ = ["User", "Profile", "Event", "SocialConnection", "HypeLedger"]
+__all__ = ["User", "Profile", "Event", "PendingEvent", "SocialConnection", "HypeLedger"]
