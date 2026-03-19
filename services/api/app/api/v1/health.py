@@ -1,26 +1,14 @@
 import redis.asyncio as redis
-from fastapi import FastAPI, Depends
-from sqlalchemy.orm import Session
-from sqlalchemy import text
-from pydantic_settings import BaseSettings
-from database import get_db
+from fastapi import APIRouter, Depends
+from sqlmodel import Session, text
+from app.db.session import get_db
+from app.core.config import settings
 
-
-class Settings(BaseSettings):
-    REDIS_URL: str = "redis://redis:6379/0"
-
-    class Config:
-        env_file = ".env"
-
-
-app = FastAPI(title="FOMO API")
-settings = Settings()
-
-# Async Redis Connection Pool
+router = APIRouter()
 redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
 
 
-@app.get("/health")
+@router.get("/health")
 async def health_check(db: Session = Depends(get_db)):
     """Health check endpoint to monitor database and Redis connectivity."""
     health_status = {"status": "ok", "components": {}}
