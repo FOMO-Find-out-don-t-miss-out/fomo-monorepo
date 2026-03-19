@@ -4,6 +4,8 @@ services:
     container_name: fomo_db
     restart: always
     shm_size: '1gb'
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-1995}
@@ -54,7 +56,7 @@ services:
       - "5678:5678"
     environment:
       - DB_TYPE=postgresdb
-      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB:-fomo} # Use the same DB or ensure init-db.sh creates n8n__harvester
+      - DB_POSTGRESDB_DATABASE=n8n__harvester
       - DB_POSTGRESDB_HOST=db
       - DB_POSTGRESDB_PORT=5432
       - DB_POSTGRESDB_USER=${POSTGRES_USER:-postgres}
