@@ -85,15 +85,40 @@ New events arrive in `pending_events`. To move them to the live `events` table:
 
 ---
 
-## 🧪 Testing & Linting
-The project uses **Ruff** for linting and **Pytest** for testing.
-```bash
-# Run Linting
-docker compose exec api ruff check .
+## 🧪 Testing & Quality Assurance
 
-# Run Tests
+The project maintains high standards with **Ruff** for linting and **Pytest** for comprehensive testing, targeting **95-96%+ code coverage**.
+
+### 1. Running Linting
+We use Ruff for extremely fast Python linting and formatting checks:
+```bash
+docker compose exec api ruff check .
+```
+
+### 2. Running Tests
+All API unit and integration tests can be executed within the container:
+```bash
 docker compose exec api pytest
 ```
+
+### 3. Monitoring Test Coverage
+To check the current code coverage and identify untested lines, run:
+```bash
+docker compose exec api pytest --cov=app --cov-report=term-missing
+```
+
+The project is configured via `.coveragerc` to:
+- **Fail** if total coverage drops below **95%**.
+- **Exclude** migrations and boilerplate from the report.
+- **Show** exact line numbers that are missing coverage.
+
+### 4. Local Testing (Optional)
+If you have a local Python environment (3.12+) and want to run tests without Docker:
+1. **Install dependencies**: `pip install -r services/api/requirements.txt`
+2. **Run tests**: `python -m pytest --cov=app --cov-report=term-missing` from the `services/api` directory.
+   *Note: Local tests use an in-memory SQLite database with PostGIS mocks for speed and portability.*
+
+---
 
 ## 🔒 Security Note
 Never commit your `.env` file. A `.gitignore` is included to protect your credentials.

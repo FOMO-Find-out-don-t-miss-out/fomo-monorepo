@@ -1,0 +1,20 @@
+[run]
+source = app
+omit =
+    app/migrations/*
+    app/__init__.py
+    */__init__.py
+
+[report]
+show_missing = True
+fail_under = 95
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    if self.debug:
+    if settings.DEBUG:
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    pass
+    raise ImportError
