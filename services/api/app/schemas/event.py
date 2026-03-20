@@ -9,7 +9,7 @@ class EventBase(BaseModel):
     lat: float
     lng: float
     start_time: datetime
-    end_time: datetime
+    end_time: Optional[datetime] = None
     category: str
     hype_score: int = 0
     ticket_url: Optional[str] = None
@@ -32,4 +32,6 @@ class PendingEventRead(BaseModel):
     status: str
     title: str
     category: str
+    start_time: datetime
+    hype_score: int
     # Add other fields as needed for the UI

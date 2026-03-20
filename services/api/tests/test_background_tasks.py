@@ -2,11 +2,13 @@ import pytest
 import json
 import asyncio
 import httpx
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, AsyncMock, patch
 from sqlmodel import Session, select
 from app.api.v1.internal import run_scraper_and_ingest_task
 from app.models.event import PendingEvent
 from app.db.session import engine
+from app.services.harvester.cleanser import ExtractedEvent
 
 @pytest.mark.asyncio
 async def test_run_scraper_and_ingest_task_success(session, monkeypatch, respx_mock):
@@ -52,9 +54,24 @@ async def test_run_scraper_and_ingest_task_success(session, monkeypatch, respx_m
         from app.core.config import settings
         respx_mock.post(settings.N8N_WEBHOOK_URL).mock(return_value=httpx.Response(200))
         
-        # 3. Mock engine to use test session
-        with patch("app.api.v1.internal.engine", session.bind):
-             await run_scraper_and_ingest_task()
+        # 3. Mock CleansingService to avoid requiring real Gemini client
+        def mock_clean_side_effect(data_or_text):
+            # Create a unique title based on input to avoid DB updates instead of additions
+            title = f"Mocked Event {hash(str(data_or_text))}"
+            return ExtractedEvent(
+                title=title,
+                start_time=datetime(2026, 5, 1, tzinfo=timezone.utc),
+                lat=34.0522,
+                lng=-118.2437,
+                category="Music",
+                event_metadata={}
+            )
+        
+        with patch("app.api.v1.internal.CleansingService.clean_json_ld", side_effect=mock_clean_side_effect):
+            with patch("app.api.v1.internal.CleansingService.clean_html_fallback", side_effect=mock_clean_side_effect):
+                # 4. Mock engine to use test session
+                with patch("app.api.v1.internal.engine", session.bind):
+                     await run_scraper_and_ingest_task()
         
     # Verify results
     pending_events = session.exec(select(PendingEvent)).all()

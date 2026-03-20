@@ -8,7 +8,7 @@ from geoalchemy2 import Geography
 class EventBase(SQLModel):
     title: str
     start_time: datetime
-    end_time: datetime
+    end_time: Optional[datetime] = None
     hype_score: int = Field(default=0, index=True)
     category: str = Field(index=True)
     ticket_url: Optional[str] = None

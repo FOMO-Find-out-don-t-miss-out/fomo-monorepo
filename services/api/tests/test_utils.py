@@ -1,6 +1,6 @@
 import pytest
 from datetime import datetime, timezone
-from app.core.datetime_utils import DateTimeHelper
+from app.utils.datetime_utils import DateTimeHelper
 
 def test_safe_parse_valid_iso():
     dt_str = "2026-03-20T21:00:00Z"

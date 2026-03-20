@@ -8,7 +8,7 @@ import google.generativeai as genai
 from bs4 import BeautifulSoup
 
 from app.core.config import settings
-from app.core.datetime_utils import DateTimeHelper
+from app.utils.datetime_utils import DateTimeHelper
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +23,7 @@ class ExtractedEvent(BaseModel):
     lat: Optional[float] = Field(default=0.0, description="Latitude of the event")
     lng: Optional[float] = Field(default=0.0, description="Longitude of the event")
     category: str = Field(default="Uncategorized", description="Event category (e.g., Music, Art, Tech)")
+    hype_score: int = Field(default=0, description="Hype score of the event")
     ticket_url: Optional[str] = Field(default=None, description="URL to purchase tickets")
     description: Optional[str] = Field(default=None, description="Short summary or description of the event")
     event_metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional structured data")

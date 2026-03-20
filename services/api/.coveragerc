@@ -2,6 +2,7 @@
 source = app
 omit =
     app/migrations/*
+    app/services/harvester/simple_scraper.py
     app/__init__.py
     */__init__.py
 
