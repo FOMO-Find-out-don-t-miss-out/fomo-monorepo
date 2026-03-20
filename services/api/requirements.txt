@@ -17,3 +17,5 @@ fakeredis[lua]==2.25.0
 pytest-mock==3.14.0
 pytest-env==1.1.5
 respx==0.21.1
+instructor
+google-generativeai

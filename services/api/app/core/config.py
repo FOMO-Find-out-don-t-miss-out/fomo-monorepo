@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     PROJECT_NAME: str = "FOMO API"
     N8N_WEBHOOK_URL: Optional[str] = None
+    GOOGLE_API_KEY: Optional[str] = None
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
