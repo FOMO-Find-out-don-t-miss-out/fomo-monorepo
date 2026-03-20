@@ -1,8 +1,8 @@
 import logging
 import re
-from typing import Optional, Dict, Any, List
-from datetime import datetime
-from pydantic import BaseModel, Field
+from typing import Optional, Dict, Any, List, Union
+from datetime import datetime, timezone
+from pydantic import BaseModel, Field, field_validator
 import instructor
 import google.generativeai as genai
 from bs4 import BeautifulSoup
@@ -17,16 +17,41 @@ logger = logging.getLogger(__name__)
 class ExtractedEvent(BaseModel):
     """Schema for a single extracted event from any source."""
     title: str = Field(description="The name or title of the event")
-    start_time: datetime = Field(description="The start date and time of the event")
-    end_time: Optional[datetime] = Field(default=None, description="The end date and time of the event")
+    start_time: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="The start date and time of the event"
+    )
+    end_time: Optional[datetime] = Field(
+        default=None, 
+        description="The end date and time of the event"
+    )
     location_name: Optional[str] = Field(default=None, description="The name of the venue or location")
-    lat: Optional[float] = Field(default=0.0, description="Latitude of the event")
-    lng: Optional[float] = Field(default=0.0, description="Longitude of the event")
-    category: str = Field(default="Uncategorized", description="Event category (e.g., Music, Art, Tech)")
+    lat: Optional[float] = Field(default=None, description="Latitude of the event")
+    lng: Optional[float] = Field(default=None, description="Longitude of the event")
+    category: str = Field(default="Other", description="Event category (e.g., Music, Art, Tech)")
     hype_score: int = Field(default=0, description="Hype score of the event")
     ticket_url: Optional[str] = Field(default=None, description="URL to purchase tickets")
     description: Optional[str] = Field(default=None, description="Short summary or description of the event")
     event_metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional structured data")
+
+    @field_validator("start_time", mode="before")
+    @classmethod
+    def parse_start_time(cls, v):
+        return DateTimeHelper.safe_parse(v)
+
+    @field_validator("end_time", mode="before")
+    @classmethod
+    def parse_end_time(cls, v):
+        if v is None:
+            return None
+        return DateTimeHelper.safe_parse(v)
+
+    @field_validator("category", mode="before")
+    @classmethod
+    def ensure_category(cls, v):
+        if not v or v is None:
+            return "Other"
+        return str(v)
 
 # --- Instructor Setup ---
 
@@ -36,7 +61,7 @@ if hasattr(settings, "GOOGLE_API_KEY") and settings.GOOGLE_API_KEY:
     genai.configure(api_key=settings.GOOGLE_API_KEY)
     _client = instructor.from_gemini(
         client=genai.GenerativeModel(
-            model_name="models/gemini-1.5-flash",
+            model_name="models/gemini-2.5-flash-lite",
         ),
         mode=instructor.Mode.GEMINI_JSON,
     )
@@ -66,8 +91,8 @@ class CleansingService:
 
             location = data.get("location", {})
             location_name = None
-            lat = 0.0
-            lng = 0.0
+            lat = None
+            lng = None
 
             if isinstance(location, dict):
                 location_name = location.get("name")
@@ -75,20 +100,21 @@ class CleansingService:
                 if isinstance(geo, dict):
                     lat_raw = geo.get("latitude")
                     lng_raw = geo.get("longitude")
-                    lat = float(lat_raw[0] if isinstance(lat_raw, list) else lat_raw or 0.0)
-                    lng = float(lng_raw[0] if isinstance(lng_raw, list) else lng_raw or 0.0)
-
-            start_time = DateTimeHelper.safe_parse(data.get("startDate"))
-            end_time = DateTimeHelper.safe_parse(data.get("endDate")) if data.get("endDate") else None
+                    try:
+                        lat = float(lat_raw[0] if isinstance(lat_raw, list) else lat_raw) if lat_raw is not None else None
+                        lng = float(lng_raw[0] if isinstance(lng_raw, list) else lng_raw) if lng_raw is not None else None
+                    except (ValueError, TypeError):
+                        lat = None
+                        lng = None
 
             return ExtractedEvent(
                 title=str(title),
-                start_time=start_time,
-                end_time=end_time,
+                start_time=data.get("startDate"), 
+                end_time=data.get("endDate"),     
                 location_name=location_name,
                 lat=lat,
                 lng=lng,
-                category="Music" if "MusicEvent" in str(data.get("@type")) else "General",
+                category="Music" if "MusicEvent" in str(data.get("@type")) else "Other",
                 ticket_url=get_val("url"),
                 description=get_val("description"),
                 event_metadata=data
@@ -105,41 +131,40 @@ class CleansingService:
         
         soup = BeautifulSoup(html_text, "html.parser")
         
-        # Remove noise tags
         for tag in soup(["script", "style", "nav", "footer", "header", "aside"]):
             tag.decompose()
             
-        # Get text and clean whitespace
         text = soup.get_text(separator=' ')
         text = re.sub(r'\s+', ' ', text).strip()
         return text
 
     @classmethod
-    async def clean_html_fallback(cls, html_text: str) -> Optional[ExtractedEvent]:
+    async def clean_html_fallback(cls, html_text: str) -> List[ExtractedEvent]:
         """
         Strips noise from HTML and uses Gemini via Instructor to extract 
-        structured event data matching the Pydantic schema.
+        a list of structured event data matching the Pydantic schema.
         """
         if not _client:
             logger.warning("Gemini client not configured. HTML fallback extraction skipped.")
-            return None
+            return []
 
         cleaned_text = cls._strip_html_noise(html_text)
-        if len(cleaned_text) < 50: # Too short to be useful
-            return None
+        if len(cleaned_text) < 50: 
+            return []
 
         try:
-            # Instructor call to Gemini
-            event = _client.chat.completions.create(
+            # Request a LIST of events to handle Gemini's behavior and avoid parsing errors
+            events = _client.chat.completions.create(
                 messages=[
                     {
                         "role": "user", 
-                        "content": f"Extract event details from the following text. If multiple events exist, extract the primary one.\n\nText: {cleaned_text}"
+                        "content": f"Extract all event details from the following text. Return a JSON list of events.\n\nText: {cleaned_text}"
                     }
                 ],
-                response_model=ExtractedEvent,
+                response_model=List[ExtractedEvent],
+                max_retries=3
             )
-            return event
+            return events
         except Exception as e:
             logger.error(f"Gemini extraction failed: {e}")
-            return None
+            return []

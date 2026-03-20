@@ -11,6 +11,7 @@ class DateTimeHelper:
         "%d/%m/%Y %I:%M:%S %p", # 30/3/2026 9:00:00 PM
         "%d/%m/%Y %H:%M:%S",
         "%Y-%m-%dT%H:%M:%S%z",
+        "%Y-%m-%dT%H:%M:%S",
         "%Y-%m-%d %H:%M:%S",
         "%d/%m/%Y",
     ]

@@ -27,7 +27,10 @@ def internal_ingest_logic(db: Session, events: List[ExtractedEvent]) -> IngestSu
     updated_count = 0
 
     for event_data in events:
-        wkt_point = f"POINT({event_data.lng} {event_data.lat})"
+        # GEOMETRY BUG FIX: Check for None lat/lng
+        wkt_point = None
+        if event_data.lat is not None and event_data.lng is not None:
+            wkt_point = f"POINT({event_data.lng} {event_data.lat})"
         
         existing_pending = db.exec(
             select(PendingEvent).where(
@@ -74,7 +77,8 @@ async def run_scraper_and_ingest_task():
     
     try:
         # 1. Execute Subprocess Scraper
-        script_path = "/app/services/harvester/simple_scraper.py"
+        # Use a path relative to the app root or absolute within container
+        script_path = "app/services/harvester/simple_scraper.py"
         process = await asyncio.create_subprocess_exec(
             sys.executable, script_path,
             stdout=asyncio.subprocess.PIPE,
@@ -105,18 +109,24 @@ async def run_scraper_and_ingest_task():
         cleaned_events: List[ExtractedEvent] = []
         for item in raw_scraped_data:
             source = item.get("source")
-            extracted = None
+            original_link = item.get("original_link")
 
-            if source == "json-ld":
-                extracted = CleansingService.clean_json_ld(item.get("structured_data", {}))
-            elif source == "html-fallback":
-                # AI-powered extraction for raw HTML/Text
-                extracted = await CleansingService.clean_html_fallback(item.get("raw_text", ""))
-            
-            if extracted:
-                # Ensure the original link is preserved in metadata for the ingest logic
-                extracted.event_metadata["original_link"] = item.get("original_link")
-                cleaned_events.append(extracted)
+            try:
+                if source == "json-ld":
+                    extracted = CleansingService.clean_json_ld(item.get("structured_data", {}))
+                    if extracted:
+                        extracted.event_metadata["original_link"] = original_link
+                        cleaned_events.append(extracted)
+                elif source == "html-fallback":
+                    # AI now returns a LIST of events
+                    extracted_list = await CleansingService.clean_html_fallback(item.get("raw_text", ""))
+                    for extracted in extracted_list:
+                        extracted.event_metadata["original_link"] = original_link
+                        cleaned_events.append(extracted)
+            except Exception as e:
+                # VALIDATION GUARD: One failure doesn't crash the batch
+                logger.error(f"Error processing item from {source}: {e}")
+                continue
 
         logger.info(f"Cleansing complete: {len(cleaned_events)}/{len(raw_scraped_data)} items valid")
 
