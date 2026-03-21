@@ -104,9 +104,9 @@ async def test_approve_event(client: AsyncClient, session: Session):
     assert response.status_code == 200
     assert response.json()["message"] == "Event approved"
     
-    # Verify status changed to approved
+    # Verify status changed to published
     session.expire(pending)
-    assert pending.status == "approved"
+    assert pending.status == "published"
     
     # Verify live event created
     live = session.exec(select(Event).where(Event.title == "To Be Approved")).first()
@@ -130,7 +130,7 @@ async def test_approve_already_approved(client: AsyncClient, session: Session):
         start_time=datetime.now(timezone.utc),
         end_time=datetime.now(timezone.utc),
         category="Test",
-        status="approved"
+        status="published"
     )
     session.add(pending)
     session.commit()
@@ -138,6 +138,36 @@ async def test_approve_already_approved(client: AsyncClient, session: Session):
     response = await client.post(f"/api/v1/internal/approve/{pending_id}")
     assert response.status_code == 400
     assert "already approved" in response.json()["detail"]
+
+@pytest.mark.asyncio
+async def test_reject_event(client: AsyncClient, session: Session):
+    """Test rejecting a pending event."""
+    pending_id = uuid4()
+    pending = PendingEvent(
+        id=pending_id,
+        title="To Be Rejected",
+        location="POINT(0 0)",
+        start_time=datetime.now(timezone.utc),
+        end_time=datetime.now(timezone.utc),
+        category="Test",
+        status="pending"
+    )
+    session.add(pending)
+    session.commit()
+    
+    response = await client.delete(f"/api/v1/internal/reject/{pending_id}")
+    assert response.status_code == 200
+    assert response.json()["message"] == "Event rejected and deleted"
+    
+    # Verify DB state
+    rejected = session.get(PendingEvent, pending_id)
+    assert rejected is None
+
+@pytest.mark.asyncio
+async def test_reject_event_not_found(client: AsyncClient):
+    """Test rejecting non-existent event."""
+    response = await client.delete(f"/api/v1/internal/reject/{uuid4()}")
+    assert response.status_code == 404
 
 @pytest.mark.asyncio
 async def test_trigger_scraper(client: AsyncClient):

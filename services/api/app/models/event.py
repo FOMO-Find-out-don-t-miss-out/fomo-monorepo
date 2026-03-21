@@ -17,6 +17,7 @@ class EventBase(SQLModel):
     source_url: Optional[str] = None
     location_name: Optional[str] = Field(default=None, index=True)
     country_code: Optional[str] = Field(default=None, index=True)
+    parent_id: Optional[UUID] = Field(default=None, index=True)
 
 
 class Event(EventBase, table=True):

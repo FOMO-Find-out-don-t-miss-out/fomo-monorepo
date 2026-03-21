@@ -11,7 +11,7 @@ from app.db.session import engine
 from app.models.event import PendingEvent
 from app.models.venue import Venue
 from app.core.config import settings
-from geoalchemy2.elements import WKTElement
+from geoalchemy2 import Geography, WKTElement
 
 logger = logging.getLogger(__name__)
 
@@ -378,6 +378,79 @@ class GeocoderService:
             return 0.0
 
     @classmethod
+    async def get_suggestions(
+        cls, query: str, country_hint: str = "GR"
+    ) -> List[GeocodeResult]:
+        """Returns a list of geocoding suggestions for a query string."""
+        if not query or not settings.MAPBOX_ACCESS_TOKEN:
+            return []
+
+        country_defaults = cls._get_country_defaults(country_hint)
+        center = country_defaults.get("center", {"lat": 37.9838, "lng": 23.7275})
+        
+        params = {
+            "q": query,
+            "access_token": settings.MAPBOX_ACCESS_TOKEN,
+            "limit": 5,
+            "proximity": f"{center['lng']},{center['lat']}",
+            "types": "poi,address,street"
+        }
+        if country_hint:
+            params["country"] = country_hint.lower()
+
+        suggestions = []
+        try:
+            async with httpx.AsyncClient() as client:
+                # Try Search Box first
+                response = await client.get(cls.SEARCH_BOX_URL, params=params, timeout=10.0)
+                data = response.json()
+                
+                if data.get("features"):
+                    for feat in data["features"]:
+                        res = cls._process_single_feature(feat, query, country_hint, query)
+                        if res: suggestions.append(res)
+                
+                # If Search Box is empty or low confidence, fallback to Geocoding v6
+                if not suggestions:
+                    response = await client.get(cls.BASE_URL, params=params, timeout=10.0)
+                    data = response.json()
+                    if data.get("features"):
+                        for feat in data["features"]:
+                            res = cls._process_single_feature(feat, query, country_hint, query)
+                            if res: suggestions.append(res)
+                            
+        except Exception as e:
+            logger.error(f"[GEOCODER] Suggestions error: {e}")
+        
+        return suggestions
+
+    @classmethod
+    def _process_single_feature(cls, feature: Dict[str, Any], query: str, country_hint: str, original_location: str) -> Optional[GeocodeResult]:
+        """Helper to process a single Mapbox feature into a GeocodeResult."""
+        properties = feature.get("properties", {})
+        geometry = feature.get("geometry", {}).get("coordinates")
+        if not geometry: return None
+        
+        context = properties.get("context", {})
+        result_country = context.get("country", {}).get("country_code", "").upper()
+        
+        return GeocodeResult(
+            lng=geometry[0],
+            lat=geometry[1],
+            relevance=cls._parse_relevance(feature.get("relevance", 0.9)),
+            full_address=properties.get("full_address", properties.get("name", "Unknown")),
+            country_code=result_country or country_hint,
+            city=context.get("place", {}).get("name"),
+            geocoding_status="verified" if result_country == country_hint.upper() else "ambiguous",
+            geocoding_metadata={
+                "source": "mapbox_suggestion", 
+                "feature_type": properties.get("feature_type"),
+                "full_address": properties.get("full_address", properties.get("name", "Unknown")),
+                "city": context.get("place", {}).get("name")
+            }
+        )
+
+    @classmethod
     def _process_geocode_features(cls, features: List[Dict[str, Any]], query: str, country_hint: str, original_location: str, city_hint: Optional[str] = None, types_filter: str = "") -> Optional[GeocodeResult]:
         """Process geocoding features and select the best result."""
         if not features:
@@ -475,7 +548,9 @@ class GeocoderService:
                 "city_hint": city_hint,
                 "selected_feature_type": feature_type,
                 "name_similarity": round(name_similarity, 2),
-                "types_filter": types_filter
+                "types_filter": types_filter,
+                "full_address": properties.get("full_address", properties.get("name", "Unknown")),
+                "city": result_city
             }
         )
 

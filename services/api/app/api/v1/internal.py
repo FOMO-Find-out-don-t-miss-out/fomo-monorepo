@@ -6,7 +6,7 @@ import sys
 import traceback
 from typing import List
 from datetime import datetime, timezone
-from uuid import UUID
+from uuid import UUID, uuid4
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlmodel import Session, select
 from app.db.session import get_db, engine
@@ -235,10 +235,13 @@ async def approve_event(pending_id: UUID, db: Session = Depends(get_db)):
     if not pending:
         raise HTTPException(status_code=404, detail="Pending event not found")
     
-    if pending.status == "approved":
-        raise HTTPException(status_code=400, detail="Event already approved")
+    if pending.status == "published":
+        raise HTTPException(status_code=400, detail="Event already approved/published")
 
+    # 1. Create the primary live event
+    primary_id = uuid4()
     live_event = Event(
+        id=primary_id,
         title=pending.title,
         location=pending.location,
         start_time=pending.start_time,
@@ -247,13 +250,63 @@ async def approve_event(pending_id: UUID, db: Session = Depends(get_db)):
         hype_score=pending.hype_score,
         ticket_url=pending.ticket_url,
         source_url=pending.source_url,
-        event_metadata=pending.event_metadata
+        event_metadata=pending.event_metadata,
+        parent_id=primary_id # Primary occurrence is its own parent
     )
-    pending.status = "approved"
     db.add(live_event)
+
+    # 2. Create additional occurrences if they exist in metadata
+    occurrences = pending.event_metadata.get("occurrences", [])
+    for occ in occurrences:
+        occ_start = datetime.fromisoformat(occ["start_time"])
+        occ_event = Event(
+            title=pending.title,
+            location=pending.location,
+            start_time=occ_start,
+            end_time=None,
+            category=pending.category,
+            hype_score=pending.hype_score,
+            ticket_url=pending.ticket_url,
+            source_url=pending.source_url,
+            event_metadata=pending.event_metadata,
+            parent_id=primary_id
+        )
+        db.add(occ_event)
+
+    pending.status = "published"
     db.add(pending)
     db.commit()
-    return {"message": "Event approved", "event_id": live_event.id}
+    return {"message": "Event approved", "event_id": primary_id, "occurrences_created": len(occurrences)}
+
+@router.delete("/cleanup-pending", status_code=status.HTTP_200_OK)
+async def cleanup_pending_events(days_old: int = 30, db: Session = Depends(get_db)):
+    """Deletes 'published' pending events older than a given number of days."""
+    from datetime import timedelta
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_old)
+    
+    statement = select(PendingEvent).where(
+        PendingEvent.status == "published",
+        PendingEvent.start_time < cutoff_date
+    )
+    old_events = db.exec(statement).all()
+    deleted_count = 0
+    for ev in old_events:
+        db.delete(ev)
+        deleted_count += 1
+    
+    db.commit()
+    return {"message": "Cleanup complete", "deleted_count": deleted_count}
+
+
+@router.delete("/reject/{pending_id}")
+async def reject_event(pending_id: UUID, db: Session = Depends(get_db)):
+    pending = db.get(PendingEvent, pending_id)
+    if not pending:
+        raise HTTPException(status_code=404, detail="Pending event not found")
+    
+    db.delete(pending)
+    db.commit()
+    return {"message": "Event rejected and deleted"}
 
 
 @router.post("/run-scraper", status_code=status.HTTP_202_ACCEPTED)
