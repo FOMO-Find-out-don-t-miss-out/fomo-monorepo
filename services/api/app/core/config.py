@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "FOMO API"
     N8N_WEBHOOK_URL: Optional[str] = None
     GOOGLE_API_KEY: Optional[str] = None
+    MAPBOX_ACCESS_TOKEN: Optional[str] = None
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

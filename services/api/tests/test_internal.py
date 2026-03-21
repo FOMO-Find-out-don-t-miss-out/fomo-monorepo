@@ -6,6 +6,7 @@ from httpx import AsyncClient
 from sqlmodel import Session, select
 from app.models.event import PendingEvent, Event
 from app.core.config import settings
+from app.utils.datetime_utils import DateTimeHelper
 
 @pytest.mark.asyncio
 async def test_ingest_events_new(client: AsyncClient, session: Session):
@@ -40,42 +41,46 @@ async def test_ingest_events_new(client: AsyncClient, session: Session):
 @pytest.mark.asyncio
 async def test_ingest_events_update(client: AsyncClient, session: Session):
     """Test updating existing pending events during ingestion."""
-    # First, manually add a pending event
-    start_time = datetime(2026, 4, 1, 20, 0, 0, tzinfo=timezone.utc)
-    existing = PendingEvent(
-        title="Duplicate Event",
-        location="POINT(-122.4194 37.7749)",
-        start_time=start_time,
-        end_time=datetime(2026, 4, 1, 23, 0, 0, tzinfo=timezone.utc),
-        category="Old Category",
-        status="pending"
-    )
-    session.add(existing)
-    session.commit()
-    
-    payload = {
+    first_payload = {
         "events": [
             {
                 "title": "Duplicate Event",
-                "lat": 37.7749,
-                "lng": -122.4194,
-                "start_time": start_time.isoformat().replace("+00:00", "Z"),
-                "end_time": "2026-04-02T01:00:00Z", # Updated end time
-                "category": "New Category", # Updated category
+                "lat": None,
+                "lng": None,
+                "start_time": "2026-04-01T20:00:00Z",
+                "end_time": "2026-04-01T23:00:00Z",
+                "category": "Old Category",
+                "source_url": "http://example.com/old"
+            }
+        ]
+    }
+    
+    first_response = await client.post("/api/v1/internal/ingest", json=first_payload)
+    assert first_response.status_code == 200
+    assert first_response.json()["added"] == 1
+    
+    second_payload = {
+        "events": [
+            {
+                "title": "Duplicate Event",
+                "lat": None,
+                "lng": None,
+                "start_time": "2026-04-01T20:00:00Z",
+                "end_time": "2026-04-02T01:00:00Z",
+                "category": "New Category",
                 "source_url": "http://example.com/updated"
             }
         ]
     }
     
-    response = await client.post("/api/v1/internal/ingest", json=payload)
-    assert response.status_code == 200
-    data = response.json()
+    second_response = await client.post("/api/v1/internal/ingest", json=second_payload)
+    assert second_response.status_code == 200
+    data = second_response.json()
     assert data["added"] == 0
     assert data["updated"] == 1
     
-    # Verify update in DB
-    session.expire(existing) # Refresh session
     updated = session.exec(select(PendingEvent).where(PendingEvent.title == "Duplicate Event")).first()
+    assert updated is not None
     assert updated.category == "New Category"
     assert updated.source_url == "http://example.com/updated"
 

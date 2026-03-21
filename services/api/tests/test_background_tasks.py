@@ -55,7 +55,7 @@ async def test_run_scraper_and_ingest_task_success(session, monkeypatch, respx_m
         respx_mock.post(settings.N8N_WEBHOOK_URL).mock(return_value=httpx.Response(200))
         
         # 3. Mock CleansingService to avoid requiring real Gemini client
-        def mock_clean_side_effect(data_or_text):
+        async def mock_clean_side_effect(data_or_text, country_hint=None):
             # Create a unique title based on input to avoid DB updates instead of additions
             title = f"Mocked Event {hash(str(data_or_text))}"
             return ExtractedEvent(
@@ -67,8 +67,12 @@ async def test_run_scraper_and_ingest_task_success(session, monkeypatch, respx_m
                 event_metadata={}
             )
         
+        async def mock_html_side_effect(text, country_hint=None):
+            ev = await mock_clean_side_effect(text, country_hint)
+            return [ev]
+        
         with patch("app.api.v1.internal.CleansingService.clean_json_ld", side_effect=mock_clean_side_effect):
-            with patch("app.api.v1.internal.CleansingService.clean_html_fallback", side_effect=mock_clean_side_effect):
+            with patch("app.api.v1.internal.CleansingService.clean_html_fallback", side_effect=mock_html_side_effect):
                 # 4. Mock engine to use test session
                 with patch("app.api.v1.internal.engine", session.bind):
                      await run_scraper_and_ingest_task()

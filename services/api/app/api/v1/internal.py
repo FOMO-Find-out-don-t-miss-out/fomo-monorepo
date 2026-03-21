@@ -3,22 +3,49 @@ import asyncio
 import httpx
 import logging
 import sys
-import os
 import traceback
-from typing import List, Dict, Any, Optional
+from typing import List
 from datetime import datetime, timezone
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlmodel import Session, select
 from app.db.session import get_db, engine
 from app.models.event import Event, PendingEvent
-from app.schemas.event import EventIngest, IngestSummary, EventBase
+from app.schemas.event import EventIngest, IngestSummary
 from app.core.config import settings
-from app.utils.datetime_utils import DateTimeHelper
 from app.services.harvester.cleanser import CleansingService, ExtractedEvent
+from app.services.harvester.geocoder import GeocoderService
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+def detect_country_from_url(url: str) -> str:
+    """Detect country code from URL domain."""
+    if not url:
+        return "GR"
+    url_lower = url.lower()
+    if ".gr" in url_lower or "more.com" in url_lower:
+        return "GR"
+    if ".de" in url_lower:
+        return "DE"
+    if ".fr" in url_lower:
+        return "FR"
+    if ".it" in url_lower:
+        return "IT"
+    if ".es" in url_lower:
+        return "ES"
+    if ".nl" in url_lower:
+        return "NL"
+    if ".at" in url_lower:
+        return "AT"
+    if ".be" in url_lower:
+        return "BE"
+    if ".cy" in url_lower:
+        return "CY"
+    if ".co.uk" in url_lower or "uk." in url_lower:
+        return "UK"
+    return "GR"
 
 
 def internal_ingest_logic(db: Session, events: List[ExtractedEvent]) -> IngestSummary:
@@ -27,9 +54,10 @@ def internal_ingest_logic(db: Session, events: List[ExtractedEvent]) -> IngestSu
     updated_count = 0
 
     for event_data in events:
-        # GEOMETRY BUG FIX: Check for None lat/lng
+        print(f">>> INGESTING: {event_data.title} at {event_data.location_name}")
+        
         wkt_point = None
-        if event_data.lat is not None and event_data.lng is not None:
+        if event_data.lat is not None and event_data.lng is not None and event_data.lat != 0.0 and event_data.lng != 0.0:
             wkt_point = f"POINT({event_data.lng} {event_data.lat})"
         
         existing_pending = db.exec(
@@ -43,7 +71,12 @@ def internal_ingest_logic(db: Session, events: List[ExtractedEvent]) -> IngestSu
             existing_pending.end_time = event_data.end_time
             existing_pending.category = event_data.category
             existing_pending.location = wkt_point
+            existing_pending.location_name = event_data.location_name
             existing_pending.ticket_url = event_data.ticket_url
+            existing_pending.country_code = event_data.country_code
+            existing_pending.confidence_score = event_data.confidence_score
+            existing_pending.geocoding_status = event_data.geocoding_status
+            existing_pending.geocoding_metadata = event_data.geocoding_metadata
             # Preserve existing source_url if new one is missing
             if event_data.event_metadata.get("original_link"):
                 existing_pending.source_url = event_data.event_metadata["original_link"]
@@ -55,6 +88,8 @@ def internal_ingest_logic(db: Session, events: List[ExtractedEvent]) -> IngestSu
             new_pending = PendingEvent(
                 title=event_data.title,
                 location=wkt_point,
+                location_name=event_data.location_name,
+                country_code=event_data.country_code,
                 start_time=event_data.start_time,
                 end_time=event_data.end_time,
                 category=event_data.category,
@@ -62,6 +97,9 @@ def internal_ingest_logic(db: Session, events: List[ExtractedEvent]) -> IngestSu
                 ticket_url=event_data.ticket_url,
                 source_url=event_data.event_metadata.get("original_link"),
                 event_metadata=event_data.event_metadata,
+                confidence_score=event_data.confidence_score,
+                geocoding_status=event_data.geocoding_status,
+                geocoding_metadata=event_data.geocoding_metadata,
                 status="pending"
             )
             db.add(new_pending)
@@ -71,9 +109,9 @@ def internal_ingest_logic(db: Session, events: List[ExtractedEvent]) -> IngestSu
     return IngestSummary(added=added_count, updated=updated_count)
 
 
-async def run_scraper_and_ingest_task():
+async def run_scraper_and_ingest_task(default_country: str = "GR"):
     """Background task to run scraper, cleanse data using AI fallbacks, and ingest."""
-    logger.info("Background Task: Starting scraper pipeline")
+    logger.info(f"Background Task: Starting scraper pipeline (default_country={default_country})")
     
     try:
         # 1. Execute Subprocess Scraper
@@ -110,18 +148,23 @@ async def run_scraper_and_ingest_task():
         for item in raw_scraped_data:
             source = item.get("source")
             original_link = item.get("original_link")
+            
+            country_hint = detect_country_from_url(original_link) if original_link else default_country
+            logger.info(f"[SCRAPER] Detected country '{country_hint}' from URL: {original_link}")
 
             try:
                 if source == "json-ld":
-                    extracted = CleansingService.clean_json_ld(item.get("structured_data", {}))
+                    extracted = await CleansingService.clean_json_ld(item.get("structured_data", {}), country_hint)
                     if extracted:
                         extracted.event_metadata["original_link"] = original_link
+                        extracted.country_code = country_hint
                         cleaned_events.append(extracted)
                 elif source == "html-fallback":
                     # AI now returns a LIST of events
-                    extracted_list = await CleansingService.clean_html_fallback(item.get("raw_text", ""))
+                    extracted_list = await CleansingService.clean_html_fallback(item.get("raw_text", ""), country_hint)
                     for extracted in extracted_list:
                         extracted.event_metadata["original_link"] = original_link
+                        extracted.country_code = country_hint
                         cleaned_events.append(extracted)
             except Exception as e:
                 # VALIDATION GUARD: One failure doesn't crash the batch
@@ -154,6 +197,7 @@ async def run_scraper_and_ingest_task():
                                 "db_added": summary.added,
                                 "db_updated": summary.updated
                             },
+                            "default_country": default_country,
                             "timestamp": datetime.now(timezone.utc).isoformat()
                         },
                         timeout=10.0
@@ -213,7 +257,18 @@ async def approve_event(pending_id: UUID, db: Session = Depends(get_db)):
 
 
 @router.post("/run-scraper", status_code=status.HTTP_202_ACCEPTED)
-async def trigger_scraper(background_tasks: BackgroundTasks):
+async def trigger_scraper(background_tasks: BackgroundTasks, default_country: str = "GR"):
     """Triggers the scraper and cleanser pipeline in the background."""
-    background_tasks.add_task(run_scraper_and_ingest_task)
-    return {"message": "Scraper started in background"}
+    background_tasks.add_task(run_scraper_and_ingest_task, default_country)
+    return {"message": "Scraper started in background", "default_country": default_country}
+
+
+@router.post("/batch-geocode", status_code=status.HTTP_202_ACCEPTED)
+async def trigger_batch_geocode(background_tasks: BackgroundTasks, batch_size: int = 50):
+    """Batch geocode all pending_events that need geocoding."""
+    async def _run_batch_geocode():
+        stats = await GeocoderService.batch_geocode_pending_events(batch_size=batch_size)
+        logger.info(f"Batch geocoding completed: {stats}")
+    
+    background_tasks.add_task(_run_batch_geocode)
+    return {"message": "Batch geocoding started in background", "batch_size": batch_size}

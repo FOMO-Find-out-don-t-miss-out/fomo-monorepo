@@ -1,6 +1,9 @@
+import logging
 from fastapi import FastAPI
 from app.api.api import api_router
 from app.core.config import settings
+
+logging.basicConfig(level=logging.INFO, force=True)
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

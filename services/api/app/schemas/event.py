@@ -6,15 +6,20 @@ from pydantic import BaseModel
 
 class EventBase(BaseModel):
     title: str
-    lat: float
-    lng: float
+    lat: Optional[float] = None
+    lng: Optional[float] = None
     start_time: datetime
     end_time: Optional[datetime] = None
-    category: str
+    category: Optional[str] = "Other"
     hype_score: int = 0
     ticket_url: Optional[str] = None
     source_url: Optional[str] = None
+    location_name: Optional[str] = None
+    search_term: Optional[str] = None
     event_metadata: Dict[str, Any] = {}
+    confidence_score: Optional[float] = None
+    geocoding_status: str = "failed"
+    geocoding_metadata: Dict[str, Any] = {}
 
 
 class EventIngest(BaseModel):
