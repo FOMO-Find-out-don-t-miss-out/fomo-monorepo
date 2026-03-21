@@ -12,6 +12,7 @@ import sys
 from unittest.mock import MagicMock
 mock_geo = MagicMock()
 mock_geo.Geography = MockGeography
+mock_geo.WKTElement = lambda x, srid: x
 sys.modules["geoalchemy2"] = mock_geo
 
 import pytest

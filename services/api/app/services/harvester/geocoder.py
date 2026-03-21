@@ -12,162 +12,12 @@ from app.models.event import PendingEvent
 from app.models.venue import Venue
 from app.core.config import settings
 from geoalchemy2 import Geography, WKTElement
+from app.core.geography import COUNTRY_CODE_TO_NAME, COUNTRY_DEFAULTS
 
 logger = logging.getLogger(__name__)
 
-COUNTRY_CODE_TO_NAME = {
-    "GR": "Greece",
-    "DE": "Germany",
-    "FR": "France",
-    "IT": "Italy",
-    "ES": "Spain",
-    "UK": "United Kingdom",
-    "GB": "United Kingdom",
-    "US": "United States",
-    "NL": "Netherlands",
-    "AT": "Austria",
-    "BE": "Belgium",
-    "CY": "Cyprus",
-}
-
-COUNTRY_DEFAULTS = {
-    "GR": {
-        "name": "Greece",
-        "center": {"lat": 37.9838, "lng": 23.7275},
-        "bbox": {"lat_min": 34.0, "lat_max": 42.0, "lng_min": 19.0, "lng_max": 29.0},
-        "city_keywords": ["athens", "athina", "αθήνα", "thessaloniki", "θεσσαλονίκη", "heraklion", "iraklio", "patras", "larissa", "ioannina", "komotini", "xanthi", "alexandroupoli", "volos", "kalamata", "kerkyra", "corfu", "chania", "rhodes", "ρόδος", "trikala", "τρίκαλα", "kavala", "καβάλα", "serres", "σέρρες", "agrinio", "αγρίνιο", "chalkida", "χαλκίδα", "lamia", "λαμία", "kozani", "κοζάνη", "tripoli", "τρίπολη", "gazi", "piraeus", "pireas", "kallithea", "metamorphosis", "metamorfosi"],
-        "city_aliases": {
-            "athens": ["athina", "αθήνα", "athens"],
-            "athina": ["athens", "αθήνα", "athens"],
-            "αθήνα": ["athens", "athina", "αθήνα"],
-            "thessaloniki": ["thessaloniki", "θεσσαλονίκη"],
-            "θεσσαλονίκη": ["thessaloniki", "θεσσαλονίκη"],
-            "heraklion": ["heraklion", "iraklio", "ηράκλειο"],
-            "iraklio": ["heraklion", "iraklio", "ηράκλειο"],
-            "patras": ["patras", "patra", "πάτρα"],
-            "patra": ["patras", "patra", "πάτρα"],
-            "πάτρα": ["patras", "patra", "πάτρα"],
-            "larissa": ["larissa", "λάρισα"],
-            "volos": ["volos", "volos"],
-            "ioannina": ["ioannina", "ioannina"],
-            "kalamata": ["kalamata", "kalamata"],
-            "kerkyra": ["kerkyra", "corfu"],
-            "corfu": ["kerkyra", "corfu"],
-        },
-        "cities": {
-            "athens": {"lat": 37.9838, "lng": 23.7275},
-            "athina": {"lat": 37.9838, "lng": 23.7275},
-            "αθήνα": {"lat": 37.9838, "lng": 23.7275},
-            "thessaloniki": {"lat": 40.6401, "lng": 22.9444},
-            "θεσσαλονίκη": {"lat": 40.6401, "lng": 22.9444},
-            "gazi": {"lat": 37.9619, "lng": 23.6472},
-            "piraeus": {"lat": 37.9423, "lng": 23.6466},
-            "pireas": {"lat": 37.9423, "lng": 23.6466},
-            "kallithea": {"lat": 37.9502, "lng": 23.7022},
-            "metamorphosis": {"lat": 38.0356, "lng": 23.7547},
-            "metamorfosi": {"lat": 38.0356, "lng": 23.7547},
-            "heraklion": {"lat": 35.3387, "lng": 25.1442},
-            "iraklio": {"lat": 35.3387, "lng": 25.1442},
-            "patras": {"lat": 38.2446, "lng": 21.7347},
-            "larissa": {"lat": 39.6390, "lng": 22.4191},
-            "ioannina": {"lat": 39.6650, "lng": 20.8538},
-            "komotini": {"lat": 41.1224, "lng": 25.4134},
-            "xanthi": {"lat": 41.1349, "lng": 24.8889},
-            "alexandroupoli": {"lat": 40.9496, "lng": 25.6724},
-            "volos": {"lat": 39.3619, "lng": 22.9424},
-            "kalamata": {"lat": 37.0367, "lng": 22.1146},
-            "kerkyra": {"lat": 39.6237, "lng": 19.9214},
-            "corfu": {"lat": 39.6237, "lng": 19.9214},
-            "chania": {"lat": 35.5138, "lng": 24.0183},
-            "rhodes": {"lat": 36.4349, "lng": 28.2176},
-            "Ρόδος": {"lat": 36.4349, "lng": 28.2176},
-            "trikala": {"lat": 39.5554, "lng": 21.7685},
-            "τρίκαλα": {"lat": 39.5554, "lng": 21.7685},
-            "kavala": {"lat": 40.9394, "lng": 24.4019},
-            "καβάλα": {"lat": 40.9394, "lng": 24.4019},
-            "serres": {"lat": 41.0855, "lng": 23.5469},
-            "σέρρες": {"lat": 41.0855, "lng": 23.5469},
-            "agrinio": {"lat": 38.6246, "lng": 21.4076},
-            "αγρίνιο": {"lat": 38.6246, "lng": 21.4076},
-            "chalkida": {"lat": 38.4636, "lng": 23.6276},
-            "χαλκίδα": {"lat": 38.4636, "lng": 23.6276},
-            "lamia": {"lat": 38.9000, "lng": 22.4346},
-            "λαμία": {"lat": 38.9000, "lng": 22.4346},
-            "kozani": {"lat": 40.3004, "lng": 21.7890},
-            "κοζάνη": {"lat": 40.3004, "lng": 21.7890},
-            "tripoli": {"lat": 37.5089, "lng": 22.5569},
-            "τρίπολη": {"lat": 37.5089, "lng": 22.5569},
-        },
-    },
-    "DE": {
-        "name": "Germany",
-        "center": {"lat": 52.5200, "lng": 13.4050},
-        "bbox": {"lat_min": 47.0, "lat_max": 55.0, "lng_min": 5.5, "lng_max": 15.5},
-        "city_keywords": ["berlin", "munich", "hamburg", "frankfurt", "köln", "cologne"],
-    },
-    "FR": {
-        "name": "France",
-        "center": {"lat": 48.8566, "lng": 2.3522},
-        "bbox": {"lat_min": 41.0, "lat_max": 51.5, "lng_min": -5.0, "lng_max": 10.0},
-        "city_keywords": ["paris", "lyon", "marseille", "toulouse", "nice"],
-    },
-    "IT": {
-        "name": "Italy",
-        "center": {"lat": 41.9028, "lng": 12.4964},
-        "bbox": {"lat_min": 36.0, "lat_max": 47.0, "lng_min": 6.5, "lng_max": 19.0},
-        "city_keywords": ["rome", "milan", "naples", "napoli", "florence", "firenze", "turin"],
-    },
-    "ES": {
-        "name": "Spain",
-        "center": {"lat": 40.4168, "lng": -3.7038},
-        "bbox": {"lat_min": 36.0, "lat_max": 43.5, "lng_min": -9.5, "lng_max": 4.5},
-        "city_keywords": ["madrid", "barcelona", "valencia", "seville", "bilbao"],
-    },
-    "UK": {
-        "name": "United Kingdom",
-        "center": {"lat": 51.5074, "lng": -0.1278},
-        "bbox": {"lat_min": 49.5, "lat_max": 61.0, "lng_min": -8.5, "lng_max": 2.0},
-        "city_keywords": ["london", "manchester", "birmingham", "leeds", "glasgow", "liverpool"],
-    },
-    "GB": {
-        "name": "United Kingdom",
-        "center": {"lat": 51.5074, "lng": -0.1278},
-        "bbox": {"lat_min": 49.5, "lat_max": 61.0, "lng_min": -8.5, "lng_max": 2.0},
-        "city_keywords": ["london", "manchester", "birmingham", "leeds", "glasgow", "liverpool"],
-    },
-    "US": {
-        "name": "United States",
-        "center": {"lat": 40.7128, "lng": -74.0060},
-        "bbox": {"lat_min": 24.0, "lat_max": 50.0, "lng_min": -125.0, "lng_max": -66.0},
-        "city_keywords": ["new york", "los angeles", "chicago", "houston", "phoenix", "philadelphia"],
-    },
-    "NL": {
-        "name": "Netherlands",
-        "center": {"lat": 52.3676, "lng": 4.9041},
-        "bbox": {"lat_min": 50.5, "lat_max": 53.5, "lng_min": 3.0, "lng_max": 8.0},
-        "city_keywords": ["amsterdam", "rotterdam", "the hague", "utrecht"],
-    },
-    "AT": {
-        "name": "Austria",
-        "center": {"lat": 48.2082, "lng": 16.3738},
-        "bbox": {"lat_min": 46.0, "lat_max": 49.5, "lng_min": 9.5, "lng_max": 17.5},
-        "city_keywords": ["vienna", "wien", "salzburg", "innsbruck", "graz", "linz"],
-    },
-    "BE": {
-        "name": "Belgium",
-        "center": {"lat": 50.8503, "lng": 4.3517},
-        "bbox": {"lat_min": 49.0, "lat_max": 52.0, "lng_min": 2.5, "lng_max": 6.5},
-        "city_keywords": ["brussels", "bruxelles", "antwerp", "ghent", "bruges"],
-    },
-    "CY": {
-        "name": "Cyprus",
-        "center": {"lat": 35.1856, "lng": 33.3823},
-        "bbox": {"lat_min": 34.5, "lat_max": 35.5, "lng_min": 32.0, "lng_max": 34.5},
-        "city_keywords": ["nicosia", "limassol", "larnaca", "paphos", "famagusta"],
-    },
-}
-
 DISTANCE_THRESHOLD_KM = 100
+
 
 
 def _haversine_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
@@ -635,7 +485,7 @@ class GeocoderService:
             city_hint_lower = city_hint.lower().strip()
             alias_set = set(city_aliases.get(city_hint_lower, [city_hint_lower]))
             in_location = any(
-                alias in location_lower or city_hint_lower in alias 
+                alias in location_lower 
                 for alias in alias_set
             )
             if not in_location and city_hint_lower not in seen:
@@ -688,9 +538,19 @@ class GeocoderService:
     def _create_fuzzy_query(cls, location_name: str) -> str:
         """Create a fuzzy query by removing special characters and event suffixes."""
         fuzzy = location_name
-        for suffix in cls.FUZZY_SUFFIXES_TO_REMOVE:
-            if fuzzy.endswith(f" {suffix}") or fuzzy.endswith(f" - {suffix}"):
-                fuzzy = fuzzy[:-(len(suffix) + 3 if fuzzy.endswith(f" - {suffix}") else len(suffix) + 1)].strip()
+        
+        while True:
+            changed = False
+            for suffix in cls.FUZZY_SUFFIXES_TO_REMOVE:
+                if fuzzy.endswith(f" {suffix}"):
+                    fuzzy = fuzzy[:-(len(suffix) + 1)].strip()
+                    changed = True
+                    break
+                elif fuzzy.endswith(f" - {suffix}"):
+                    fuzzy = fuzzy[:-(len(suffix) + 3)].strip()
+                    changed = True
+                    break
+            if not changed:
                 break
         
         fuzzy = re.sub(r"[^\w\s,]", "", fuzzy)
@@ -742,13 +602,15 @@ class GeocoderService:
         Returns dict with counts: {'updated': n, 'failed': n, 'skipped': n}
         """
         stats = {"updated": 0, "failed": 0, "skipped": 0}
+        processed_ids = set()
         
         while True:
             with Session(engine) as session:
                 statement = (
                     select(PendingEvent)
                     .where(PendingEvent.location_name.isnot(None))
-                    .where(PendingEvent.geocoding_status != "verified")
+                    .where(PendingEvent.geocoding_status == "failed") # Initial or failed state
+                    .where(PendingEvent.id.not_in(processed_ids))
                     .limit(batch_size)
                 )
                 pending_events = session.exec(statement).all()
@@ -757,6 +619,7 @@ class GeocoderService:
                 break
             
             for pending in pending_events:
+                processed_ids.add(pending.id)
                 location_name = pending.location_name
                 if not location_name:
                     stats["skipped"] += 1

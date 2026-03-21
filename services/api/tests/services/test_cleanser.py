@@ -78,8 +78,10 @@ async def test_clean_html_fallback_success():
         start_time=datetime(2026, 1, 1, tzinfo=timezone.utc),
         category="Tech"
     )
-    # Mock instructor client structure: _client.chat.completions.create
-    mock_client.chat.completions.create.return_value = [mock_event]
+    # Mock instructor client structure: _client.chat.completions.create returns IterableExtractedEvent
+    mock_response = MagicMock()
+    mock_response.tasks = [mock_event]
+    mock_client.chat.completions.create.return_value = mock_response
     
     with patch("app.services.harvester.cleanser._client", mock_client):
         result = await CleansingService.clean_html_fallback("This is a long enough text to trigger the AI extraction process.")
@@ -105,10 +107,20 @@ async def test_clean_html_fallback_geocoder_fallback():
         lat=None,
         lng=None
     )
-    mock_client.chat.completions.create.return_value = [mock_event]
+    mock_response = MagicMock()
+    mock_response.tasks = [mock_event]
+    mock_client.chat.completions.create.return_value = mock_response
     
     from app.services.harvester.geocoder import GeocodeResult
-    mock_geo = GeocodeResult(lat=5.6, lng=7.8, relevance=1.0, full_address="Club address", country_code="UK")
+    mock_geo = GeocodeResult(
+        lat=5.6, 
+        lng=7.8, 
+        relevance=1.0, 
+        full_address="Club address", 
+        country_code="UK",
+        geocoding_status="verified",
+        geocoding_metadata={"source": "test"}
+    )
     
     with patch("app.services.harvester.cleanser._client", mock_client):
         with patch("app.services.harvester.geocoder.GeocoderService.get_coordinates", return_value=mock_geo):
@@ -132,3 +144,70 @@ async def test_clean_json_ld_geocoder_fallback():
         event = await CleansingService.clean_json_ld(data, country_hint="GR")
         assert event.lat == 1.2
         assert event.lng == 3.4
+
+@pytest.mark.asyncio
+async def test_clean_json_ld_with_coords():
+    data = {
+        "name": "Live Concert",
+        "location": {
+            "name": "Arena",
+            "geo": {"latitude": "37.9", "longitude": "23.7"}
+        }
+    }
+    event = await CleansingService.clean_json_ld(data)
+    assert event.lat == 37.9
+    assert event.lng == 23.7
+    assert event.geocoding_status == "verified"
+
+@pytest.mark.asyncio
+async def test_clean_json_ld_with_address_object():
+    data = {
+        "name": "Address Test",
+        "location": {
+            "name": "Venue",
+            "address": {
+                "addressLocality": "Athens",
+                "streetAddress": "Main St 1"
+            }
+        }
+    }
+    from app.services.harvester.geocoder import GeocodeResult
+    mock_geo = GeocodeResult(lat=1.2, lng=3.4, relevance=1.0, full_address="Addr", country_code="GR")
+    
+    with patch("app.services.harvester.geocoder.GeocoderService.get_coordinates", return_value=mock_geo):
+        event = await CleansingService.clean_json_ld(data)
+        assert event.lat == 1.2
+
+@pytest.mark.asyncio
+async def test_clean_json_ld_location_string():
+    data = {
+        "name": "String Loc",
+        "location": "Athens Club"
+    }
+    from app.services.harvester.geocoder import GeocodeResult
+    mock_geo = GeocodeResult(lat=1.2, lng=3.4, relevance=1.0, full_address="Addr", country_code="GR")
+    with patch("app.services.harvester.geocoder.GeocoderService.get_coordinates", return_value=mock_geo):
+        event = await CleansingService.clean_json_ld(data)
+        assert event.location_name == "Athens Club"
+
+@pytest.mark.asyncio
+async def test_clean_json_ld_invalid_coords():
+    data = {
+        "name": "Invalid Coords",
+        "location": {
+            "name": "Arena",
+            "geo": {"latitude": "invalid", "longitude": "none"}
+        }
+    }
+    with patch("app.services.harvester.geocoder.GeocoderService.get_coordinates", return_value=None):
+        event = await CleansingService.clean_json_ld(data)
+        assert event is not None
+        assert event.lat is None
+        assert event.lng is None
+
+@pytest.mark.asyncio
+async def test_clean_json_ld_exception_in_try():
+    # Trigger exception by passing something that causes attribute error or similar in the logic
+    # e.g. data as None or something that fails get_val
+    event = await CleansingService.clean_json_ld(None)
+    assert event is None
