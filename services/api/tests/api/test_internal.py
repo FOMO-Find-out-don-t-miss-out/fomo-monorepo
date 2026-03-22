@@ -275,7 +275,7 @@ async def test_run_scraper_and_ingest_task(session: Session):
     mock_process.returncode = 0
     scraped_data = [
         {
-            "source": "json-ld",
+            "source": "schema_org",
             "original_link": "https://example.gr/event1",
             "structured_data": {"name": "Test Event"}
         }
@@ -318,7 +318,7 @@ async def test_run_scraper_and_ingest_task_html_fallback(session: Session):
     mock_process.returncode = 0
     scraped_data = [
         {
-            "source": "html-fallback",
+            "source": "llm_fallback",
             "original_link": "https://ticketmaster.de/event/2",
             "raw_text": "Some HTML text"
         }
@@ -362,7 +362,7 @@ async def test_run_scraper_and_ingest_task_db_error(session: Session):
     
     mock_process = AsyncMock()
     mock_process.returncode = 0
-    scraped_data = [{"source": "json-ld", "original_link": "http://test.gr", "structured_data": {"name": "Test"}}]
+    scraped_data = [{"source": "schema_org", "original_link": "http://test.gr", "structured_data": {"name": "Test"}}]
     mock_process.communicate.return_value = (json.dumps(scraped_data).encode(), b"")
     
     extracted = ExtractedEvent(title="Test", start_time=datetime.now(timezone.utc), location_name="V", category="O")
@@ -372,3 +372,63 @@ async def test_run_scraper_and_ingest_task_db_error(session: Session):
             with patch("app.api.v1.internal.internal_ingest_logic", side_effect=Exception("DB FAIL")):
                 # This should hit the logger.error in the ingestion block
                 await run_scraper_and_ingest_task()
+
+@pytest.mark.asyncio
+async def test_internal_ingest_logic_junk_filters(session: Session):
+    from app.api.v1.internal import internal_ingest_logic
+    from app.services.harvester.cleanser import ExtractedEvent
+    
+    events = [
+        ExtractedEvent(title="Junk", category="Junk", start_time=datetime.now(timezone.utc)),
+        ExtractedEvent(title="Προσφορές tickets", category="Other", start_time=datetime.now(timezone.utc)) # noisy title
+    ]
+    
+    summary = internal_ingest_logic(session, events)
+    assert summary.added == 0
+
+@pytest.mark.asyncio
+async def test_internal_ingest_logic_venue_match(session: Session):
+    from app.api.v1.internal import internal_ingest_logic
+    from app.services.harvester.cleanser import ExtractedEvent
+    from app.models.venue import Venue
+    
+    # Pre-add venue
+    venue = Venue(name="MatchMe", country_code="GR", lat=10.0, lng=20.0, full_address="A", relevance=1.0)
+    session.add(venue)
+    session.commit()
+    
+    events = [
+        ExtractedEvent(title="Event", location_name="MatchMe", start_time=datetime.now(timezone.utc), category="Music")
+    ]
+    
+    summary = internal_ingest_logic(session, events)
+    assert summary.added == 1
+    
+    pending = session.exec(select(PendingEvent).where(PendingEvent.title == "Event")).first()
+    assert pending.location_name == "MatchMe"
+    assert pending.geocoding_status == "verified"
+
+@pytest.mark.asyncio
+async def test_internal_ingest_logic_auto_approve(session: Session):
+    from app.api.v1.internal import internal_ingest_logic
+    from app.services.harvester.cleanser import ExtractedEvent
+    
+    # Needs to be schema_org + verified + high confidence + future date
+    future_date = datetime.now(timezone.utc).replace(year=datetime.now(timezone.utc).year + 1)
+    events = [
+        ExtractedEvent(
+            title="Auto Event", 
+            start_time=future_date, 
+            category="Music",
+            source="schema_org",
+            geocoding_status="verified",
+            confidence_score=0.95,
+            lat=1.0, lng=1.0
+        )
+    ]
+    
+    summary = internal_ingest_logic(session, events)
+    assert summary.added == 1
+    
+    pending = session.exec(select(PendingEvent).where(PendingEvent.title == "Auto Event")).first()
+    assert pending.status == "published"

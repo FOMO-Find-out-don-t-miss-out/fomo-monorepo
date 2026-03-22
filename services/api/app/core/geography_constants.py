@@ -2,6 +2,29 @@
 Static geography data, configurations, and geofences for accurate geocoding.
 """
 
+from typing import Dict, Any, List, Optional
+from pydantic import BaseModel, Field
+
+class CountryConfig(BaseModel):
+    code: str
+    name: str
+    default_city: str
+    center: Dict[str, float]
+    bbox: Dict[str, float]
+    city_keywords: List[str]
+    city_aliases: Dict[str, List[str]] = Field(default_factory=dict)
+    cities: Dict[str, Dict[str, float]] = Field(default_factory=dict)
+    char_map: Optional[Dict[str, str]] = None
+
+DEFAULT_COUNTRY_CODE = "GR"
+
+GREEK_CHAR_MAP = {
+    'α': 'a', 'β': 'b', 'γ': 'g', 'δ': 'd', 'ε': 'e', 'ζ': 'z', 'η': 'i', 'θ': 'th',
+    'ι': 'i', 'κ': 'k', 'λ': 'l', 'μ': 'm', 'ν': 'n', 'ξ': 'x', 'ο': 'o', 'π': 'p',
+    'ρ': 'r', 'σ': 's', 'ς': 's', 'τ': 't', 'υ': 'y', 'φ': 'f', 'χ': 'ch', 'ψ': 'ps', 'ω': 'o',
+    'ά': 'a', 'έ': 'e', 'ή': 'i', 'ί': 'i', 'ό': 'o', 'ύ': 'y', 'ώ': 'o', 'ϊ': 'i', 'ϋ': 'y', 'ΐ': 'i', 'ΰ': 'y'
+}
+
 COUNTRY_CODE_TO_NAME = {
     "GR": "Greece",
     "DE": "Germany",
@@ -17,9 +40,24 @@ COUNTRY_CODE_TO_NAME = {
     "CY": "Cyprus",
 }
 
+def get_country_config(country_code: str) -> CountryConfig:
+    """Returns a CountryConfig object for the given country code."""
+    code = country_code.upper()
+    data = COUNTRY_DEFAULTS.get(code, COUNTRY_DEFAULTS.get(DEFAULT_COUNTRY_CODE))
+    
+    # Inject char_map for Greece
+    char_map = GREEK_CHAR_MAP if code == "GR" else None
+    
+    return CountryConfig(
+        code=code,
+        char_map=char_map,
+        **data
+    )
+
 COUNTRY_DEFAULTS = {
     "GR": {
         "name": "Greece",
+        "default_city": "Athens",
         "center": {"lat": 37.9838, "lng": 23.7275},
         "bbox": {"lat_min": 34.0, "lat_max": 42.0, "lng_min": 19.0, "lng_max": 29.0},
         "city_keywords": ["athens", "athina", "αθήνα", "thessaloniki", "θεσσαλονίκη", "heraklion", "iraklio", "patras", "larissa", "ioannina", "komotini", "xanthi", "alexandroupoli", "volos", "kalamata", "kerkyra", "corfu", "chania", "rhodes", "ρόδος", "trikala", "τρίκαλα", "kavala", "καβάλα", "serres", "σέρρες", "agrinio", "αγρίνιο", "chalkida", "χαλκίδα", "lamia", "λαμία", "kozani", "κοζάνη", "tripoli", "τρίπολη", "gazi", "piraeus", "pireas", "kallithea", "metamorphosis", "metamorfosi"],
@@ -88,66 +126,77 @@ COUNTRY_DEFAULTS = {
     },
     "DE": {
         "name": "Germany",
+        "default_city": "Berlin",
         "center": {"lat": 52.5200, "lng": 13.4050},
         "bbox": {"lat_min": 47.0, "lat_max": 55.0, "lng_min": 5.5, "lng_max": 15.5},
         "city_keywords": ["berlin", "munich", "hamburg", "frankfurt", "köln", "cologne"],
     },
     "FR": {
         "name": "France",
+        "default_city": "Paris",
         "center": {"lat": 48.8566, "lng": 2.3522},
         "bbox": {"lat_min": 41.0, "lat_max": 51.5, "lng_min": -5.0, "lng_max": 10.0},
         "city_keywords": ["paris", "lyon", "marseille", "toulouse", "nice"],
     },
     "IT": {
         "name": "Italy",
+        "default_city": "Rome",
         "center": {"lat": 41.9028, "lng": 12.4964},
         "bbox": {"lat_min": 36.0, "lat_max": 47.0, "lng_min": 6.5, "lng_max": 19.0},
         "city_keywords": ["rome", "milan", "naples", "napoli", "florence", "firenze", "turin"],
     },
     "ES": {
         "name": "Spain",
+        "default_city": "Madrid",
         "center": {"lat": 40.4168, "lng": -3.7038},
         "bbox": {"lat_min": 36.0, "lat_max": 43.5, "lng_min": -9.5, "lng_max": 4.5},
         "city_keywords": ["madrid", "barcelona", "valencia", "seville", "bilbao"],
     },
     "UK": {
         "name": "United Kingdom",
+        "default_city": "London",
         "center": {"lat": 51.5074, "lng": -0.1278},
         "bbox": {"lat_min": 49.5, "lat_max": 61.0, "lng_min": -8.5, "lng_max": 2.0},
         "city_keywords": ["london", "manchester", "birmingham", "leeds", "glasgow", "liverpool"],
     },
     "GB": {
         "name": "United Kingdom",
+        "default_city": "London",
         "center": {"lat": 51.5074, "lng": -0.1278},
         "bbox": {"lat_min": 49.5, "lat_max": 61.0, "lng_min": -8.5, "lng_max": 2.0},
         "city_keywords": ["london", "manchester", "birmingham", "leeds", "glasgow", "liverpool"],
     },
     "US": {
         "name": "United States",
+        "default_city": "New York",
         "center": {"lat": 40.7128, "lng": -74.0060},
         "bbox": {"lat_min": 24.0, "lat_max": 50.0, "lng_min": -125.0, "lng_max": -66.0},
         "city_keywords": ["new york", "los angeles", "chicago", "houston", "phoenix", "philadelphia"],
     },
     "NL": {
         "name": "Netherlands",
+        "default_city": "Amsterdam",
         "center": {"lat": 52.3676, "lng": 4.9041},
         "bbox": {"lat_min": 50.5, "lat_max": 53.5, "lng_min": 3.0, "lng_max": 8.0},
         "city_keywords": ["amsterdam", "rotterdam", "the hague", "utrecht"],
     },
     "AT": {
         "name": "Austria",
+        "default_city": "Vienna",
         "center": {"lat": 48.2082, "lng": 16.3738},
         "bbox": {"lat_min": 46.0, "lat_max": 49.5, "lng_min": 9.5, "lng_max": 17.5},
         "city_keywords": ["vienna", "wien", "salzburg", "innsbruck", "graz", "linz"],
     },
     "BE": {
         "name": "Belgium",
+        "default_city": "Brussels",
         "center": {"lat": 50.8503, "lng": 4.3517},
         "bbox": {"lat_min": 49.0, "lat_max": 52.0, "lng_min": 2.5, "lng_max": 6.5},
         "city_keywords": ["brussels", "bruxelles", "antwerp", "ghent", "bruges"],
     },
     "CY": {
         "name": "Cyprus",
+        "default_city": "Nicosia",
         "center": {"lat": 35.1856, "lng": 33.3823},
         "bbox": {"lat_min": 34.5, "lat_max": 35.5, "lng_min": 32.0, "lng_max": 34.5},
         "city_keywords": ["nicosia", "limassol", "larnaca", "paphos", "famagusta"],

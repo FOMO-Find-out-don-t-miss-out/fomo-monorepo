@@ -16,7 +16,7 @@ async def test_run_scraper_and_ingest_task_success(session, monkeypatch, respx_m
     # 1. Mock subprocess
     mock_stdout = json.dumps([
         {
-            "source": "json-ld",
+            "source": "schema_org",
             "original_link": "http://example.com/event",
             "structured_data": {
                 "name": "Scraped Event",
@@ -28,7 +28,7 @@ async def test_run_scraper_and_ingest_task_success(session, monkeypatch, respx_m
             }
         },
         {
-            "source": "json-ld",
+            "source": "schema_org",
             "original_link": "http://example.com/event-list",
             "structured_data": {
                 "name": ["Event List Name"], # Test list handling
@@ -39,7 +39,7 @@ async def test_run_scraper_and_ingest_task_success(session, monkeypatch, respx_m
             }
         },
         {
-            "source": "html-fallback",
+            "source": "llm_fallback",
             "original_link": "http://example.com/fallback",
             "raw_text": "Fallback content"
         }
@@ -131,7 +131,7 @@ async def test_run_scraper_and_ingest_task_db_fail(session, monkeypatch):
     """Test ingestion failure at database level."""
     mock_stdout = json.dumps([
         {
-            "source": "json-ld",
+            "source": "schema_org",
             "original_link": "http://example.com/event",
             "structured_data": {"name": "DB Fail Event"}
         }

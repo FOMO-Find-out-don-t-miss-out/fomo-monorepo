@@ -15,6 +15,7 @@ class Venue(SQLModel, table=True):
     lng: float
     full_address: str
     relevance: float
+    is_manually_verified: bool = Field(default=False)
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc)
     )

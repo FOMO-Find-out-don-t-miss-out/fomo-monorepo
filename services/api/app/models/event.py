@@ -1,4 +1,4 @@
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from uuid import UUID, uuid4
 from datetime import datetime, timezone
 from sqlmodel import SQLModel, Field, Column, JSON, UniqueConstraint
@@ -13,6 +13,7 @@ class EventBase(SQLModel):
     end_time: Optional[datetime] = None
     hype_score: int = Field(default=0, index=True)
     category: str = Field(default="Other", index=True)
+    sub_category: Optional[str] = Field(default=None, index=True)
     ticket_url: Optional[str] = None
     source_url: Optional[str] = None
     location_name: Optional[str] = Field(default=None, index=True)
@@ -27,6 +28,7 @@ class Event(EventBase, table=True):
     # Redefine columns using sa_column in child classes to avoid Column sharing errors
     location: Any = Field(sa_column=Column(Geography(geometry_type='POINT', srid=4326)))
     event_metadata: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    tags: List[str] = Field(default_factory=list, sa_column=Column(JSON))
 
     __table_args__ = (
         UniqueConstraint("title", "start_time", name="unique_event_occurrence"),
@@ -40,6 +42,7 @@ class PendingEvent(EventBase, table=True):
     # Redefine columns using sa_column in child classes to avoid Column sharing errors
     location: Any = Field(sa_column=Column(Geography(geometry_type='POINT', srid=4326)))
     event_metadata: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    tags: List[str] = Field(default_factory=list, sa_column=Column(JSON))
     
     status: str = Field(default="pending", index=True)
     raw_content: Optional[str] = None

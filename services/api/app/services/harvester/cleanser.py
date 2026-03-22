@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 
 from app.core.config import settings
 from app.utils.datetime_utils import DateTimeHelper
+from app.core.geography_constants import DEFAULT_COUNTRY_CODE
 from app.services.harvester.geocoder import GeocoderService
 
 logger = logging.getLogger(__name__)
@@ -27,10 +28,13 @@ class ExtractedEvent(BaseModel):
         description="The end date and time of the event"
     )
     location_name: Optional[str] = Field(default=None, description="The name of the venue or location")
-    search_term: Optional[str] = Field(default=None, description="Enriched search term for geocoding (use if location_name is short or ambiguous)")
+    street_address: Optional[str] = Field(default=None, description="The specific street address or road if available")
+    search_term: Optional[str] = Field(default=None, description="Enriched search term for geocoding")
     lat: Optional[float] = Field(default=None, description="Latitude of the event")
     lng: Optional[float] = Field(default=None, description="Longitude of the event")
     category: str = Field(default="Other", description="Event category (e.g., Music, Art, Tech)")
+    sub_category: Optional[str] = Field(default=None, description="Specific sub-category or local genre (e.g., Rebetiko, Techno, Jazz)")
+    tags: List[str] = Field(default_factory=list, description="Standardized list of genre or vibe tags")
     hype_score: int = Field(default=0, description="Hype score of the event")
     ticket_url: Optional[str] = Field(default=None, description="URL to purchase tickets")
     description: Optional[str] = Field(default=None, description="Short summary or description of the event")
@@ -39,6 +43,7 @@ class ExtractedEvent(BaseModel):
     geocoding_status: str = Field(default="failed", description="Geocoding status: verified, ambiguous, or failed")
     geocoding_metadata: Dict[str, Any] = Field(default_factory=dict, description="Geocoding metadata")
     country_code: Optional[str] = Field(default=None, description="ISO country code (e.g., GR, DE, FR)")
+    source: str = Field(default="unknown", description="The source system/strategy that provided this event")
 
     @field_validator("start_time", mode="before")
     @classmethod
@@ -122,12 +127,14 @@ class CleansingService:
                 
                 address_data = location.get("address")
                 address_parts = []
+                street_address = None
                 if isinstance(address_data, dict):
                     city_hint = address_data.get("addressLocality")
-                    street = address_data.get("streetAddress")
-                    if street: address_parts.append(str(street))
+                    street_address = address_data.get("streetAddress")
+                    if street_address: address_parts.append(str(street_address))
                     if city_hint: address_parts.append(str(city_hint))
                 elif isinstance(address_data, str):
+                    street_address = address_data
                     address_parts.append(address_data)
                 
                 search_term = None
@@ -137,9 +144,10 @@ class CleansingService:
                         search_term += f", {', '.join(address_parts)}"
             elif isinstance(location, str):
                 location_name = location
+                street_address = location
                 search_term = location
             
-            logger.info(f"[CLEANSER] JSON-LD Scraper Output: location_name='{location_name}' | city_hint='{city_hint}' | search_term='{search_term}' | lat={lat} | lng={lng}")
+            logger.info(f"[CLEANSER] JSON-LD Scraper Output: location_name='{location_name}' | address='{street_address}' | city_hint='{city_hint}'")
 
             confidence_score = None
             geocoding_status = "failed"
@@ -148,9 +156,10 @@ class CleansingService:
             if (lat is None or lng is None) and location_name:
                 geo_res = await GeocoderService.get_coordinates(
                     location_name, 
-                    country_hint or "GR",
+                    country_hint or DEFAULT_COUNTRY_CODE,
                     city_hint=city_hint,
-                    search_term=search_term
+                    search_term=search_term,
+                    source_address=street_address
                 )
                 if geo_res:
                     lat, lng = geo_res.lat, geo_res.lng
@@ -167,6 +176,7 @@ class CleansingService:
                 start_time=data.get("startDate"), 
                 end_time=data.get("endDate"),     
                 location_name=location_name,
+                street_address=street_address,
                 lat=lat,
                 lng=lng,
                 category="Music" if "MusicEvent" in str(data.get("@type")) else "Other",
@@ -210,6 +220,13 @@ class CleansingService:
         if len(cleaned_text) < 50: 
             return []
 
+        # Taxonomy for consistent classification
+        global_tags = [
+            "Rock", "Techno", "House", "Jazz", "Classical", "Hip-Hop", "R&B", 
+            "Electronic", "Pop", "Indie", "Metal", "Folk", "Reggae", "Blues",
+            "Family-Friendly", "Festival", "Outdoor", "Clubbing", "Workshop", "Conference"
+        ]
+
         try:
             response = _client.chat.completions.create(
                 messages=[
@@ -217,9 +234,14 @@ class CleansingService:
                         "role": "user", 
                         "content": f"""Extract all event details from the following text. Return a JSON list of events. Context country: {country_hint or 'Global'}.
 
+Strict Junk Detection: If the text is a generic offer page, a list of events, or a promotional banner, return an empty list or mark the event as category="Junk". We only want specific, single events. Exclude noise like 'cookies', 'newsletter', or 'related events'.
+
 For each event, also provide:
 - search_term: A more descriptive search term for geocoding if location_name is short (under 10 chars) or ambiguous (e.g., 'Floyd Live Music Venue' for 'Floyd')
 - city_hint: The city/neighborhood from event_metadata if available
+- street_address: The specific street name and number (e.g., 'Iera Odos 345')
+- sub_category: Identify the specific genre or vibe (e.g., Rebetiko, Psytrance, Tech-House). Be extra specific with local sub-genres.
+- tags: Select 2-5 applicable tags/genres (e.g., ["Indie-Pop", "Synth", "Live", "Tour"]). Baseline tags: {', '.join(global_tags)}.
 
 Text: {cleaned_text}"""
                     }
@@ -233,19 +255,24 @@ Text: {cleaned_text}"""
             # Post-process with Geocoder if needed
             for ev in events:
                 city_hint = ev.event_metadata.get("city") if ev.event_metadata else None
-                logger.info(f"[CLEANSER] AI Extraction: location_name='{ev.location_name}' | search_term='{ev.search_term}' | city_hint='{city_hint}' for event: '{ev.title}'")
+                logger.info(f"[CLEANSER] AI Extraction: location_name='{ev.location_name}' | address='{ev.street_address}' | city_hint='{city_hint}'")
                 if (ev.lat is None or ev.lng is None) and ev.location_name:
-                    geo_res = await GeocoderService.get_coordinates(
-                        ev.location_name, 
-                        country_hint or "GR",
-                        city_hint=city_hint,
-                        search_term=ev.search_term
-                    )
-                    if geo_res:
-                        ev.lat, ev.lng = geo_res.lat, geo_res.lng
-                        ev.confidence_score = geo_res.relevance
-                        ev.geocoding_status = geo_res.geocoding_status
-                        ev.geocoding_metadata = geo_res.geocoding_metadata
+                    try:
+                        geo_res = await GeocoderService.get_coordinates(
+                            ev.location_name, 
+                            country_hint or DEFAULT_COUNTRY_CODE,
+                            city_hint=city_hint,
+                            search_term=ev.search_term,
+                            source_address=ev.street_address
+                        )
+                        if geo_res:
+                            ev.lat, ev.lng = geo_res.lat, geo_res.lng
+                            ev.confidence_score = geo_res.relevance
+                            ev.geocoding_status = geo_res.geocoding_status
+                            ev.geocoding_metadata = geo_res.geocoding_metadata
+                    except Exception as geo_err:
+                        logger.error(f"[CLEANSER] Geocoding failed for '{ev.location_name}': {geo_err}")
+                        ev.geocoding_status = "failed"
                 elif ev.lat is not None and ev.lng is not None:
                     ev.geocoding_status = "verified"
                     ev.confidence_score = 1.0

@@ -1,0 +1,12 @@
+{
+    "more.com": {
+        "country_code": "GR",
+        "selectors": {
+            "title": "h1",
+            "description": ".event-description",
+            "location": ".venue-name",
+            "start_time": "time[itemprop='startDate']",
+            "end_time": "time[itemprop='endDate']"
+        }
+    }
+}

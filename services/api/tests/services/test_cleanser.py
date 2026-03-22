@@ -49,6 +49,17 @@ async def test_clean_json_ld_exception(monkeypatch):
         event = await CleansingService.clean_json_ld(data)
         assert event is None
 
+@pytest.mark.asyncio
+async def test_clean_json_ld_geocoding_fail():
+    data = {
+        "name": "Unknown Venue",
+        "location": {"name": "Unknown Venue"}
+    }
+    with patch("app.services.harvester.geocoder.GeocoderService.get_coordinates", return_value=None):
+        result = await CleansingService.clean_json_ld(data)
+        assert result is not None
+        assert result.geocoding_status == "failed"
+
 def test_strip_html_noise():
     html = "<html><script>alert(1)</script><body><h1>Hello</h1><p>World</p></body></html>"
     cleaned = CleansingService._strip_html_noise(html)
