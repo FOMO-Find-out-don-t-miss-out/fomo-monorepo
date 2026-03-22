@@ -106,8 +106,19 @@ class GeocodingPolicy:
         if source_address and result_address:
             s_norm = normalize_string(source_address, config.char_map)
             r_norm = normalize_string(result_address, config.char_map)
-            # Increased threshold from 0.4 to 0.6
-            if difflib.SequenceMatcher(None, s_norm, r_norm).ratio() < 0.6 and relevance < 0.95:
+            
+            # Use both SequenceMatcher and token-based intersection
+            ratio = difflib.SequenceMatcher(None, s_norm, r_norm).ratio()
+            
+            s_tokens = set(s_norm.split())
+            r_tokens = set(r_norm.split())
+            intersection = s_tokens.intersection(r_tokens)
+            token_ratio = len(intersection) / max(len(s_tokens), 1)
+
+            # If token match is very high (subset/superset), or overall ratio is decent
+            is_address_match = (ratio >= 0.6) or (token_ratio >= 0.7) or (s_norm in r_norm) or (r_norm in s_norm)
+            
+            if not is_address_match and relevance < 0.95:
                 return "ambiguous"
 
         # 3. Validation Rules
@@ -138,14 +149,15 @@ class GeocodingPolicy:
         if feature_type == "address":
             return "verified" if relevance >= 0.85 else "ambiguous"
 
-        venue_indicators = ["club", "stage", "theater", "theatre", "stadium", "arena", "venue", "live"]
+        venue_indicators = ["club", "stage", "theater", "theatre", "stadium", "arena", "venue", "live", "megaro", "μέγαρο", "garden", "κήπος", "square", "πλατεία"]
         is_potential_venue = any(ind in query.lower() for ind in venue_indicators)
 
         if feature_type == "street":
             # If query looks like a venue name, a street match is weak unless it's very similar
             if is_potential_venue:
                 return "verified" if name_similarity >= 0.8 else "failed"
-            return "verified" if relevance >= 0.9 else "failed"
+            # Even for non-venues, a street match should have high name similarity if relevance is not perfect
+            return "verified" if (relevance >= 0.9 and name_similarity >= 0.8) else "failed"
 
         if feature_type in ["place", "locality"]:
             if is_potential_venue or relevance < 0.85: return "failed"
@@ -268,19 +280,22 @@ class GeocoderService:
             geocoding_metadata={"source": "mapbox", "feature_type": best_feat.properties.get("feature_type")}
         )
 
-        if status == "verified":
-            with Session(engine) as session:
-                VenueRepository(session).save_venue(
-                    original, config.code, res.lat, res.lng, res.full_address, res.relevance, res.city
-                )
+        if status in ["verified", "ambiguous"]:
+            # Only save ambiguous if it has some decent relevance
+            if status == "verified" or res.relevance >= 0.6:
+                with Session(engine) as session:
+                    VenueRepository(session).save_venue(
+                        original, config.code, res.lat, res.lng, res.full_address, res.relevance, res.city
+                    )
         
         return res
 
     @staticmethod
     def _extract_city(query: str, config: CountryConfig) -> Optional[str]:
-        query_lower = query.lower()
+        # Use normalization to match Greek city names/inflections correctly
+        query_norm = normalize_string(query, config.char_map)
         for kw in config.city_keywords:
-            if kw.lower() in query_lower:
+            if kw.lower() in query_norm:
                 for city in config.cities:
                     if kw.lower() == city.lower(): return city
         return None
@@ -309,7 +324,23 @@ class GeocoderService:
                     stats["skipped"] += 1
                     continue
 
-                res = await cls.get_coordinates(ev.location_name, DEFAULT_COUNTRY_CODE)
+                # Extract context from metadata
+                meta = ev.event_metadata or {}
+                addr = meta.get("address") or meta.get("street_address")
+                city = meta.get("city") or meta.get("addressLocality")
+                
+                # Check for explicit address data from location field if metadata is string
+                loc = meta.get("location")
+                if isinstance(loc, dict):
+                    addr = addr or loc.get("address", {}).get("streetAddress")
+                    city = city or loc.get("address", {}).get("addressLocality")
+
+                res = await cls.get_coordinates(
+                    ev.location_name, 
+                    DEFAULT_COUNTRY_CODE, 
+                    city_hint=city, 
+                    source_address=addr
+                )
                 with Session(engine) as session:
                     db_ev = session.get(PendingEvent, ev.id)
                     if db_ev and res and res.lat:

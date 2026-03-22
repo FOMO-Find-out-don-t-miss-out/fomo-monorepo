@@ -171,6 +171,16 @@ class CleansingService:
                 confidence_score = 1.0
                 geocoding_metadata = {"source": "provided", "query": location_name}
 
+            # Extract image from schema
+            photo_url = None
+            image_data = data.get("image")
+            if isinstance(image_data, str):
+                photo_url = image_data
+            elif isinstance(image_data, list) and len(image_data) > 0:
+                photo_url = image_data[0] if isinstance(image_data[0], str) else image_data[0].get("url")
+            elif isinstance(image_data, dict):
+                photo_url = image_data.get("url")
+
             return ExtractedEvent(
                 title=str(title),
                 start_time=data.get("startDate"), 
@@ -182,7 +192,7 @@ class CleansingService:
                 category="Music" if "MusicEvent" in str(data.get("@type")) else "Other",
                 ticket_url=get_val("url"),
                 description=get_val("description"),
-                event_metadata=data,
+                event_metadata={**data, "image": photo_url} if photo_url else data,
                 confidence_score=confidence_score,
                 geocoding_status=geocoding_status,
                 geocoding_metadata=geocoding_metadata

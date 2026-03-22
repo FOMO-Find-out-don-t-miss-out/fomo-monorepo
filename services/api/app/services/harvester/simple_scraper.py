@@ -31,6 +31,7 @@ class ScrapedEvent(BaseModel):
     location_name: Optional[str] = None
     start_time: Optional[str] = None
     end_time: Optional[str] = None
+    photo_url: Optional[str] = None
     original_link: str
     country_code: str
     source: str
@@ -51,8 +52,19 @@ class SchemaOrgExtractor(BaseExtractor):
                 items = data if isinstance(data, list) else [data]
                 for item in items:
                     if item.get("@type") == "Event" or "Event" in str(item.get("@type", "")):
+                        # Extract image from schema
+                        photo_url = None
+                        image_data = item.get("image")
+                        if isinstance(image_data, str):
+                            photo_url = image_data
+                        elif isinstance(image_data, list) and len(image_data) > 0:
+                            photo_url = image_data[0] if isinstance(image_data[0], str) else image_data[0].get("url")
+                        elif isinstance(image_data, dict):
+                            photo_url = image_data.get("url")
+
                         return {
                             "structured_data": item,
+                            "photo_url": photo_url,
                             "source": "schema_org"
                         }
             except (json.JSONDecodeError, TypeError):
@@ -77,6 +89,8 @@ class RegistryExtractor(BaseExtractor):
             if element:
                 if element.name == "time" and element.has_attr("datetime"):
                     extracted[field] = element["datetime"]
+                elif element.name == "img" and element.has_attr("src"):
+                    extracted[field] = element["src"]
                 else:
                     extracted[field] = element.get_text(strip=True)
 
@@ -130,6 +144,15 @@ class ScraperEngine:
                 soup = BeautifulSoup(response.text, 'html.parser')
                 country_code = self._get_country_code(url)
 
+                # Meta Tag Fallback for Image
+                meta_image = None
+                og_image = soup.find("meta", property="og:image") or soup.find("meta", attrs={"name": "og:image"})
+                twitter_image = soup.find("meta", name="twitter:image")
+                if og_image:
+                    meta_image = og_image.get("content")
+                elif twitter_image:
+                    meta_image = twitter_image.get("content")
+
                 # Strategy 1: Registry (Site-specific rules)
                 registry_data = await self.registry_extractor.extract(soup, url)
                 if registry_data:
@@ -140,6 +163,7 @@ class ScraperEngine:
                         location_name=fields.get("location"),
                         start_time=fields.get("start_time"),
                         end_time=fields.get("end_time"),
+                        photo_url=fields.get("image") or meta_image,
                         original_link=url,
                         country_code=country_code,
                         source="registry"
@@ -155,6 +179,7 @@ class ScraperEngine:
                         location_name=sd.get("location", {}).get("name") if isinstance(sd.get("location"), dict) else sd.get("location"),
                         start_time=sd.get("startDate"),
                         end_time=sd.get("endDate"),
+                        photo_url=schema_data.get("photo_url") or meta_image,
                         original_link=url,
                         country_code=country_code,
                         source="schema_org",
@@ -170,6 +195,7 @@ class ScraperEngine:
                 raw_text = re.sub(r'\s+', ' ', main_content.get_text(separator=' ', strip=True)).strip()
                 
                 return ScrapedEvent(
+                    photo_url=meta_image,
                     original_link=url,
                     country_code=country_code,
                     source="llm_fallback",

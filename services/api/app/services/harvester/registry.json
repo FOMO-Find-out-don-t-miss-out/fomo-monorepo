@@ -5,6 +5,7 @@
             "title": "h1",
             "description": ".event-description",
             "location": ".venue-name",
+            "image": "img.event-image, .event-header img",
             "start_time": "time[itemprop='startDate']",
             "end_time": "time[itemprop='endDate']"
         }
