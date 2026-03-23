@@ -23,6 +23,7 @@ FOMO is a highly scalable platform that aggregates event data through automated 
 ```text
 .
 ├── apps/mobile            # Expo/React Native mobile application
+├── apps/harvester-dashboard # Next.js moderation dashboard (React)
 ├── infra/                 # Docker, database initialization, and config
 ├── services/api           # FastAPI backend (Core service)
 │   ├── app/
@@ -57,6 +58,7 @@ FOMO is a highly scalable platform that aggregates event data through automated 
    ```
 
 ### Access Points
+- **Dashboard**: [http://localhost:3000](http://localhost:3000)
 - **API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
 - **Health Check**: [http://localhost:8000/api/v1/health](http://localhost:8000/api/v1/health)
 - **n8n**: [http://localhost:5678](http://localhost:5678)
@@ -76,7 +78,11 @@ FOMO is a highly scalable platform that aggregates event data through automated 
 ### Data Pipeline (Harvester)
 - **Cleansing**: `CleansingService` (in `services/api/app/services/harvester/cleanser.py`) uses `google-generativeai` to extract structured `ExtractedEvent` from HTML noise.
 - **Geocoding**: `GeocoderService` uses Mapbox to resolve location names.
-- **Moderation**: New events land in `pending_events`. They must be approved via the `/internal/approve/{id}` endpoint to move to the live `events` table.
+- **Moderation**: 
+  - New events land in `pending_events`. 
+  - Use the **Harvester Dashboard** (React) to approve, reject, or edit events.
+  - Moderation API: `v1/moderation` handles pending events, published events, and venue management.
+  - Events move from `pending_events` to the live `events` table upon approval.
 
 ---
 

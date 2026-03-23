@@ -332,8 +332,12 @@ class GeocoderService:
                 # Check for explicit address data from location field if metadata is string
                 loc = meta.get("location")
                 if isinstance(loc, dict):
-                    addr = addr or loc.get("address", {}).get("streetAddress")
-                    city = city or loc.get("address", {}).get("addressLocality")
+                    loc_addr = loc.get("address")
+                    if isinstance(loc_addr, dict):
+                        addr = addr or loc_addr.get("streetAddress")
+                        city = city or loc_addr.get("addressLocality")
+                elif isinstance(loc, str) and not addr:
+                    addr = loc # Use location string as address if no other address found
 
                 res = await cls.get_coordinates(
                     ev.location_name, 

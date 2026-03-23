@@ -7,9 +7,10 @@ Welcome to the **FOMO** (Fear Of Missing Out) monorepo. This project is a highly
 The project is structured as a modular monorepo:
 
 - **`services/api`**: FastAPI backend using SQLModel (SQLAlchemy 2.0 + Pydantic).
+- **`apps/harvester-dashboard`**: Next.js (React) moderation dashboard for human-in-the-loop review.
 - **`services/harvester`**: Python-based scrapers for automated data collection.
 - **`infra/`**: Docker and database provisioning scripts.
-- **`apps/mobile`**: Expo/React Native mobile application (Initial structure).
+- **`apps/mobile`**: Expo/React Native mobile application.
 - **`n8n`**: Integrated workflow automation for the harvester pipeline.
 
 ---
@@ -22,6 +23,7 @@ Follow these steps exactly to initialize the project after cloning.
 Ensure you have the following installed:
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 - [Git](https://git-scm.com/)
+- [Node.js](https://nodejs.org/) (Optional, for local dashboard development)
 
 ### 2. Environment Configuration
 Create a `.env` file in the root directory:
@@ -31,11 +33,13 @@ POSTGRES_PASSWORD=postgres
 POSTGRES_DB=fomo
 REDIS_URL=redis://redis:6379/0
 DATABASE_URL=postgresql+psycopg2://postgres:postgres@db:5432/fomo
+MAPBOX_ACCESS_TOKEN=your_mapbox_token
+GOOGLE_API_KEY=your_gemini_api_key
 N8N_WEBHOOK_URL=http://fomo_harvester_n8n:5678/webhook/your-id
 ```
 
 ### 3. Spin up the Infrastructure
-This will build the API image and start PostgreSQL (PostGIS), Redis, and n8n.
+This will build the API, Dashboard, and start PostgreSQL (PostGIS), Redis, and n8n.
 ```bash
 docker compose up -d --build
 ```
@@ -47,6 +51,7 @@ docker compose exec api alembic upgrade head
 ```
 
 ### 5. Verify the Installation
+- **Moderation Dashboard**: [http://localhost:3000](http://localhost:3000)
 - **API Health Check**: [http://localhost:8000/api/v1/health](http://localhost:8000/api/v1/health)
 - **API Documentation (Swagger)**: [http://localhost:8000/docs](http://localhost:8000/docs)
 - **n8n Dashboard**: [http://localhost:5678](http://localhost:5678)
@@ -76,13 +81,15 @@ curl -X POST http://localhost:8000/api/v1/internal/run-scraper
 *Note: This runs in the background and will ingest data into the `pending_events` table.*
 
 ### Moderation Queue
-New events arrive in `pending_events`. To move them to the live `events` table:
-1. Find the `pending_id` from the database.
-2. Call the approval endpoint:
-   ```bash
-   curl -X POST http://localhost:8000/api/v1/internal/approve/{pending_id}
-   ```
+New events arrive in `pending_events`. To move them to the live `events` table, use the **Moderation Dashboard** at [http://localhost:3000](http://localhost:3000).
 
+The dashboard allows you to:
+- **Review**: Inspect event details, photos, and categories.
+- **Geocode**: Verify and correct locations using integrated Mapbox search.
+- **Recurring Events**: Add or manage additional dates for the same event.
+- **Venues**: Manage and merge venues to maintain a clean database.
+- **Approve/Reject**: Single or bulk actions to publish events to the live platform.
+- **Unpublish**: Move events from the live platform back to the moderation queue.
 ---
 
 ## 🧪 Testing & Quality Assurance

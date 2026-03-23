@@ -3,6 +3,7 @@ uvicorn[standard]==0.31.0
 sqlalchemy==2.0.35
 psycopg2-binary==2.9.9
 geoalchemy2==0.15.2
+shapely==2.0.6
 redis==5.0.8
 pydantic-settings==2.5.2
 ruff==0.6.9

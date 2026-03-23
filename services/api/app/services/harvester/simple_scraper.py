@@ -135,6 +135,31 @@ class ScraperEngine:
         return self.tld_to_country.get(tld, "US")
 
     async def scrape(self, url: str) -> Optional[ScrapedEvent]:
+        def _ensure_string(val: Any) -> Optional[str]:
+            if val is None:
+                return None
+            if isinstance(val, list):
+                return str(val[0]) if val else None
+            return str(val)
+        
+        def _normalize_url(u: Optional[str], base: str) -> Optional[str]:
+            if not u:
+                return None
+            u = u.strip()
+            if u.startswith("http"):
+                return u
+            if u.startswith("//"):
+                return f"https:{u}"
+            if u.startswith("/"):
+                return f"{base.rstrip('/')}/{u}"
+
+            # Check if it starts with a known domain to treat as absolute
+            if u.startswith("more.com") or u.startswith("www.more.com"):
+                return f"https://{u}"
+
+            return u
+
+
         try:
             async with httpx.AsyncClient(headers=DEFAULT_HEADERS, follow_redirects=True, timeout=30.0) as client:
                 response = await client.get(url)
@@ -143,27 +168,31 @@ class ScraperEngine:
                 
                 soup = BeautifulSoup(response.text, 'html.parser')
                 country_code = self._get_country_code(url)
+                parsed_url = urlparse(url)
+                base_origin = f"{parsed_url.scheme}://{parsed_url.netloc}"
 
                 # Meta Tag Fallback for Image
                 meta_image = None
                 og_image = soup.find("meta", property="og:image") or soup.find("meta", attrs={"name": "og:image"})
-                twitter_image = soup.find("meta", name="twitter:image")
+                twitter_image = soup.find("meta", attrs={"name": "twitter:image"})
                 if og_image:
                     meta_image = og_image.get("content")
                 elif twitter_image:
                     meta_image = twitter_image.get("content")
+                
+                meta_image = _normalize_url(meta_image, base_origin)
 
                 # Strategy 1: Registry (Site-specific rules)
                 registry_data = await self.registry_extractor.extract(soup, url)
                 if registry_data:
                     fields = registry_data["extracted_fields"]
                     return ScrapedEvent(
-                        title=fields.get("title"),
-                        description=fields.get("description"),
-                        location_name=fields.get("location"),
-                        start_time=fields.get("start_time"),
-                        end_time=fields.get("end_time"),
-                        photo_url=fields.get("image") or meta_image,
+                        title=_ensure_string(fields.get("title")),
+                        description=_ensure_string(fields.get("description")),
+                        location_name=_ensure_string(fields.get("location")),
+                        start_time=_ensure_string(fields.get("start_time")),
+                        end_time=_ensure_string(fields.get("end_time")),
+                        photo_url=_normalize_url(fields.get("image"), base_origin) or meta_image,
                         original_link=url,
                         country_code=country_code,
                         source="registry"
@@ -173,13 +202,23 @@ class ScraperEngine:
                 schema_data = await self.schema_extractor.extract(soup, url)
                 if schema_data:
                     sd = schema_data["structured_data"]
+                    
+                    loc = sd.get("location")
+                    loc_name = None
+                    if isinstance(loc, dict):
+                        loc_name = loc.get("name")
+                    elif isinstance(loc, list) and loc:
+                        loc_name = loc[0].get("name") if isinstance(loc[0], dict) else loc[0]
+                    else:
+                        loc_name = loc
+
                     return ScrapedEvent(
-                        title=sd.get("name"),
-                        description=sd.get("description"),
-                        location_name=sd.get("location", {}).get("name") if isinstance(sd.get("location"), dict) else sd.get("location"),
-                        start_time=sd.get("startDate"),
-                        end_time=sd.get("endDate"),
-                        photo_url=schema_data.get("photo_url") or meta_image,
+                        title=_ensure_string(sd.get("name")),
+                        description=_ensure_string(sd.get("description")),
+                        location_name=_ensure_string(loc_name),
+                        start_time=_ensure_string(sd.get("startDate")),
+                        end_time=_ensure_string(sd.get("endDate")),
+                        photo_url=_normalize_url(schema_data.get("photo_url"), base_origin) or meta_image,
                         original_link=url,
                         country_code=country_code,
                         source="schema_org",
@@ -220,7 +259,7 @@ async def main():
     
     TARGET_URL = "https://www.more.com/gr-el/tickets/music/"
     BASE_URL = "https://www.more.com"
-    MAX_EVENTS = 20
+    MAX_EVENTS = 50
 
     engine = ScraperEngine()
     results = []
@@ -240,7 +279,7 @@ async def main():
             
             event_links = set()
             for a in soup.find_all('a', href=True):
-                href = a['href']
+                href = a['href'].strip()
                 
                 # Exclude obvious non-event pages and broad category indexes
                 excluded_paths = [r"/offers/", r"/gr-el/tickets/$", r"/tickets/$", r"festival/$", r"music/$", r"theater/$"]
@@ -248,7 +287,12 @@ async def main():
                     continue
                     
                 if "/tickets/" in href:
-                    full_url = href if href.startswith("http") else f"{BASE_URL}{href}"
+                    if href.startswith("http"):
+                        full_url = href
+                    elif href.startswith("//"):
+                        full_url = f"https:{href}"
+                    else:
+                        full_url = f"{BASE_URL.rstrip('/')}/{href.lstrip('/')}"
                     event_links.add(full_url)
 
             links_to_scrape = list(event_links)[:MAX_EVENTS]

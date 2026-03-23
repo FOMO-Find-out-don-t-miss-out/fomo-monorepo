@@ -72,25 +72,18 @@ services:
       db:
         condition: service_healthy
 
-  moderator:
+  harvester-dashboard:
     build:
-      context: .
-      dockerfile: services/harvester-dashboard/Dockerfile
-    container_name: fomo_moderator
+      context: ./apps/harvester-dashboard
+    container_name: fomo_harvester_dashboard
     restart: always
     ports:
-      - "8501:8501"
-    volumes:
-      - ./services/harvester-dashboard:/app/services/harvester-dashboard
-      - ./services/api:/app/services/api
-      - ./.env:/app/services/harvester-dashboard/.env
+      - "3000:3000"
     environment:
-      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-fomo}
-      MAPBOX_ACCESS_TOKEN: ${MAPBOX_ACCESS_TOKEN}
-      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
     depends_on:
-      db:
-        condition: service_healthy
+      api:
+        condition: service_started
 
 volumes:
   postgres_data:

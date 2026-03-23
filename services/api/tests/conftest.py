@@ -1,19 +1,22 @@
 import sys
 from unittest.mock import MagicMock
-
-# MOCK GEOGRAPHY BEFORE ANY IMPORTS
 import sqlalchemy
 
 class MockGeography(sqlalchemy.String):
     def __init__(self, *args, **kwargs):
         super().__init__()
 
-import sys
-from unittest.mock import MagicMock
+# Create mock package structure
 mock_geo = MagicMock()
 mock_geo.Geography = MockGeography
 mock_geo.WKTElement = lambda x, srid: x
+
+mock_elements = MagicMock()
+mock_elements.WKTElement = mock_geo.WKTElement
+
 sys.modules["geoalchemy2"] = mock_geo
+sys.modules["geoalchemy2.elements"] = mock_elements
+sys.modules["geoalchemy2.shape"] = MagicMock() # For to_shape if needed
 
 import pytest
 import pytest_asyncio
