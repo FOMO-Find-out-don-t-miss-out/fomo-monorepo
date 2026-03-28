@@ -8,7 +8,8 @@
     "dev": "turbo dev",
     "lint": "turbo lint",
     "test": "turbo test",
-    "check-quality": "turbo check-quality"
+    "check-quality": "turbo check-quality",
+    "context": "uv run python tooling/generate-context.py"
   },
   "devDependencies": {
     "turbo": "^2.4.2"

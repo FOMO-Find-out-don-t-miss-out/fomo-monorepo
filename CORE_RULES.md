@@ -26,10 +26,11 @@ To ensure shared packages are correctly resolved during containerization and dep
 ## 🤖 2. AI AGENT WORKING LOOP (Mandatory)
 Every coding task performed by an AI agent must follow this iterative cycle:
 
-1.  **PLAN**: Output a concise Markdown strategy before any code modification.
-2.  **TEST**: Write a failing **Pytest** case that reproduces the issue or defines the new feature's behavior.
-3.  **EXECUTE**: Implement the minimal code required to make the test pass.
-4.  **VERIFY**: Run `uv run ruff check .` for linting and `pytest` for verification.
+1.  **CONTEXT-FIRST**: At the start of every session, the Agent **MUST** ask the user to run `pnpm context` and read `AI_SNAPSHOT.md` to align its internal state with minimum token usage.
+2.  **PLAN**: Output a concise Markdown strategy before any code modification.
+3.  **TEST**: Write a failing **Pytest** case that reproduces the issue or defines the new feature's behavior.
+4.  **EXECUTE**: Implement the minimal code required to make the test pass.
+5.  **VERIFY**: Run `uv run ruff check .` for linting and `pytest` for verification.
 
 **LITMUS TEST**: Before proposing any database migration or SQLModel change, the Agent **MUST** use the MCP Bridge to inspect the current state of the PostgreSQL schema. Proposing changes based on stale context is forbidden.
 
