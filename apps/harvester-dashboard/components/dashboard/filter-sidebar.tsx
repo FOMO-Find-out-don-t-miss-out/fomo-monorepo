@@ -19,8 +19,6 @@ import { moderationApi } from '@/lib/api'
 import type { GeocodeSuggestion } from '@/types/moderation'
 
 interface FilterSidebarProps {
-  selectedLocation: string
-  setSelectedLocation: (location: string) => void
   selectedCategory: string
   setSelectedCategory: (category: string) => void
   selectedStatus: string | 'all'
@@ -31,21 +29,17 @@ interface FilterSidebarProps {
     failed: number
     total: number
   }
-  locations: string[]
   onSuggestionSelect?: (suggestion: GeocodeSuggestion) => void
 }
 
 const categories = ['All Categories', 'Live Music', 'Theater', 'Art', 'Food & Drink', 'Nightlife', 'Sports', 'Other']
 
 export function FilterSidebar({
-  selectedLocation,
-  setSelectedLocation,
   selectedCategory,
   setSelectedCategory,
   selectedStatus,
   setSelectedStatus,
   eventCounts,
-  locations,
   onSuggestionSelect
 }: FilterSidebarProps) {
   const [locationSearch, setLocationSearch] = useState('')

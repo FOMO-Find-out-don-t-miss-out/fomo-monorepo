@@ -6,10 +6,9 @@ import { VenueList } from '@/components/dashboard/venue-list'
 import { VenueInspector } from '@/components/dashboard/venue-inspector'
 import { moderationApi } from '@/lib/api'
 import type { Venue } from '@/types/moderation'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 
 export default function VenuesPage() {
-  const queryClient = useQueryClient()
   const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null)
   const [inspectorOpen, setInspectorOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')

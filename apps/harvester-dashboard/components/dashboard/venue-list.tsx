@@ -69,7 +69,7 @@ export function VenueList({
                 <Filter className="w-3.5 h-3.5 text-muted-foreground" />
                 <Select
                     value={filterStatus}
-                    onValueChange={(value) => onFilterStatusChange(value as any)}
+                    onValueChange={(value) => onFilterStatusChange(value as 'all' | 'verified' | 'unverified')}
                 >
                     <SelectTrigger className="h-9 w-[160px] bg-input/50 text-xs border-border/50">
                         <SelectValue placeholder="Filter by status" />

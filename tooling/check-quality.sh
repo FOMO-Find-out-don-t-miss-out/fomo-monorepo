@@ -1,16 +1,8 @@
 #!/bin/bash
 set -e
 
-echo "🔍 Running Quality Gates (2026 Standards)..."
+echo "🔍 Running Quality Gates (2026 Standards with Turbo acceleration)..."
 
-echo "🧪 Running Ruff (Linting & Formatting)..."
-uv run ruff check .
-uv run ruff format --check .
-
-echo "✅ Running Tests (95% Coverage Mandatory)..."
-uv run pytest --cov-fail-under=95
-
-echo "🗄️ Checking for Database Schema Drift..."
-uv run python tooling/verify-schema-sync.py
+npx turbo check-quality
 
 echo "🎉 Quality check passed!"

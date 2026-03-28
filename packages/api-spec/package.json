@@ -10,7 +10,11 @@
     "@typespec/rest": "latest"
   },
   "scripts": {
+    "lint": "echo 'No linting for TypeSpec yet'",
+    "test": "echo 'No tests for TypeSpec yet'",
     "build": "tsp compile main.tsp",
-    "watch": "tsp compile main.tsp --watch"
+    "watch": "tsp compile main.tsp --watch",
+    "verify-schema": "echo 'No schema drift check needed for TypeSpec package'",
+    "check-quality": "pnpm lint && pnpm test"
   }
 }

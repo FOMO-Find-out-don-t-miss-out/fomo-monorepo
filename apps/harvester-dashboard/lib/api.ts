@@ -43,7 +43,7 @@ export const moderationApi = {
       geocodingStatus.forEach(status => params.append("geocoding_status", status));
     }
     const query = params.toString();
-    return request<PendingEvent[]>(`/pending-events${query ? `?${query}` : ""}`);
+    return request<PendingEvent[]>(`/moderation/pending-events${query ? `?${query}` : ""}`);
   },
 
   /**
@@ -53,14 +53,14 @@ export const moderationApi = {
     const params = new URLSearchParams();
     if (locationName) params.append("location_name", locationName);
     const query = params.toString();
-    return request<PendingEvent[]>(`/events${query ? `?${query}` : ""}`);
+    return request<PendingEvent[]>(`/moderation/events${query ? `?${query}` : ""}`);
   },
 
   /**
    * Unpublishes an event (moves it back to pending)
    */
   unpublishEvent: (eventId: string): Promise<SuccessResponse> => {
-    return request<SuccessResponse>(`/events/${eventId}/unpublish`, {
+    return request<SuccessResponse>(`/moderation/events/${eventId}/unpublish`, {
       method: "POST",
     });
   },
@@ -69,7 +69,7 @@ export const moderationApi = {
    * Updates a single published event
    */
   updatePublishedEvent: (eventId: string, update: PendingEventUpdate): Promise<PendingEvent> => {
-    return request<PendingEvent>(`/events/${eventId}`, {
+    return request<PendingEvent>(`/moderation/events/${eventId}`, {
       method: "PATCH",
       body: JSON.stringify(update),
     });
@@ -79,7 +79,7 @@ export const moderationApi = {
    * Updates a single pending event
    */
   updateEvent: (eventId: string, update: PendingEventUpdate): Promise<PendingEvent> => {
-    return request<PendingEvent>(`/pending-events/${eventId}`, {
+    return request<PendingEvent>(`/moderation/pending-events/${eventId}`, {
       method: "PATCH",
       body: JSON.stringify(update),
     });
@@ -89,7 +89,7 @@ export const moderationApi = {
    * Approves a single event
    */
   approveEvent: (eventId: string): Promise<SuccessResponse> => {
-    return request<SuccessResponse>(`/pending-events/${eventId}/approve`, {
+    return request<SuccessResponse>(`/moderation/pending-events/${eventId}/approve`, {
       method: "POST",
     });
   },
@@ -98,7 +98,7 @@ export const moderationApi = {
    * Rejects a single event
    */
   rejectEvent: (eventId: string): Promise<SuccessResponse> => {
-    return request<SuccessResponse>(`/pending-events/${eventId}/reject`, {
+    return request<SuccessResponse>(`/moderation/pending-events/${eventId}/reject`, {
       method: "POST",
     });
   },
@@ -107,7 +107,7 @@ export const moderationApi = {
    * Approves multiple events in batch
    */
   approveBatch: (eventIds: string[]): Promise<SuccessResponse> => {
-    return request<SuccessResponse>("/pending-events/approve-batch", {
+    return request<SuccessResponse>("/moderation/pending-events/approve-batch", {
       method: "POST",
       body: JSON.stringify({ event_ids: eventIds } as BatchApproveRequest),
     });
@@ -117,7 +117,7 @@ export const moderationApi = {
    * Rejects multiple events in batch
    */
   rejectBatch: (eventIds: string[]): Promise<SuccessResponse> => {
-    return request<SuccessResponse>("/pending-events/reject-batch", {
+    return request<SuccessResponse>("/moderation/pending-events/reject-batch", {
       method: "POST",
       body: JSON.stringify({ event_ids: eventIds } as BatchRejectRequest),
     });
@@ -127,7 +127,7 @@ export const moderationApi = {
    * Adds a new occurrence (multi-day) for an event
    */
   addOccurrence: (eventId: string, startTime: string): Promise<PendingEvent> => {
-    return request<PendingEvent>(`/pending-events/${eventId}/occurrences`, {
+    return request<PendingEvent>(`/moderation/pending-events/${eventId}/occurrences`, {
       method: "POST",
       body: JSON.stringify({ start_time: startTime } as OccurrenceCreate),
     });
@@ -141,14 +141,14 @@ export const moderationApi = {
     if (searchQuery) params.append("search_query", searchQuery);
     if (onlyUnverified) params.append("only_unverified", "true");
     const query = params.toString();
-    return request<Venue[]>(`/venues${query ? `?${query}` : ""}`);
+    return request<Venue[]>(`/moderation/venues${query ? `?${query}` : ""}`);
   },
 
   /**
    * Updates venue details
    */
   updateVenue: (venueId: string, update: VenueUpdate): Promise<Venue> => {
-    return request<Venue>(`/venues/${venueId}`, {
+    return request<Venue>(`/moderation/venues/${venueId}`, {
       method: "PATCH",
       body: JSON.stringify(update),
     });
@@ -158,7 +158,7 @@ export const moderationApi = {
    * Deletes a venue and unlinks its events
    */
   deleteVenue: (venueId: string): Promise<{ status: string }> => {
-    return request<{ status: string }>(`/venues/${venueId}`, {
+    return request<{ status: string }>(`/moderation/venues/${venueId}`, {
       method: "DELETE",
     });
   },
@@ -167,7 +167,7 @@ export const moderationApi = {
    * Merges a source venue into a target venue
    */
   mergeVenues: (sourceVenueId: string, targetVenueId: string): Promise<{ status: string }> => {
-    return request<{ status: string }>("/venues/merge", {
+    return request<{ status: string }>("/moderation/merge", {
       method: "POST",
       body: JSON.stringify({
         source_venue_id: sourceVenueId,
@@ -180,7 +180,7 @@ export const moderationApi = {
    * Performs a batch location update for all events matching a name
    */
   batchUpdateLocation: (data: LocationBatchUpdate): Promise<{ status: string }> => {
-    return request<{ status: string }>("/batch-update-location", {
+    return request<{ status: string }>("/moderation/batch-update-location", {
       method: "POST",
       body: JSON.stringify(data),
     });
@@ -191,6 +191,6 @@ export const moderationApi = {
    */
   getMapboxSuggestions: (query: string, countryCode: string = "GR"): Promise<GeocodeSuggestion[]> => {
     const params = new URLSearchParams({ q: query, country_code: countryCode });
-    return request<GeocodeSuggestion[]>(`/geocode/suggestions?${params.toString()}`);
+    return request<GeocodeSuggestion[]>(`/moderation/geocode/suggestions?${params.toString()}`);
   }
 };

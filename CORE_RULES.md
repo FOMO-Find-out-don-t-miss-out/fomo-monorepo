@@ -36,6 +36,8 @@ Every coding task performed by an AI agent must follow this iterative cycle:
 ---
 
 ## 🧪 3. QUALITY GATES
+- **CACHED VALIDATION**: Local development must use `turbo` (e.g., `pnpm check-quality`) to ensure only affected parts of the monorepo are tested, preserving developer flow state.
+- **COMMAND INTEGRITY**: Never use `npm` or `pip`. Use `pnpm` for Node tasks and `uv` for Python tasks. Any generated code that includes `package-lock.json` or `requirements.txt` (unless for Docker base) will be rejected.
 - **95% Minimum Code Coverage**: Enforced for every new feature and bug fix.
 - **Linting**: All Python code must pass `uv run ruff check .` and `uv run ruff format .` before completion.
 - **Imports**: Use **absolute imports only** (e.g., `from packages.domain.models import Event`). Relative imports are strictly forbidden.

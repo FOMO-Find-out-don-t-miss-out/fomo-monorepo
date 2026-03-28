@@ -22,7 +22,7 @@ export default function EventsPage() {
   const [searchQuery, setSearchQuery] = useState('')
 
   // Filters
-  const [selectedLocation, setSelectedLocation] = useState('All Locations')
+  const [selectedLocation] = useState('All Locations')
   const [selectedCategory, setSelectedCategory] = useState('All Categories')
   const [selectedStatus, setSelectedStatus] = useState<string | 'all'>('all')
 
@@ -93,7 +93,7 @@ export default function EventsPage() {
             });
             queryClient.invalidateQueries({ queryKey: ['pending-events'] });
             toast.success(`Updated location for '${selectedEvent.location_name}'`);
-        } catch (err) {
+        } catch {
             toast.error("Failed to sync location");
         }
     } else {
@@ -115,11 +115,6 @@ export default function EventsPage() {
     })
   }, [events, searchQuery, selectedCategory])
 
-  const dynamicLocations = useMemo(() => {
-    const locs = new Set(events.map(e => e.location_name).filter(Boolean))
-    return ['All Locations', ...Array.from(locs).sort()] as string[]
-  }, [events])
-
   const eventCounts = useMemo(() => ({
     verified: events.filter((e) => e.geocoding_status === 'verified').length,
     ambiguous: events.filter((e) => e.geocoding_status === 'ambiguous').length,
@@ -131,14 +126,11 @@ export default function EventsPage() {
     <DashboardLayout>
       <div className="h-full flex">
         <FilterSidebar
-          selectedLocation={selectedLocation}
-          setSelectedLocation={setSelectedLocation}
           selectedCategory={selectedCategory}
           setSelectedCategory={setSelectedCategory}
           selectedStatus={selectedStatus}
           setSelectedStatus={setSelectedStatus}
           eventCounts={eventCounts}
-          locations={dynamicLocations}
           onSuggestionSelect={handleSuggestionSelect}
         />
 

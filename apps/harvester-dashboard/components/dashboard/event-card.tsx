@@ -16,7 +16,7 @@ interface EventCardProps {
   onToggleCheck: () => void
 }
 
-const statusConfig: Record<string, any> = {
+const statusConfig: Record<string, { icon: React.ElementType, color: string, label: string }> = {
   verified: {
     icon: CheckCircle2,
     color: 'bg-green-500',

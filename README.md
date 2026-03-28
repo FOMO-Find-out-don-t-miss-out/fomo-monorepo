@@ -44,16 +44,27 @@ To ensure consistent quality and maintainability, all contributors must strictly
 
 ---
 
+## 🛠 Tech Stack 2026
+This monorepo uses a modern, high-performance stack:
+- **Orchestration**: Turborepo (Intelligent Build & Test Acceleration)
+- **JS/TS Management**: pnpm (Fast, disk space efficient package manager)
+- **Python Management**: uv (Extremely fast Python package installer and resolver)
+- **API Contracts**: TypeSpec (Single source of truth for API definitions)
+- **Backend**: FastAPI, SQLModel, PostGIS
+- **Frontend**: Next.js 16+, Tailwind, Shadcn UI
+
+---
+
 ## ✅ Quality Gates
 We enforce strict industry standards for every contribution:
-- **Linting**: No warnings allowed (Ruff).
-- **Type Safety**: Mandatory type hints for all public functions (ANN).
-- **Security**: Automated security scanning (S).
+- **CACHED VALIDATION**: Local development must use `pnpm check-quality` to ensure only affected parts are tested.
+- **Linting**: No warnings allowed (Ruff for Python, ESLint 9 for JS).
+- **Type Safety**: Mandatory type hints and strict TypeScript.
 - **Coverage**: Minimum **95% code coverage** is enforced.
 
 To run the full quality suite locally:
 ```bash
-./tooling/check-quality.sh
+pnpm check-quality
 ```
 
 ---
@@ -64,15 +75,21 @@ Follow these steps exactly to initialize the project after cloning.
 
 ### 1. Prerequisites
 Ensure you have the following installed:
+- [uv](https://github.com/astral-sh/uv) (For Python)
+- [pnpm](https://pnpm.io/installation) (For JS/TS)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- [Git](https://git-scm.com/)
-- [Node.js](https://nodejs.org/)
-- [uv](https://github.com/astral-sh/uv) (Recommended for Python dependency management)
 
-### 2. Python Dependency Management
-We use [uv](https://github.com/astral-sh/uv) to manage Python dependencies across the monorepo. To sync all dependencies:
+### 2. Initialization
+Run these commands from the root directory:
 ```bash
+# 1. Install JS/TS dependencies and link workspaces
+pnpm install
+
+# 2. Sync Python dependencies
 uv sync
+
+# 3. Verify the stack (runs lint, test, and schema checks)
+pnpm check-quality
 ```
 
 ### 3. Environment Configuration
@@ -89,13 +106,11 @@ N8N_WEBHOOK_URL=http://fomo_harvester_n8n:5678/webhook/your-id
 ```
 
 ### 4. Spin up the Infrastructure
-This will build the API, Dashboard, and start PostgreSQL (PostGIS), Redis, and n8n.
 ```bash
 docker compose up -d --build
 ```
 
 ### 5. Initialize the Database Schema
-Since the database starts empty, you must apply the Alembic migrations to create the tables:
 ```bash
 docker compose exec api alembic upgrade head
 ```

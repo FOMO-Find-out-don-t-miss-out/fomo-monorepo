@@ -357,7 +357,7 @@ export function VenueInspector({ venue, open, onOpenChange }: VenueInspectorProp
                 </Label>
               </div>
               <p className="text-xs text-muted-foreground">
-                This will move all events from "{venue.name}" to the selected venue and delete this record.
+                This will move all events from &quot;{venue.name}&quot; to the selected venue and delete this record.
               </p>
               
               <div className="space-y-3">
@@ -391,7 +391,7 @@ export function VenueInspector({ venue, open, onOpenChange }: VenueInspectorProp
                         <AlertDialogHeader>
                             <AlertDialogTitle>Confirm Merge</AlertDialogTitle>
                             <AlertDialogDescription>
-                                This action is irreversible. All events linked to "{venue.name}" will be updated to point to the new venue, and "{venue.name}" will be deleted.
+                                This action is irreversible. All events linked to &quot;{venue.name}&quot; will be updated to point to the new venue, and &quot;{venue.name}&quot; will be deleted.
                             </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -431,7 +431,7 @@ export function VenueInspector({ venue, open, onOpenChange }: VenueInspectorProp
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete Venue</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Are you sure you want to delete "{venue.name}"? This will unlink it from all events.
+                  Are you sure you want to delete &quot;{venue.name}&quot;? This will unlink it from all events.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
@@ -259,7 +259,7 @@ export function EventInspector({ event, open, onOpenChange, onApprove, onReject 
               
               {occurrences.length > 0 && (
                 <div className="space-y-2">
-                  {occurrences.map((occ: any, idx: number) => (
+                  {occurrences.map((occ: { start_time: string }, idx: number) => (
                     <div key={idx} className="flex items-center justify-between p-2 rounded-md bg-muted/50 border border-border">
                       <span className="text-sm">
                         {format(new Date(occ.start_time), 'MMM d, yyyy h:mm a')}

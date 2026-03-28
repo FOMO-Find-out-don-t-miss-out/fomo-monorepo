@@ -15,22 +15,22 @@ export interface EventBase {
 
 export interface Event extends EventBase {
   id: string; // UUID
-  location: any; // Geography POINT
-  event_metadata: Record<string, any>;
+  location: unknown; // Geography POINT
+  event_metadata: Record<string, unknown>;
   tags: string[];
 }
 
 export interface PendingEvent extends EventBase {
   id: string; // UUID
-  location?: any; // Geography POINT
-  event_metadata: Record<string, any>;
+  location?: unknown; // Geography POINT
+  event_metadata: Record<string, unknown>;
   tags: string[];
   status: 'pending' | 'published' | 'rejected';
   raw_content?: string;
   rejection_reason?: string;
   confidence_score?: number;
   geocoding_status: 'verified' | 'ambiguous' | 'failed';
-  geocoding_metadata: Record<string, any>;
+  geocoding_metadata: Record<string, unknown>;
 }
 
 export interface Venue {
@@ -54,7 +54,7 @@ export interface PendingEventUpdate {
   category?: string;
   hype_score?: number;
   ticket_url?: string;
-  event_metadata?: Record<string, any>;
+  event_metadata?: Record<string, unknown>;
 }
 
 export interface VenueUpdate {
@@ -85,7 +85,7 @@ export interface LocationBatchUpdate {
   lng: number;
   status: string;
   confidence: number;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 export interface OccurrenceCreate {
@@ -100,7 +100,7 @@ export interface GeocodeSuggestion {
   country_code: string;
   city?: string;
   geocoding_status: string;
-  geocoding_metadata: Record<string, any>;
+  geocoding_metadata: Record<string, unknown>;
 }
 
 export interface SuccessResponse {

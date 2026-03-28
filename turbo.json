@@ -1,0 +1,28 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalPassThroughEnv": ["SKIP_DB_VERIFY", "CI", "GITHUB_ACTIONS"],
+  "tasks": {
+    "lint": {
+      "cache": true
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "cache": true
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "dist/**", "out/**", "tsp-output/**"]
+    },
+    "verify-schema": {
+      "cache": true,
+      "outputs": []
+    },
+    "check-quality": {
+      "dependsOn": ["lint", "test", "verify-schema"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    }
+  }
+}

@@ -6,7 +6,7 @@ import { FilterSidebar } from '@/components/dashboard/filter-sidebar'
 import { EventList } from '@/components/dashboard/event-list'
 import { EventInspector } from '@/components/dashboard/event-inspector'
 import { moderationApi } from '@/lib/api'
-import type { PendingEvent, GeocodeSuggestion } from '@/types/moderation'
+import type { PendingEvent } from '@/types/moderation'
 import { toast } from 'sonner'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
@@ -22,16 +22,13 @@ export default function PublishedEventsPage() {
   const [searchQuery, setSearchQuery] = useState('')
 
   // Filters
-  const [selectedLocation, setSelectedLocation] = useState('All Locations')
   const [selectedCategory, setSelectedCategory] = useState('All Categories')
   const [selectedStatus, setSelectedStatus] = useState<string | 'all'>('all')
 
   // Queries
   const { data: events = [], isLoading: eventsLoading } = useQuery({
-    queryKey: ['published-events', selectedLocation],
-    queryFn: () => moderationApi.getPublishedEvents(
-      selectedLocation === 'All Locations' ? undefined : selectedLocation
-    )
+    queryKey: ['published-events'],
+    queryFn: () => moderationApi.getPublishedEvents()
   })
 
   // Mutations
@@ -66,11 +63,6 @@ export default function PublishedEventsPage() {
     })
   }, [events, searchQuery, selectedCategory])
 
-  const dynamicLocations = useMemo(() => {
-    const locs = new Set(events.map(e => e.location_name).filter(Boolean))
-    return ['All Locations', ...Array.from(locs).sort()] as string[]
-  }, [events])
-
   // Stats for published events (they don't have geocoding_status in the same way usually, but let's keep the object shape)
   const eventCounts = useMemo(() => ({
     verified: events.length,
@@ -83,14 +75,11 @@ export default function PublishedEventsPage() {
     <DashboardLayout>
       <div className="h-full flex min-h-0">
         <FilterSidebar
-          selectedLocation={selectedLocation}
-          setSelectedLocation={setSelectedLocation}
           selectedCategory={selectedCategory}
           setSelectedCategory={setSelectedCategory}
           selectedStatus={selectedStatus}
           setSelectedStatus={setSelectedStatus}
           eventCounts={eventCounts}
-          locations={dynamicLocations}
         />
 
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
