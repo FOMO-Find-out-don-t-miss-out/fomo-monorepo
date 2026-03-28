@@ -61,6 +61,7 @@ Every coding task performed by an AI agent must follow this iterative cycle:
   docker compose exec api alembic revision --autogenerate -m "description"
   docker compose exec api alembic upgrade head
   ```
+- **SYNC LOCK**: No PR shall be merged if the `verify-schema-sync` check fails. Any change to TypeSpec MUST be followed by a generated Alembic migration in the same commit.
 
 ### Data Pipeline (Harvester)
 - **Cleansing**: Gemini-powered extraction via `instructor`.

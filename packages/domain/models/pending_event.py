@@ -1,4 +1,3 @@
-from typing import Optional
 from uuid import UUID, uuid4
 
 from sqlmodel import Field, UniqueConstraint
@@ -12,16 +11,16 @@ class PendingEvent(EventBase, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
 
     status: str = Field(default="pending", index=True)
-    raw_content: Optional[str] = Field(
+    raw_content: str | None = Field(
         default=None,
         serialization_alias="rawContent",
     )
-    rejection_reason: Optional[str] = Field(
+    rejection_reason: str | None = Field(
         default=None,
         serialization_alias="rejectionReason",
     )
 
-    confidence_score: Optional[float] = Field(
+    confidence_score: float | None = Field(
         default=None,
         serialization_alias="confidenceScore",
     )

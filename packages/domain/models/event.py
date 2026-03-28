@@ -1,6 +1,6 @@
 from datetime import datetime
-from enum import Enum
-from typing import Any, Optional
+from enum import StrEnum
+from typing import Any
 from uuid import UUID, uuid4
 
 from geoalchemy2 import Geography
@@ -9,7 +9,7 @@ from pydantic import computed_field, field_serializer
 from sqlmodel import JSON, Column, Field, SQLModel, UniqueConstraint
 
 
-class EventCategory(str, Enum):
+class EventCategory(StrEnum):
     Music = "Music"
     Art = "Art"
     Tech = "Tech"
@@ -21,7 +21,7 @@ class EventCategory(str, Enum):
     Other = "Other"
 
 
-class GeocodingStatus(str, Enum):
+class GeocodingStatus(StrEnum):
     verified = "verified"
     ambiguous = "ambiguous"
     failed = "failed"
@@ -29,13 +29,13 @@ class GeocodingStatus(str, Enum):
 
 class EventBase(SQLModel):
     title: str = Field(index=True)
-    description: Optional[str] = Field(default=None)
+    description: str | None = Field(default=None)
     start_time: datetime = Field(
         default_factory=datetime.utcnow,
         index=True,
         serialization_alias="startTime",
     )
-    end_time: Optional[datetime] = Field(
+    end_time: datetime | None = Field(
         default=None,
         index=True,
         serialization_alias="endTime",
@@ -44,7 +44,7 @@ class EventBase(SQLModel):
         default=EventCategory.Other,
         index=True,
     )
-    sub_category: Optional[str] = Field(
+    sub_category: str | None = Field(
         default=None,
         index=True,
         serialization_alias="subCategory",
@@ -54,25 +54,25 @@ class EventBase(SQLModel):
         index=True,
         serialization_alias="hypeScore",
     )
-    ticket_url: Optional[str] = Field(
+    ticket_url: str | None = Field(
         default=None,
         serialization_alias="ticketUrl",
     )
-    source_url: Optional[str] = Field(
+    source_url: str | None = Field(
         default=None,
         serialization_alias="sourceUrl",
     )
-    location_name: Optional[str] = Field(
+    location_name: str | None = Field(
         default=None,
         index=True,
         serialization_alias="locationName",
     )
-    country_code: Optional[str] = Field(
+    country_code: str | None = Field(
         default=None,
         index=True,
         serialization_alias="countryCode",
     )
-    parent_id: Optional[UUID] = Field(
+    parent_id: UUID | None = Field(
         default=None,
         index=True,
         serialization_alias="parentId",
@@ -102,7 +102,7 @@ class EventBase(SQLModel):
 
     @computed_field(alias="photoUrl")
     @property
-    def photo_url(self) -> Optional[str]:
+    def photo_url(self) -> str | None:
         """Returns the photo URL from metadata, normalized to be absolute."""
         if not self.event_metadata:
             return None
@@ -144,7 +144,7 @@ class EventBase(SQLModel):
             return 0.0
 
     @field_serializer("location")
-    def serialize_location(self, v: Any) -> Optional[dict[str, Any]]:
+    def serialize_location(self, v: object) -> dict[str, Any] | None:
         if v is None:
             return None
         try:
@@ -160,4 +160,3 @@ class Event(EventBase, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
 
     __table_args__ = (UniqueConstraint("title", "start_time", name="unique_event_occurrence"),)
-

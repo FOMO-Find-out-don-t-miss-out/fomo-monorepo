@@ -10,4 +10,7 @@ uv run ruff format --check .
 echo "✅ Running Tests (95% Coverage Mandatory)..."
 uv run pytest --cov-fail-under=95
 
+echo "🗄️ Checking for Database Schema Drift..."
+uv run python tooling/verify-schema-sync.py
+
 echo "🎉 Quality check passed!"

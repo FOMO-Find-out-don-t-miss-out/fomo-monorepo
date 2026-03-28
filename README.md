@@ -132,6 +132,15 @@ When you modify models in `packages/domain/`:
    docker compose exec api alembic upgrade head
    ```
 
+#### Resolving "Schema Drift" Errors
+If the quality gates fail with "CRITICAL: Schema Drift Detected", it means your SQLModel definitions do not match the live database schema.
+- **Why it happens**: You modified a model but didn't create/apply a migration, or your local DB is out of sync.
+- **Solution**: 
+  1. Ensure your local database is running: `docker compose up -d db`.
+  2. Generate a new migration: `docker compose exec api alembic revision --autogenerate -m "fix_drift"`.
+  3. Apply it: `docker compose exec api alembic upgrade head`.
+  4. Re-run the quality check: `./tooling/check-quality.sh`.
+
 ### Running Scrapers
 You can trigger the internal scraper manually via the API:
 ```bash

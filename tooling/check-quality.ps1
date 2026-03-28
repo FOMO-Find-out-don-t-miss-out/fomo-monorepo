@@ -12,4 +12,8 @@ Write-Host "TASK: Running Tests (95% Coverage Mandatory)..." -ForegroundColor Ye
 uv run pytest apps/api/tests --cov=apps/api/app --cov-fail-under=95
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+Write-Host "TASK: Checking for Database Schema Drift..." -ForegroundColor Yellow
+uv run python tooling/verify-schema-sync.py
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
 Write-Host "SUCCESS: Quality check passed!" -ForegroundColor Green

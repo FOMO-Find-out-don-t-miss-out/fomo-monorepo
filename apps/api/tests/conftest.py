@@ -45,15 +45,21 @@ from app.main import app  # noqa: E402
 TEST_DATABASE_URL = "sqlite://"
 
 
-@pytest.fixture(name="session")
-def session_fixture() -> Generator[Session, None, None]:
-    """Provides a clean SQLModel session for each test."""
+@pytest.fixture(name="engine", scope="session")
+def engine_fixture() -> Generator[sqlalchemy.Engine, None, None]:
+    """Provides a session-scoped SQLModel engine."""
     engine = create_engine(
         TEST_DATABASE_URL,
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
+    yield engine
+    engine.dispose()
 
+
+@pytest.fixture(name="session")
+def session_fixture(engine: sqlalchemy.Engine) -> Generator[Session, None, None]:
+    """Provides a clean SQLModel session for each test."""
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
         yield session
