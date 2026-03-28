@@ -17,6 +17,8 @@ class EventBase(SQLModel):
     sub_category: str | None = Field(default=None, index=True)
     ticket_url: str | None = None
     source_url: str | None = None
+    source_provider: str = Field(default="unknown", index=True)
+    ingestion_method: str = Field(default="unknown", index=True)
     location_name: str | None = Field(default=None, index=True)
     country_code: str | None = Field(default=None, index=True)
     parent_id: UUID | None = Field(default=None, index=True)

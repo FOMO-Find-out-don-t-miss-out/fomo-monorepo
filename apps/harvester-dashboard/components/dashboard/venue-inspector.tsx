@@ -1,11 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { useState, useEffect, useMemo } from 'react'
+import Link from 'next/link'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
@@ -36,7 +38,7 @@ import {
   Save,
   CheckCircle2,
   Calendar,
-  ChevronRight, MapPin, Search
+  ChevronRight, MapPin, Search, ExternalLink
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
@@ -56,12 +58,24 @@ export function VenueInspector({ venue, open, onOpenChange }: VenueInspectorProp
   const [applyToAll, setApplyToAll] = useState(false)
   const [targetVenueId, setTargetVenueId] = useState<string | null>(null)
 
-  // Fetch linked events
-  const { data: linkedEvents = [] } = useQuery({
-    queryKey: ['venue-linked-events', venue?.name],
+  // Fetch linked pending events
+  const { data: linkedPending = [] } = useQuery({
+    queryKey: ['venue-linked-pending', venue?.name],
     queryFn: () => moderationApi.getPendingEvents(venue?.name || undefined),
     enabled: !!venue?.name
   })
+
+  // Fetch linked published events
+  const { data: linkedPublished = [] } = useQuery({
+    queryKey: ['venue-linked-published', venue?.name],
+    queryFn: () => moderationApi.getPublishedEvents(venue?.name || undefined),
+    enabled: !!venue?.name
+  })
+
+  const allLinkedEvents = useMemo(() => [
+    ...linkedPublished.map(e => ({ ...e, isPublished: true })),
+    ...linkedPending.map(e => ({ ...e, isPublished: false }))
+  ], [linkedPublished, linkedPending])
 
   // Fetch all venues for merge selection
   const { data: allVenues = [] } = useQuery({
@@ -162,6 +176,10 @@ export function VenueInspector({ venue, open, onOpenChange }: VenueInspectorProp
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-xl p-0 flex flex-col bg-card border-l border-border h-full">
+        <SheetHeader className="sr-only">
+          <SheetTitle>Venue Details: {venue.name}</SheetTitle>
+          <SheetDescription>View and edit details for venue {venue.name}</SheetDescription>
+        </SheetHeader>
         <ScrollArea className="flex-1 min-h-0">
           {/* Map Header */}
           <div className="relative w-full h-48 bg-muted">
@@ -291,26 +309,48 @@ export function VenueInspector({ venue, open, onOpenChange }: VenueInspectorProp
 
               {/* Linked Events */}
               <div className="space-y-3">
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                  <Calendar className="w-3 h-3" />
-                  Linked Pending Events ({linkedEvents.length})
-                </Label>
-                {linkedEvents.length > 0 ? (
-                  <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
-                    {linkedEvents.map((ev) => (
-                      <div key={ev.id} className="flex items-center justify-between p-2 rounded-md bg-muted/30 border border-border group hover:bg-muted/50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                    <Calendar className="w-3 h-3" />
+                    Linked Events ({allLinkedEvents.length})
+                  </Label>
+                  {venue?.name && (
+                    <Button variant="link" size="sm" className="h-auto p-0 text-[10px]" asChild>
+                      <Link href={`/?search=${encodeURIComponent(venue.name)}`}>
+                        View on dashboard
+                        <ExternalLink className="w-2.5 h-2.5 ml-1" />
+                      </Link>
+                    </Button>
+                  )}
+                </div>
+                {allLinkedEvents.length > 0 ? (
+                  <div className="space-y-2 max-h-56 overflow-y-auto pr-2">
+                    {allLinkedEvents.map((ev) => (
+                      <Link 
+                        key={ev.id} 
+                        href={ev.isPublished ? `/published?id=${ev.id}` : `/?id=${ev.id}`}
+                        className="flex items-center justify-between p-2 rounded-md bg-muted/30 border border-border group hover:bg-muted/50 transition-colors"
+                      >
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium truncate">{ev.title}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium truncate">{ev.title}</p>
+                            <Badge variant="outline" className={cn(
+                                "text-[9px] h-3.5 px-1 font-normal",
+                                ev.isPublished ? "text-green-600 border-green-200 bg-green-50" : "text-amber-600 border-amber-200 bg-amber-50"
+                            )}>
+                                {ev.isPublished ? 'Published' : 'Pending'}
+                            </Badge>
+                          </div>
                           <p className="text-[10px] text-muted-foreground">
                             {format(new Date(ev.start_time), 'MMM d, yyyy')}
                           </p>
                         </div>
-                        <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
+                        <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+                      </Link>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground italic">No pending events linked to this venue name.</p>
+                  <p className="text-xs text-muted-foreground italic">No events linked to this venue name.</p>
                 )}
               </div>
             </div>

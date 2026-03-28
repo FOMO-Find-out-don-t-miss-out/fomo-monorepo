@@ -475,14 +475,13 @@ async def test_internal_ingest_logic_auto_approve(session: Session) -> None:
             title="Auto Event",
             start_time=future_date,
             category="Music",
-            source="schema_org",
+            ingestion_method="json_ld",
             geocoding_status="verified",
             confidence_score=0.95,
             lat=1.0,
             lng=1.0,
         )
     ]
-
     summary = internal_ingest_logic(session, events)
     assert summary.added == 1
 

@@ -5,7 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import type { PendingEvent } from '@/types/moderation'
-import { MapPin, Calendar, CheckCircle2, AlertCircle, XCircle, ImageOff } from 'lucide-react'
+import { MapPin, Calendar, CheckCircle2, AlertCircle, XCircle, ImageOff, Code, Sparkles, Database } from 'lucide-react'
 import { format } from 'date-fns'
 
 interface EventCardProps {
@@ -34,9 +34,34 @@ const statusConfig: Record<string, { icon: React.ElementType, color: string, lab
   }
 }
 
+const ingestionConfig: Record<string, { icon: React.ElementType, label: string, color: string }> = {
+  json_ld: {
+    icon: Code,
+    label: 'JSON-LD',
+    color: 'text-blue-500'
+  },
+  html_fallback: {
+    icon: Sparkles,
+    label: 'AI Fallback',
+    color: 'text-purple-500'
+  },
+  registry: {
+    icon: Database,
+    label: 'Registry',
+    color: 'text-amber-500'
+  },
+  manual: {
+    icon: Database,
+    label: 'Manual',
+    color: 'text-gray-500'
+  }
+}
+
 export function EventCard({ event, isSelected, isChecked, onSelect, onToggleCheck }: EventCardProps) {
   const status = statusConfig[event.geocoding_status] || statusConfig.failed
   const StatusIcon = status.icon
+  const Ingestion = ingestionConfig[event.ingestion_method] || ingestionConfig.manual
+  const IngestionIcon = Ingestion.icon
 
   return (
     <div
@@ -96,7 +121,7 @@ export function EventCard({ event, isSelected, isChecked, onSelect, onToggleChec
             <h3 className="font-medium text-sm text-foreground truncate">
               {event.title}
             </h3>
-            <Badge variant="secondary" className="text-xs flex-shrink-0">
+            <Badge variant="secondary" className="text-[10px] h-4.5 px-1.5 flex-shrink-0">
               {event.category}
             </Badge>
           </div>
@@ -112,10 +137,26 @@ export function EventCard({ event, isSelected, isChecked, onSelect, onToggleChec
           </div>
 
           <div className="flex items-center justify-between mt-2">
-            <span className="text-xs text-muted-foreground">
-              {event.country_code}
-            </span>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground">
+                {event.country_code}
+              </span>
+              {event.source_provider && (
+                <Badge 
+                  variant="outline" 
+                  className="text-[10px] h-4 px-1 border-blue-200 bg-blue-50 text-blue-700 font-normal"
+                >
+                  {event.source_provider}
+                </Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1 px-1 py-0.5 rounded bg-muted/50 border border-border/50">
+                <IngestionIcon className={cn('w-2.5 h-2.5', Ingestion.color)} />
+                <span className="text-[9px] font-medium uppercase text-muted-foreground tracking-tight">
+                  {Ingestion.label}
+                </span>
+              </div>
               <StatusIcon className={cn(
                 'w-3.5 h-3.5',
                 event.geocoding_status === 'verified' && 'text-green-500',

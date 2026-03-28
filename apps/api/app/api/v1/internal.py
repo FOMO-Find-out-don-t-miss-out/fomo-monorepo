@@ -5,6 +5,7 @@ import sys
 import traceback
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
+from urllib.parse import urlparse
 from uuid import UUID, uuid4
 
 import httpx
@@ -51,6 +52,19 @@ def detect_country_from_url(url: str) -> str:
     return "GR"
 
 
+def get_domain_from_url(url: str | None) -> str:
+    """Extract domain from URL, removing www."""
+    if not url:
+        return "unknown"
+    try:
+        domain = urlparse(url).netloc
+        if domain.startswith("www."):
+            domain = domain[4:]
+        return domain or "unknown"
+    except Exception:
+        return "unknown"
+
+
 def internal_ingest_logic(db: Session, events: list[ExtractedEvent]) -> IngestSummary:
     """Ingests ExtractedEvent objects into the PendingEvent table with Auto-Approve Gate."""
     added_count = 0
@@ -90,7 +104,7 @@ def internal_ingest_logic(db: Session, events: list[ExtractedEvent]) -> IngestSu
             wkt_point = f"POINT({event_data.lng} {event_data.lat})"
 
         is_auto_approved = (
-            event_data.source == "schema_org"
+            event_data.ingestion_method == "json_ld"
             and event_data.geocoding_status == "verified"
             and (event_data.confidence_score or 0) >= 0.9
             and event_data.start_time > datetime.now(UTC)
@@ -222,13 +236,21 @@ async def run_scraper_and_ingest_task(default_country: str = "GR") -> None:
                 detect_country_from_url(original_link) if original_link else default_country
             )
 
+            source_domain = "unknown"
+            if original_link:
+                try:
+                    source_domain = urlparse(original_link).netloc
+                    if source_domain.startswith("www."):
+                        source_domain = source_domain[4:]
+                except Exception:
+                    source_domain = "unknown"
+
             try:
                 if source == "schema_org":
                     extracted = await CleansingService.clean_json_ld(
-                        item.get("structured_data", {}), country_hint
+                        item.get("structured_data", {}), country_hint, source_domain=source_domain
                     )
                     if extracted:
-                        extracted.source = str(source)
                         extracted.event_metadata["original_link"] = original_link
                         extracted.country_code = country_hint
                         cleaned_events.append(extracted)
@@ -239,9 +261,9 @@ async def run_scraper_and_ingest_task(default_country: str = "GR") -> None:
                         end_time=item.get("end_time"),
                         location_name=item.get("location_name"),
                         description=item.get("description"),
-                        original_link=original_link,
                         country_code=country_hint,
-                        source="registry",
+                        source_provider=source_domain,
+                        ingestion_method="registry",
                         event_metadata={"original_link": original_link},
                     )
                     if (extracted.lat is None or extracted.lng is None) and extracted.location_name:
@@ -258,7 +280,7 @@ async def run_scraper_and_ingest_task(default_country: str = "GR") -> None:
                     cleaned_events.append(extracted)
                 elif source == "llm_fallback":
                     extracted_list = await CleansingService.clean_html_fallback(
-                        item.get("raw_text", ""), country_hint
+                        item.get("raw_text", ""), country_hint, source_domain=source_domain
                     )
                     for extracted in extracted_list:
                         extracted.event_metadata["original_link"] = original_link
@@ -321,6 +343,8 @@ async def ingest_events(
                 category=e.category,
                 hype_score=e.hype_score,
                 ticket_url=e.ticket_url,
+                source_provider=get_domain_from_url(e.source_url),
+                ingestion_method="manual",
                 event_metadata={**e.event_metadata, "original_link": e.source_url},
             )
         )

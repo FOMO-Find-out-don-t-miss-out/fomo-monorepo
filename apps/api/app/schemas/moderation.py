@@ -73,6 +73,8 @@ class EventBaseResponse(BaseModel):
     sub_category: str | None = None
     ticket_url: str | None = None
     source_url: str | None = None
+    source_provider: str = "unknown"
+    ingestion_method: str = "unknown"
     location_name: str | None = None
     country_code: str | None = None
     parent_id: UUID | None = None

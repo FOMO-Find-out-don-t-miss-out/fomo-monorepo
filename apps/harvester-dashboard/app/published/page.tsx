@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { DashboardLayout } from '@/components/dashboard/dashboard-layout'
 import { FilterSidebar } from '@/components/dashboard/filter-sidebar'
 import { EventList } from '@/components/dashboard/event-list'
@@ -10,8 +11,9 @@ import type { PendingEvent } from '@/types/moderation'
 import { toast } from 'sonner'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
-export default function PublishedEventsPage() {
+function PublishedEventsDashboard() {
   const queryClient = useQueryClient()
+  const searchParams = useSearchParams()
   
   // Selection State
   const [selectedEvent, setSelectedEvent] = useState<PendingEvent | null>(null)
@@ -24,12 +26,30 @@ export default function PublishedEventsPage() {
   // Filters
   const [selectedCategory, setSelectedCategory] = useState('All Categories')
   const [selectedStatus, setSelectedStatus] = useState<string | 'all'>('all')
+  const [selectedSource, setSelectedSource] = useState<string | 'all'>('all')
 
   // Queries
   const { data: events = [], isLoading: eventsLoading } = useQuery({
-    queryKey: ['published-events'],
+    queryKey: ['published-events', searchQuery],
     queryFn: () => moderationApi.getPublishedEvents()
   })
+
+  // Handle URL Params
+  useEffect(() => {
+    const search = searchParams.get('search')
+    if (search) {
+      setSearchQuery(search)
+    }
+
+    const id = searchParams.get('id')
+    if (id && events.length > 0) {
+      const event = events.find(e => e.id === id)
+      if (event) {
+        setSelectedEvent(event)
+        setInspectorOpen(true)
+      }
+    }
+  }, [searchParams, events])
 
   // Mutations
   const unpublishMutation = useMutation({
@@ -59,9 +79,10 @@ export default function PublishedEventsPage() {
         }
       }
       if (selectedCategory !== 'All Categories' && event.category !== selectedCategory) return false
+      if (selectedSource !== 'all' && event.source_provider !== selectedSource) return false
       return true
     })
-  }, [events, searchQuery, selectedCategory])
+  }, [events, searchQuery, selectedCategory, selectedSource])
 
   // Stats for published events (they don't have geocoding_status in the same way usually, but let's keep the object shape)
   const eventCounts = useMemo(() => ({
@@ -79,6 +100,8 @@ export default function PublishedEventsPage() {
           setSelectedCategory={setSelectedCategory}
           selectedStatus={selectedStatus}
           setSelectedStatus={setSelectedStatus}
+          selectedSource={selectedSource}
+          setSelectedSource={setSelectedSource}
           eventCounts={eventCounts}
         />
 
@@ -114,5 +137,17 @@ export default function PublishedEventsPage() {
         />
       </div>
     </DashboardLayout>
+  )
+}
+
+export default function PublishedEventsPage() {
+  return (
+    <Suspense fallback={
+      <div className="h-screen w-full flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    }>
+      <PublishedEventsDashboard />
+    </Suspense>
   )
 }

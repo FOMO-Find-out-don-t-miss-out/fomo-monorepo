@@ -62,8 +62,11 @@ class ExtractedEvent(BaseModel):
     country_code: str | None = Field(
         default=None, description="ISO country code (e.g., GR, DE, FR)"
     )
-    source: str = Field(
-        default="unknown", description="The source system/strategy that provided this event"
+    source_provider: str = Field(
+        default="unknown", description="The source provider (e.g., more.com)"
+    )
+    ingestion_method: str = Field(
+        default="unknown", description="The method used to ingest (e.g., json_ld, html_fallback)"
     )
 
     @field_validator("start_time", mode="before")
@@ -109,7 +112,9 @@ if hasattr(settings, "GOOGLE_API_KEY") and settings.GOOGLE_API_KEY:
 class CleansingService:
     @staticmethod
     async def clean_json_ld(
-        data: dict[str, Any] | list[dict[str, Any]], country_hint: str | None = None
+        data: dict[str, Any] | list[dict[str, Any]],
+        country_hint: str | None = None,
+        source_domain: str | None = None,
     ) -> ExtractedEvent | None:
         """
         Maps Schema.org / JSON-LD event data directly to ExtractedEvent.
@@ -237,6 +242,8 @@ class CleansingService:
                 confidence_score=confidence_score,
                 geocoding_status=geocoding_status,
                 geocoding_metadata=geocoding_metadata,
+                source_provider=source_domain or "unknown",
+                ingestion_method="json_ld",
             )
         except Exception as e:
             logger.error(f"Error cleansing JSON-LD: {e}")
@@ -259,7 +266,7 @@ class CleansingService:
 
     @classmethod
     async def clean_html_fallback(
-        cls, html_text: str, country_hint: str | None = None
+        cls, html_text: str, country_hint: str | None = None, source_domain: str | None = None
     ) -> list[ExtractedEvent]:
         """
         Strips noise from HTML and uses Gemini via Instructor to extract
@@ -275,31 +282,38 @@ class CleansingService:
 
         # Taxonomy for consistent classification
         global_tags = [
+            "Concert",
+            "Festival",
+            "Clubbing",
+            "DJ Set",
+            "Live Music",
+            "Pop",
+            "Electronic",
+            "Hip-Hop",
             "Rock",
-            "Techno",
-            "House",
             "Jazz",
             "Classical",
-            "Hip-Hop",
-            "R&B",
-            "Electronic",
-            "Pop",
-            "Indie",
-            "Metal",
-            "Folk",
-            "Reggae",
-            "Blues",
-            "Family-Friendly",
-            "Festival",
-            "Outdoor",
-            "Clubbing",
+            "Art",
             "Workshop",
             "Conference",
+            "Outdoor",
         ]
 
         try:
             response = _client.chat.completions.create(
                 messages=[
+                    {
+                        "role": "system",
+                        "content": """You are a professional event data extractor.
+Return ONLY valid JSON. No explanations.
+
+Strict Classification Hierarchy:
+1. Rule 1 (Venue Blindness): Ignore keywords in the location_name when determining category/tags.
+   Example: A pop concert in a 'Jazz Club' is POP, not JAZZ.
+2. Rule 2 (Primary Target): Focus 100% on the title and description for categorization.
+3. Rule 3 (The 'Other' Ban): Forbid 'Other' if the text has musical keywords. Default to 'Music'.
+""",
+                    },
                     {
                         "role": "user",
                         "content": f"""Extract all event details from the following text.
@@ -324,6 +338,8 @@ Text: {cleaned_text}""",
 
             # Post-process with Geocoder if needed
             for ev in events:
+                ev.source_provider = source_domain or "unknown"
+                ev.ingestion_method = "html_fallback"
                 city_hint = ev.event_metadata.get("city") if ev.event_metadata else None
                 logger.info(f"[CLEANSER] AI Extraction: loc='{ev.location_name}'")
                 if (ev.lat is None or ev.lng is None) and ev.location_name:

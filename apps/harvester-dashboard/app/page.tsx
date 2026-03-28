@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { DashboardLayout } from '@/components/dashboard/dashboard-layout'
 import { FilterSidebar } from '@/components/dashboard/filter-sidebar'
 import { EventList } from '@/components/dashboard/event-list'
@@ -10,8 +11,9 @@ import type { PendingEvent, GeocodeSuggestion } from '@/types/moderation'
 import { toast } from 'sonner'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
-export default function EventsPage() {
+function EventsDashboard() {
   const queryClient = useQueryClient()
+  const searchParams = useSearchParams()
   
   // Selection State
   const [selectedEvent, setSelectedEvent] = useState<PendingEvent | null>(null)
@@ -25,15 +27,33 @@ export default function EventsPage() {
   const [selectedLocation] = useState('All Locations')
   const [selectedCategory, setSelectedCategory] = useState('All Categories')
   const [selectedStatus, setSelectedStatus] = useState<string | 'all'>('all')
+  const [selectedSource, setSelectedSource] = useState<string | 'all'>('all')
 
   // Queries
   const { data: events = [], isLoading: eventsLoading } = useQuery({
-    queryKey: ['pending-events', selectedLocation, selectedStatus],
+    queryKey: ['pending-events', selectedLocation, selectedStatus, searchQuery],
     queryFn: () => moderationApi.getPendingEvents(
       selectedLocation === 'All Locations' ? undefined : selectedLocation,
       selectedStatus === 'all' ? undefined : [selectedStatus]
     )
   })
+
+  // Handle URL Params
+  useEffect(() => {
+    const search = searchParams.get('search')
+    if (search) {
+      setSearchQuery(search)
+    }
+
+    const id = searchParams.get('id')
+    if (id && events.length > 0) {
+      const event = events.find(e => e.id === id)
+      if (event) {
+        setSelectedEvent(event)
+        setInspectorOpen(true)
+      }
+    }
+  }, [searchParams, events])
 
   // Mutations
   const approveMutation = useMutation({
@@ -111,9 +131,10 @@ export default function EventsPage() {
         }
       }
       if (selectedCategory !== 'All Categories' && event.category !== selectedCategory) return false
+      if (selectedSource !== 'all' && event.source_provider !== selectedSource) return false
       return true
     })
-  }, [events, searchQuery, selectedCategory])
+  }, [events, searchQuery, selectedCategory, selectedSource])
 
   const eventCounts = useMemo(() => ({
     verified: events.filter((e) => e.geocoding_status === 'verified').length,
@@ -130,6 +151,8 @@ export default function EventsPage() {
           setSelectedCategory={setSelectedCategory}
           selectedStatus={selectedStatus}
           setSelectedStatus={setSelectedStatus}
+          selectedSource={selectedSource}
+          setSelectedSource={setSelectedSource}
           eventCounts={eventCounts}
           onSuggestionSelect={handleSuggestionSelect}
         />
@@ -166,5 +189,17 @@ export default function EventsPage() {
         />
       </div>
     </DashboardLayout>
+  )
+}
+
+export default function EventsPage() {
+  return (
+    <Suspense fallback={
+      <div className="h-screen w-full flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    }>
+      <EventsDashboard />
+    </Suspense>
   )
 }

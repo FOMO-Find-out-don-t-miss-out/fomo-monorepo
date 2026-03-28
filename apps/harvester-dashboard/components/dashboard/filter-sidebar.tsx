@@ -14,7 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { CheckCircle2, AlertCircle, XCircle, Filter, Search, MapPin } from 'lucide-react'
+import { CheckCircle2, AlertCircle, XCircle, Filter, Search, MapPin, Database } from 'lucide-react'
 import { moderationApi } from '@/lib/api'
 import type { GeocodeSuggestion } from '@/types/moderation'
 
@@ -23,6 +23,8 @@ interface FilterSidebarProps {
   setSelectedCategory: (category: string) => void
   selectedStatus: string | 'all'
   setSelectedStatus: (status: string | 'all') => void
+  selectedSource: string | 'all'
+  setSelectedSource: (source: string | 'all') => void
   eventCounts: {
     verified: number
     ambiguous: number
@@ -33,12 +35,15 @@ interface FilterSidebarProps {
 }
 
 const categories = ['All Categories', 'Live Music', 'Theater', 'Art', 'Food & Drink', 'Nightlife', 'Sports', 'Other']
+const sources = ['all', 'more.com', 'ticketmaster.com', 'manual', 'unknown']
 
 export function FilterSidebar({
   selectedCategory,
   setSelectedCategory,
   selectedStatus,
   setSelectedStatus,
+  selectedSource,
+  setSelectedSource,
   eventCounts,
   onSuggestionSelect
 }: FilterSidebarProps) {
@@ -123,6 +128,26 @@ export function FilterSidebar({
                 {categories.map((category) => (
                   <SelectItem key={category} value={category}>
                     {category}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Source Filter */}
+          <div className="space-y-2">
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+              <Database className="w-3 h-3" />
+              Source Provider
+            </Label>
+            <Select value={selectedSource} onValueChange={setSelectedSource}>
+              <SelectTrigger className="w-full bg-input/50">
+                <SelectValue placeholder="All Sources" />
+              </SelectTrigger>
+              <SelectContent>
+                {sources.map((source) => (
+                  <SelectItem key={source} value={source}>
+                    {source === 'all' ? 'All Sources' : source}
                   </SelectItem>
                 ))}
               </SelectContent>

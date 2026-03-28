@@ -17,6 +17,8 @@ class EventBase(BaseModel):
     hype_score: int = 0
     ticket_url: str | None = None
     source_url: str | None = None
+    source_provider: str = "unknown"
+    ingestion_method: str = "unknown"
     location_name: str | None = None
     search_term: str | None = None
     event_metadata: dict[str, Any] = {}
@@ -52,5 +54,7 @@ class PendingEventRead(BaseModel):
     status: str
     title: str
     category: str
+    source_provider: str = "unknown"
+    ingestion_method: str = "unknown"
     start_time: datetime
     hype_score: int

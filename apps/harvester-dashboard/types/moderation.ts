@@ -11,6 +11,8 @@ export interface EventBase {
   country_code?: string;
   parent_id?: string; // UUID
   photo_url?: string; // Computed property from metadata
+  source_provider: string;
+  ingestion_method: string;
 }
 
 export interface Event extends EventBase {

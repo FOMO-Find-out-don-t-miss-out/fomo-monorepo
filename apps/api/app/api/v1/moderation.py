@@ -56,6 +56,8 @@ def _to_pending_event_response(ev: PendingEvent | Event) -> PendingEventResponse
         sub_category=ev.sub_category,
         ticket_url=ev.ticket_url,
         source_url=ev.source_url,
+        source_provider=ev.source_provider,
+        ingestion_method=ev.ingestion_method,
         location_name=ev.location_name,
         country_code=ev.country_code,
         parent_id=ev.parent_id,

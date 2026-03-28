@@ -26,6 +26,8 @@ class MockEvent:
             "sub_category": None,
             "ticket_url": None,
             "source_url": None,
+            "source_provider": "unknown",
+            "ingestion_method": "unknown",
             "location_name": None,
             "country_code": None,
             "parent_id": None,

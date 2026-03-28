@@ -62,6 +62,16 @@ class EventBase(SQLModel):
         default=None,
         serialization_alias="sourceUrl",
     )
+    source_provider: str = Field(
+        default="unknown",
+        index=True,
+        serialization_alias="sourceProvider",
+    )
+    ingestion_method: str = Field(
+        default="unknown",
+        index=True,
+        serialization_alias="ingestionMethod",
+    )
     location_name: str | None = Field(
         default=None,
         index=True,

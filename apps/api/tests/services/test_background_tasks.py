@@ -15,6 +15,8 @@ async def test_run_scraper_and_ingest_task_success(
     session: Session, monkeypatch: pytest.MonkeyPatch, respx_mock: object
 ) -> None:
     """Test successful scraper run and ingestion."""
+    from app.services.harvester.cleanser import ExtractedEvent
+
     # 1. Mock subprocess
     mock_process = AsyncMock()
     mock_process.returncode = 0
@@ -37,10 +39,8 @@ async def test_run_scraper_and_ingest_task_success(
         ):
             # 3. Mock CleansingService
             async def mock_clean_side_effect(
-                data_or_text: object, country_hint: str | None = None
+                data_or_text: object, country_hint: str | None = None, **kwargs: Any
             ) -> object:
-                from app.services.harvester.cleanser import ExtractedEvent
-
                 title = f"Mocked Event {hash(str(data_or_text))}"
                 return ExtractedEvent(
                     title=title,
@@ -48,12 +48,16 @@ async def test_run_scraper_and_ingest_task_success(
                     location_name="Mock Venue",
                     category="Other",
                     event_metadata={},
+                    source_provider=kwargs.get("source_domain", "unknown"),
+                    ingestion_method="json_ld" if "source_domain" in kwargs else "unknown",
                 )
 
             async def mock_html_side_effect(
-                text: str, country_hint: str | None = None
+                text: str, country_hint: str | None = None, **kwargs: Any
             ) -> list[object]:
-                ev = await mock_clean_side_effect(text, country_hint)
+                ev = await mock_clean_side_effect(text, country_hint, **kwargs)
+                if isinstance(ev, ExtractedEvent):
+                    ev.ingestion_method = "html_fallback"
                 return [ev]
 
             with patch(
