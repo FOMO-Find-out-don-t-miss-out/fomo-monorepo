@@ -1,0 +1,34 @@
+# FOMO Monorepo: Strict Ruff 2026 Standards
+target-version = "py312"
+line-length = 100
+
+[lint]
+# 2026 Industry Standard Rules
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "B",    # flake8-bugbear
+    "UP",   # pyupgrade
+    "I",    # isort (Import sorting)
+    "ANN",  # flake8-annotations (Type Hints mandatory)
+    "S",    # flake8-bandit (Security)
+    "T20",  # flake8-print (No print statements)
+    "PTH",  # flake8-use-pathlib
+    "RUF",  # Ruff-specific rules
+]
+
+ignore = [
+    "RUF001", # Confusable Greek characters (intended for this project)
+    "D",      # Docstrings (using comments instead as per rules)
+]
+
+[lint.per-file-ignores]
+"**/tests/*" = ["S101"] # Allow assert in all tests
+"apps/api/tests/infrastructure/test_mapbox_client.py" = ["S105", "S106"] # Allow dummy tokens in tests
+
+[lint.isort]
+known-first-party = ["packages.domain", "apps.api"]
+
+[lint.flake8-annotations]
+allow-star-arg-any = true
+suppress-none-returning = true

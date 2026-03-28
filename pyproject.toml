@@ -1,0 +1,28 @@
+[project]
+name = "fomo-monorepo"
+version = "0.1.0"
+description = "FOMO Monorepo Root"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = [
+    "apps/api",
+    "packages/domain",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.6.9",
+    "pytest>=8.3.3",
+    "pytest-cov>=5.0.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-mock>=3.14.0",
+    "pytest-env>=1.1.5",
+    "fakeredis[lua]>=2.25.0",
+    "respx>=0.21.1",
+]

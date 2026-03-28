@@ -1,0 +1,16 @@
+{
+  "name": "@fomo/api-spec",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@typespec/compiler": "latest",
+    "@typespec/http": "latest",
+    "@typespec/openapi3": "latest",
+    "@typespec/rest": "latest"
+  },
+  "scripts": {
+    "build": "tsp compile main.tsp",
+    "watch": "tsp compile main.tsp --watch"
+  }
+}

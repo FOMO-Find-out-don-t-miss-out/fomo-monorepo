@@ -6,12 +6,55 @@ Welcome to the **FOMO** (Fear Of Missing Out) monorepo. This project is a highly
 
 The project is structured as a modular monorepo:
 
-- **`services/api`**: FastAPI backend using SQLModel (SQLAlchemy 2.0 + Pydantic).
-- **`apps/harvester-dashboard`**: Next.js (React) moderation dashboard for human-in-the-loop review.
-- **`services/harvester`**: Python-based scrapers for automated data collection.
-- **`infra/`**: Docker and database provisioning scripts.
-- **`apps/mobile`**: Expo/React Native mobile application.
-- **`n8n`**: Integrated workflow automation for the harvester pipeline.
+```text
+.
+├── apps/
+│   ├── api/                   # FastAPI backend (Routing & Entry Points)
+│   ├── harvester-dashboard/   # Next.js moderation dashboard
+│   └── mobile/                # Expo/React Native mobile application
+├── packages/
+│   ├── api-spec/              # TypeSpec API Definitions (Source of Truth)
+│   └── domain/                # Shared Logic & Domain Models (SQLModel, Services)
+├── infra/                     # Docker & Database Provisioning
+├── tooling/                   # Quality & Build Scripts
+├── docker-compose.yml         # Local Infrastructure Orchestration
+├── pyproject.toml             # UV Workspace Configuration
+├── ruff.toml                  # Strict 2026 Quality Standards
+└── CORE_RULES.md              # Mandatory Developer Guidelines
+```
+
+---
+
+## 📜 API Contracts
+We use [TypeSpec](https://typespec.io/) to define our API contract as the single source of truth.
+- **Location**: `packages/api-spec/main.tsp`
+- **Build Spec**:
+  ```bash
+  cd packages/api-spec
+  npm install
+  tsp compile main.tsp
+  ```
+- **Goal**: Generate OpenAPI/FastAPI/TypeScript models from this spec to ensure consistency.
+
+---
+
+## 🏗 Development Rules
+To ensure consistent quality and maintainability, all contributors must strictly adhere to our project guidelines:
+- [CORE_RULES.md](./CORE_RULES.md) - **Mandatory Architectural and Quality Standards.**
+
+---
+
+## ✅ Quality Gates
+We enforce strict industry standards for every contribution:
+- **Linting**: No warnings allowed (Ruff).
+- **Type Safety**: Mandatory type hints for all public functions (ANN).
+- **Security**: Automated security scanning (S).
+- **Coverage**: Minimum **95% code coverage** is enforced.
+
+To run the full quality suite locally:
+```bash
+./tooling/check-quality.sh
+```
 
 ---
 
@@ -23,9 +66,16 @@ Follow these steps exactly to initialize the project after cloning.
 Ensure you have the following installed:
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 - [Git](https://git-scm.com/)
-- [Node.js](https://nodejs.org/) (Optional, for local dashboard development)
+- [Node.js](https://nodejs.org/)
+- [uv](https://github.com/astral-sh/uv) (Recommended for Python dependency management)
 
-### 2. Environment Configuration
+### 2. Python Dependency Management
+We use [uv](https://github.com/astral-sh/uv) to manage Python dependencies across the monorepo. To sync all dependencies:
+```bash
+uv sync
+```
+
+### 3. Environment Configuration
 Create a `.env` file in the root directory:
 ```env
 POSTGRES_USER=postgres
@@ -38,19 +88,19 @@ GOOGLE_API_KEY=your_gemini_api_key
 N8N_WEBHOOK_URL=http://fomo_harvester_n8n:5678/webhook/your-id
 ```
 
-### 3. Spin up the Infrastructure
+### 4. Spin up the Infrastructure
 This will build the API, Dashboard, and start PostgreSQL (PostGIS), Redis, and n8n.
 ```bash
 docker compose up -d --build
 ```
 
-### 4. Initialize the Database Schema
+### 5. Initialize the Database Schema
 Since the database starts empty, you must apply the Alembic migrations to create the tables:
 ```bash
 docker compose exec api alembic upgrade head
 ```
 
-### 5. Verify the Installation
+### 6. Verify the Installation
 - **Moderation Dashboard**: [http://localhost:3000](http://localhost:3000)
 - **API Health Check**: [http://localhost:8000/api/v1/health](http://localhost:8000/api/v1/health)
 - **API Documentation (Swagger)**: [http://localhost:8000/docs](http://localhost:8000/docs)
@@ -62,7 +112,7 @@ docker compose exec api alembic upgrade head
 ## 🛠 Development Workflows
 
 ### Database Migrations
-When you modify models in `app/models/`:
+When you modify models in `packages/domain/`:
 1. **Generate a migration**:
    ```bash
    docker compose exec api alembic revision --autogenerate -m "describe_your_change"
@@ -80,50 +130,36 @@ curl -X POST http://localhost:8000/api/v1/internal/run-scraper
 ```
 *Note: This runs in the background and will ingest data into the `pending_events` table.*
 
-### Moderation Queue
-New events arrive in `pending_events`. To move them to the live `events` table, use the **Moderation Dashboard** at [http://localhost:3000](http://localhost:3000).
-
-The dashboard allows you to:
-- **Review**: Inspect event details, photos, and categories.
-- **Geocode**: Verify and correct locations using integrated Mapbox search.
-- **Recurring Events**: Add or manage additional dates for the same event.
-- **Venues**: Manage and merge venues to maintain a clean database.
-- **Approve/Reject**: Single or bulk actions to publish events to the live platform.
-- **Unpublish**: Move events from the live platform back to the moderation queue.
 ---
 
-## 🧪 Testing & Quality Assurance
+## 🛠 Troubleshooting
 
-The project maintains high standards with **Ruff** for linting and **Pytest** for comprehensive testing, targeting **95-96%+ code coverage**.
-
-### 1. Running Linting
-We use Ruff for extremely fast Python linting and formatting checks:
-```bash
-docker compose exec api ruff check .
+### Installing `uv` on Windows
+If `uv` is not found, install it locally via the official PowerShell script:
+```powershell
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-### 2. Running Tests
-All API unit and integration tests can be executed within the container:
+### Docker Build Context & Monorepo Integrity
+In this monorepo, **all Docker builds must be executed from the root directory**. This is because services in `apps/` depend on shared packages in `packages/` (e.g., the API depends on the `domain` package).
+
+If you build from inside `apps/api/`, Docker will not be able to "see" the `packages/` directory, and the build will fail. Our `docker-compose.yml` is already configured to handle this correctly.
+
+If building manually:
 ```bash
-docker compose exec api pytest
+# CORRECT: Run from monorepo root
+docker build -t fomo-api -f apps/api/Dockerfile .
+
+# INCORRECT: Will fail to find packages/domain
+cd apps/api && docker build -t fomo-api .
 ```
 
-### 3. Monitoring Test Coverage
-To check the current code coverage and identify untested lines, run:
-```bash
-docker compose exec api pytest --cov=app --cov-report=term-missing
-```
+---
 
-The project is configured via `.coveragerc` to:
-- **Fail** if total coverage drops below **95%**.
-- **Exclude** migrations and boilerplate from the report.
-- **Show** exact line numbers that are missing coverage.
-
-### 4. Local Testing (Optional)
-If you have a local Python environment (3.12+) and want to run tests without Docker:
-1. **Install dependencies**: `pip install -r services/api/requirements.txt`
-2. **Run tests**: `python -m pytest --cov=app --cov-report=term-missing` from the `services/api` directory.
-   *Note: Local tests use an in-memory SQLite database with PostGIS mocks for speed and portability.*
+## 🛠 Troubleshooting
+...
+### Build Failures
+**Important**: Ensure your Docker build context is at the **monorepo root**. Shared logic in `packages/` is invisible to Docker if the context is set to a subdirectory.
 
 ---
 

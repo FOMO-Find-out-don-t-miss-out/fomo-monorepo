@@ -32,14 +32,16 @@ services:
 
   api:
     build:
-      context: ./services/api
+      context: .
+      dockerfile: ./apps/api/Dockerfile
     container_name: fomo_api
     restart: always
     ports:
       - "8000:8000"
     volumes:
-      - ./services/api:/app
-      - ./.env:/app/.env
+      - ./apps/api:/app/apps/api
+      - ./packages/domain:/app/packages/domain
+      - ./.env:/app/apps/api/.env
     environment:
       DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-fomo}
       REDIS_URL: redis://redis:6379/0

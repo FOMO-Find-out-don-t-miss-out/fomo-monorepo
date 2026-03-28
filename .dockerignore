@@ -1,0 +1,15 @@
+.venv/
+apps/api/.venv/
+packages/domain/.venv/
+node_modules/
+apps/harvester-dashboard/node_modules/
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.git/
