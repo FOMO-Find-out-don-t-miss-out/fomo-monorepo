@@ -147,6 +147,12 @@ When you modify models in `packages/domain/`:
    docker compose exec api alembic upgrade head
    ```
 
+### Database Hydration
+To sync data between devices or restore a known state:
+- **Dump data**: `pnpm db:dump` (Exports `Venues` and `Events` to `infra/seeds/`).
+- **Seed data**: `pnpm db:seed` (Imports JSON files from `infra/seeds/` into the local DB).
+  *Note: Always run migrations (`alembic upgrade head`) before seeding.*
+
 #### Resolving "Schema Drift" Errors
 If the quality gates fail with "CRITICAL: Schema Drift Detected", it means your SQLModel definitions do not match the live database schema.
 - **Why it happens**: You modified a model but didn't create/apply a migration, or your local DB is out of sync.

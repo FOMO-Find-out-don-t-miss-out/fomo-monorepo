@@ -64,6 +64,9 @@ Every coding task performed by an AI agent must follow this iterative cycle:
   docker compose exec api alembic revision --autogenerate -m "description"
   docker compose exec api alembic upgrade head
   ```
+- **DATABASE MANAGEMENT**:
+  - **DATA CONSISTENCY**: When switching machines, always run 'pnpm db:seed' after migrations to ensure local environment parity. Do not commit large production datasets to the seeds folder.
+
 - **SYNC LOCK**: No PR shall be merged if the `verify-schema-sync` check fails. Any change to TypeSpec MUST be followed by a generated Alembic migration in the same commit.
 
 ### Data Pipeline (Harvester)
