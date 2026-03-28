@@ -31,6 +31,8 @@ Every coding task performed by an AI agent must follow this iterative cycle:
 3.  **EXECUTE**: Implement the minimal code required to make the test pass.
 4.  **VERIFY**: Run `uv run ruff check .` for linting and `pytest` for verification.
 
+**LITMUS TEST**: Before proposing any database migration or SQLModel change, the Agent **MUST** use the MCP Bridge to inspect the current state of the PostgreSQL schema. Proposing changes based on stale context is forbidden.
+
 ---
 
 ## 🧪 3. QUALITY GATES

@@ -109,6 +109,16 @@ docker compose exec api alembic upgrade head
 
 ---
 
+## 🛠 Tooling
+
+### MCP Awareness (Infrastructure Bridge)
+To improve AI-driven development, this monorepo supports the **Model Context Protocol (MCP)**.
+- **Config**: `infra/mcp-config.json`
+- **Purpose**: Allows AI agents to connect directly to the live PostgreSQL/PostGIS database to inspect schemas, indexes, and constraints.
+- **Benefit**: Eliminates hallucinations when proposing database migrations or SQLModel changes. Agents can verify the state of the infrastructure in real-time.
+
+---
+
 ## 🛠 Development Workflows
 
 ### Database Migrations
