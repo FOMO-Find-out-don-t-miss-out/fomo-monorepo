@@ -14,5 +14,4 @@ class Settings(BaseSettings):
     GEMINI_MODEL: str = "gemini-2.5-flash"
 
 
-
 settings = Settings()

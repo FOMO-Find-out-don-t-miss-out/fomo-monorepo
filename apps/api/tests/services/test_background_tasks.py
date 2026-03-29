@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-from app.api.v1.internal import run_scraper_and_ingest_task
+from app.services.harvester.orchestrator import HarvesterOrchestrator
 from sqlmodel import Session, select
 
 from packages.domain.models import PendingEvent
@@ -33,6 +33,7 @@ async def test_run_scraper_and_ingest_task_success(
     mock_process.communicate.return_value = (mock_stdout.encode(), b"")
 
     from app.services.harvester.geocoder import GeocodeResult
+
     mock_geo = GeocodeResult(
         lat=37.9,
         lng=23.7,
@@ -48,7 +49,6 @@ async def test_run_scraper_and_ingest_task_success(
             "app.services.harvester.geocoder.GeocoderService.get_coordinates",
             return_value=mock_geo,
         ):
-
             # 3. Mock CleansingService
             async def mock_clean_side_effect(
                 data_or_text: object, country_hint: str | None = None, **kwargs: Any
@@ -81,8 +81,8 @@ async def test_run_scraper_and_ingest_task_success(
                     side_effect=mock_html_side_effect,
                 ):
                     # 4. Mock Engine
-                    with patch("app.api.v1.internal.engine", session.get_bind()):
-                        await run_scraper_and_ingest_task(default_country="GR")
+                    with patch("app.services.harvester.orchestrator.engine", session.get_bind()):
+                        await HarvesterOrchestrator.run_pipeline(default_country="GR")
 
     all_pending = session.exec(select(PendingEvent)).all()
     assert len(all_pending) > 0
@@ -96,7 +96,7 @@ async def test_run_scraper_and_ingest_task_subprocess_fail(monkeypatch: pytest.M
     mock_process.communicate.return_value = (b"", b"Error log")
 
     with patch("asyncio.create_subprocess_exec", return_value=mock_process):
-        await run_scraper_and_ingest_task()
+        await HarvesterOrchestrator.run_pipeline()
 
 
 @pytest.mark.asyncio
@@ -107,7 +107,7 @@ async def test_run_scraper_and_ingest_task_json_fail(monkeypatch: pytest.MonkeyP
     mock_process.communicate.return_value = (b"invalid json", b"")
 
     with patch("asyncio.create_subprocess_exec", return_value=mock_process):
-        await run_scraper_and_ingest_task()
+        await HarvesterOrchestrator.run_pipeline()
 
 
 @pytest.mark.asyncio
@@ -119,7 +119,7 @@ async def test_run_scraper_and_ingest_task_timeout(monkeypatch: pytest.MonkeyPat
         mock_process.kill = MagicMock()
         mock_exec.return_value = mock_process
 
-        await run_scraper_and_ingest_task()
+        await HarvesterOrchestrator.run_pipeline()
         assert mock_process.kill.called
 
 
@@ -137,8 +137,8 @@ async def test_run_scraper_and_ingest_task_webhook_conn_error(
         cast(Any, respx_mock).post("http://n8n.test").side_effect = httpx.ConnectError("Fail")
 
         with patch("asyncio.create_subprocess_exec", return_value=mock_process):
-            with patch("app.api.v1.internal.engine", session.get_bind()):
-                await run_scraper_and_ingest_task()
+            with patch("app.services.harvester.orchestrator.engine", session.get_bind()):
+                await HarvesterOrchestrator.run_pipeline()
 
 
 @pytest.mark.asyncio
@@ -161,10 +161,11 @@ async def test_run_scraper_and_ingest_task_db_fail(
 
     with patch("asyncio.create_subprocess_exec", return_value=mock_process):
         with patch(
-            "app.api.v1.internal.internal_ingest_logic", side_effect=Exception("DB connection lost")
+            "app.services.harvester.ingestion_service.IngestionService.ingest_events",
+            side_effect=Exception("DB connection lost"),
         ):
-            with patch("app.api.v1.internal.engine", session.get_bind()):
-                await run_scraper_and_ingest_task()
+            with patch("app.services.harvester.orchestrator.engine", session.get_bind()):
+                await HarvesterOrchestrator.run_pipeline()
 
 
 @pytest.mark.asyncio
@@ -181,5 +182,5 @@ async def test_run_scraper_and_ingest_task_webhook_general_fail(
         cast(Any, respx_mock).post("http://n8n.test").mock(return_value=httpx.Response(500))
 
         with patch("asyncio.create_subprocess_exec", return_value=mock_process):
-            with patch("app.api.v1.internal.engine", session.get_bind()):
-                await run_scraper_and_ingest_task()
+            with patch("app.services.harvester.orchestrator.engine", session.get_bind()):
+                await HarvesterOrchestrator.run_pipeline()

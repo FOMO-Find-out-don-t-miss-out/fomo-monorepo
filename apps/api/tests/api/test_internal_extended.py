@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from app.api.v1.internal import run_scraper_and_ingest_task
+from app.services.harvester.orchestrator import HarvesterOrchestrator
 from httpx import AsyncClient
 from sqlmodel import Session
 
@@ -38,8 +38,8 @@ async def test_run_scraper_registry_source(session: Session) -> None:
                 country_code="GR",
                 geocoding_status="verified",
             )
-            with patch("app.api.v1.internal.engine", session.get_bind()):
-                await run_scraper_and_ingest_task(default_country="GR")
+            with patch("app.services.harvester.orchestrator.engine", session.get_bind()):
+                await HarvesterOrchestrator.run_pipeline(default_country="GR")
 
     from sqlmodel import select
 
@@ -72,6 +72,6 @@ async def test_trigger_batch_geocode_endpoint(client: AsyncClient, session: Sess
         new_callable=AsyncMock,
     ) as mock_batch:
         mock_batch.return_value = {"updated": 1, "failed": 0, "skipped": 0}
-        response = await client.post("/api/v1/internal/batch-geocode", params={"batch_size": 10})
+        response = await client.post("/api/v1/ingestion/batch-geocode", params={"batch_size": 10})
         assert response.status_code == 202
         assert "Batch geocoding started" in response.json()["message"]

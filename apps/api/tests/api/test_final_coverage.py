@@ -21,7 +21,7 @@ async def test_purge_old_events(client: AsyncClient, session: Session) -> None:
     session.add(old_event)
     session.commit()
 
-    response = await client.delete("/api/v1/internal/cleanup-pending?days_old=30")
+    response = await client.delete("/api/v1/ingestion/cleanup-pending?days_old=30")
     assert response.status_code == 200
     assert response.json()["deleted_count"] == 1
 

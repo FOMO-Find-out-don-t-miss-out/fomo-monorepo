@@ -294,9 +294,7 @@ class CleansingService:
                     category = "Music"
 
             organizer_name = str(item_data.get("organizer", {}).get("name") or "").lower()
-            if any(
-                kw in organizer_name for kw in ["festival", "productions", "music"]
-            ):
+            if any(kw in organizer_name for kw in ["festival", "productions", "music"]):
                 category = "Music"
 
             if "festival" in combined_text or "φεστιβάλ" in combined_text:

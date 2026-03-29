@@ -166,7 +166,7 @@ If the quality gates fail with "CRITICAL: Schema Drift Detected", it means your 
 You can trigger the internal scraper manually via the API:
 ```bash
 # via Curl
-curl -X POST http://localhost:8000/api/v1/internal/run-scraper
+curl -X POST http://localhost:8000/api/v1/ingestion/run-scraper
 ```
 *Note: This runs in the background and will ingest data into the `pending_events` table.*
 

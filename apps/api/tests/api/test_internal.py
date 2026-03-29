@@ -29,7 +29,7 @@ async def test_ingest_events_new(client: AsyncClient, session: Session) -> None:
         "raw_content": "Raw data for test",
     }
 
-    response = await client.post("/api/v1/internal/ingest", json=payload)
+    response = await client.post("/api/v1/ingestion/ingest", json=payload)
     assert response.status_code == 200
     data = response.json()
     assert data["added"] == 1
@@ -61,7 +61,7 @@ async def test_ingest_events_update(client: AsyncClient, session: Session) -> No
         ]
     }
 
-    first_response = await client.post("/api/v1/internal/ingest", json=first_payload)
+    first_response = await client.post("/api/v1/ingestion/ingest", json=first_payload)
     assert first_response.status_code == 200
     assert first_response.json()["added"] == 1
 
@@ -79,7 +79,7 @@ async def test_ingest_events_update(client: AsyncClient, session: Session) -> No
         ]
     }
 
-    second_response = await client.post("/api/v1/internal/ingest", json=second_payload)
+    second_response = await client.post("/api/v1/ingestion/ingest", json=second_payload)
     assert second_response.status_code == 200
     data = second_response.json()
     assert data["updated"] == 1
@@ -107,7 +107,7 @@ async def test_approve_event(client: AsyncClient, session: Session) -> None:
     session.add(pending)
     session.commit()
 
-    response = await client.post(f"/api/v1/internal/approve/{pending_id}")
+    response = await client.post(f"/api/v1/ingestion/approve/{pending_id}")
     assert response.status_code == 200
     assert response.json()["message"] == "Event approved"
 
@@ -124,7 +124,7 @@ async def test_approve_event(client: AsyncClient, session: Session) -> None:
 @pytest.mark.asyncio
 async def test_approve_event_not_found(client: AsyncClient) -> None:
     """Test approving non-existent event."""
-    response = await client.post(f"/api/v1/internal/approve/{uuid4()}")
+    response = await client.post(f"/api/v1/ingestion/approve/{uuid4()}")
     assert response.status_code == 404
 
 
@@ -144,7 +144,7 @@ async def test_approve_already_approved(client: AsyncClient, session: Session) -
     session.add(pending)
     session.commit()
 
-    response = await client.post(f"/api/v1/internal/approve/{pending_id}")
+    response = await client.post(f"/api/v1/ingestion/approve/{pending_id}")
     assert response.status_code == 400
     assert "already approved" in response.json()["detail"]
 
@@ -165,7 +165,7 @@ async def test_reject_event(client: AsyncClient, session: Session) -> None:
     session.add(pending)
     session.commit()
 
-    response = await client.delete(f"/api/v1/internal/reject/{pending_id}")
+    response = await client.delete(f"/api/v1/ingestion/reject/{pending_id}")
     assert response.status_code == 200
     assert response.json()["message"] == "Event rejected and deleted"
 
@@ -177,21 +177,21 @@ async def test_reject_event(client: AsyncClient, session: Session) -> None:
 @pytest.mark.asyncio
 async def test_reject_event_not_found(client: AsyncClient) -> None:
     """Test rejecting non-existent event."""
-    response = await client.delete(f"/api/v1/internal/reject/{uuid4()}")
+    response = await client.delete(f"/api/v1/ingestion/reject/{uuid4()}")
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
 async def test_trigger_scraper(client: AsyncClient) -> None:
     """Test triggering the scraper background task."""
-    response = await client.post("/api/v1/internal/run-scraper")
+    response = await client.post("/api/v1/ingestion/run-scraper")
     assert response.status_code == 202
     assert "Scraper started in background" in response.json()["message"]
 
 
 def test_detect_country_from_url() -> None:
     """Test country detection from URL."""
-    from app.api.v1.internal import detect_country_from_url
+    from packages.domain.utils.url_utils import detect_country_from_url
 
     assert detect_country_from_url("https://www.more.com/gr/events") == "GR"
     assert detect_country_from_url("https://ticketmaster.de/event/1") == "DE"
@@ -227,7 +227,7 @@ async def test_approve_event_with_occurrences(client: AsyncClient, session: Sess
     session.add(pending)
     session.commit()
 
-    response = await client.post(f"/api/v1/internal/approve/{pending_id}")
+    response = await client.post(f"/api/v1/ingestion/approve/{pending_id}")
     assert response.status_code == 200
     assert response.json()["occurrences_created"] == 2
 
@@ -280,7 +280,7 @@ async def test_cleanup_pending_events(client: AsyncClient, session: Session) -> 
     session.add(ev3)
     session.commit()
 
-    response = await client.delete("/api/v1/internal/cleanup-pending?days_old=30")
+    response = await client.delete("/api/v1/ingestion/cleanup-pending?days_old=30")
     assert response.status_code == 200
     assert response.json()["deleted_count"] == 1
 
@@ -301,8 +301,8 @@ async def test_cleanup_pending_events(client: AsyncClient, session: Session) -> 
 @pytest.mark.asyncio
 async def test_run_scraper_and_ingest_task(session: Session) -> None:
     """Test the full scraper background task pipeline."""
-    from app.api.v1.internal import run_scraper_and_ingest_task
     from app.services.harvester.cleanser import ExtractedEvent
+    from app.services.harvester.orchestrator import HarvesterOrchestrator
 
     mock_process = AsyncMock()
     mock_process.returncode = 0
@@ -327,6 +327,7 @@ async def test_run_scraper_and_ingest_task(session: Session) -> None:
     mock_response.status_code = 200
 
     from app.services.harvester.geocoder import GeocodeResult
+
     mock_geo = GeocodeResult(
         lat=37.9,
         lng=23.7,
@@ -345,9 +346,9 @@ async def test_run_scraper_and_ingest_task(session: Session) -> None:
                 return_value=mock_geo,
             ):
                 with patch("httpx.AsyncClient.post", return_value=mock_response):
-                    with patch("app.api.v1.internal.engine", session.get_bind()):
+                    with patch("app.services.harvester.orchestrator.engine", session.get_bind()):
                         with patch("app.core.config.settings.N8N_WEBHOOK_URL", "http://n8n.test"):
-                            await run_scraper_and_ingest_task(default_country="GR")
+                            await HarvesterOrchestrator.run_pipeline(default_country="GR")
 
     pending = session.exec(select(PendingEvent).where(PendingEvent.title == "Test Event")).first()
     assert pending is not None
@@ -357,8 +358,8 @@ async def test_run_scraper_and_ingest_task(session: Session) -> None:
 @pytest.mark.asyncio
 async def test_run_scraper_and_ingest_task_html_fallback(session: Session) -> None:
     """Test the scraper background task with HTML fallback items."""
-    from app.api.v1.internal import run_scraper_and_ingest_task
     from app.services.harvester.cleanser import ExtractedEvent
+    from app.services.harvester.orchestrator import HarvesterOrchestrator
 
     mock_process = AsyncMock()
     mock_process.returncode = 0
@@ -380,6 +381,7 @@ async def test_run_scraper_and_ingest_task_html_fallback(session: Session) -> No
     )
 
     from app.services.harvester.geocoder import GeocodeResult
+
     mock_geo = GeocodeResult(
         lat=37.9,
         lng=23.7,
@@ -399,8 +401,8 @@ async def test_run_scraper_and_ingest_task_html_fallback(session: Session) -> No
                 return_value=mock_geo,
             ):
                 with patch("httpx.AsyncClient.post"):
-                    with patch("app.api.v1.internal.engine", session.get_bind()):
-                        await run_scraper_and_ingest_task(default_country="GR")
+                    with patch("app.services.harvester.orchestrator.engine", session.get_bind()):
+                        await HarvesterOrchestrator.run_pipeline(default_country="GR")
 
     pending = session.exec(
         select(PendingEvent).where(PendingEvent.title == "AI Extracted Event")
@@ -411,21 +413,21 @@ async def test_run_scraper_and_ingest_task_html_fallback(session: Session) -> No
 
 @pytest.mark.asyncio
 async def test_run_scraper_and_ingest_task_timeout() -> None:
-    from app.api.v1.internal import run_scraper_and_ingest_task
+    from app.services.harvester.orchestrator import HarvesterOrchestrator
 
     mock_process = AsyncMock()
     mock_process.communicate.side_effect = TimeoutError()
     mock_process.kill = MagicMock()
 
     with patch("asyncio.create_subprocess_exec", return_value=mock_process):
-        await run_scraper_and_ingest_task()
+        await HarvesterOrchestrator.run_pipeline()
         assert mock_process.kill.called
 
 
 @pytest.mark.asyncio
 async def test_run_scraper_and_ingest_task_db_error(session: Session) -> None:
-    from app.api.v1.internal import run_scraper_and_ingest_task
     from app.services.harvester.cleanser import ExtractedEvent
+    from app.services.harvester.orchestrator import HarvesterOrchestrator
 
     mock_process = AsyncMock()
     mock_process.returncode = 0
@@ -447,29 +449,30 @@ async def test_run_scraper_and_ingest_task_db_error(session: Session) -> None:
             "app.services.harvester.cleanser.CleansingService.clean_json_ld", return_value=extracted
         ):
             with patch(
-                "app.api.v1.internal.internal_ingest_logic", side_effect=Exception("DB FAIL")
+                "app.services.harvester.ingestion_service.IngestionService.ingest_events",
+                side_effect=Exception("DB FAIL"),
             ):
-                await run_scraper_and_ingest_task()
+                await HarvesterOrchestrator.run_pipeline()
 
 
 @pytest.mark.asyncio
 async def test_internal_ingest_logic_junk_filters(session: Session) -> None:
-    from app.api.v1.internal import internal_ingest_logic
     from app.services.harvester.cleanser import ExtractedEvent
+    from app.services.harvester.ingestion_service import IngestionService
 
     events = [
         ExtractedEvent(title="Junk", category="Junk", start_time=datetime.now(UTC)),
         ExtractedEvent(title="Προσφορές tickets", category="Other", start_time=datetime.now(UTC)),
     ]
 
-    summary = await internal_ingest_logic(session, events)
+    summary = await IngestionService.ingest_events(session, events)
     assert summary.added == 0
 
 
 @pytest.mark.asyncio
 async def test_internal_ingest_logic_venue_match(session: Session) -> None:
-    from app.api.v1.internal import internal_ingest_logic
     from app.services.harvester.cleanser import ExtractedEvent
+    from app.services.harvester.ingestion_service import IngestionService
 
     from packages.domain.models import Venue
 
@@ -485,7 +488,7 @@ async def test_internal_ingest_logic_venue_match(session: Session) -> None:
         )
     ]
 
-    summary = await internal_ingest_logic(session, events)
+    summary = await IngestionService.ingest_events(session, events)
     assert summary.added == 1
 
     pending = session.exec(select(PendingEvent).where(PendingEvent.title == "Event")).first()
@@ -496,8 +499,8 @@ async def test_internal_ingest_logic_venue_match(session: Session) -> None:
 
 @pytest.mark.asyncio
 async def test_internal_ingest_logic_auto_approve(session: Session) -> None:
-    from app.api.v1.internal import internal_ingest_logic
     from app.services.harvester.cleanser import ExtractedEvent
+    from app.services.harvester.ingestion_service import IngestionService
 
     future_date = datetime.now(UTC).replace(year=datetime.now(UTC).year + 1)
     events = [
@@ -512,7 +515,7 @@ async def test_internal_ingest_logic_auto_approve(session: Session) -> None:
             lng=1.0,
         )
     ]
-    summary = await internal_ingest_logic(session, events)
+    summary = await IngestionService.ingest_events(session, events)
     assert summary.added == 1
 
     pending = session.exec(select(PendingEvent).where(PendingEvent.title == "Auto Event")).first()

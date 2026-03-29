@@ -3,8 +3,10 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from app.api.v1.internal import get_domain_from_url, run_scraper_and_ingest_task
+from app.services.harvester.orchestrator import HarvesterOrchestrator
 from sqlmodel import Session
+
+from packages.domain.utils.url_utils import get_domain_from_url
 
 
 def test_get_domain_from_url_coverage() -> None:
@@ -23,7 +25,7 @@ def test_get_domain_from_url_coverage() -> None:
     assert get_domain_from_url("mailto:someone@example.com") == "unknown"
 
     # Case: Exception (though urlparse rarely raises, we can mock it)
-    with patch("app.api.v1.internal.urlparse", side_effect=Exception("parse fail")):
+    with patch("packages.domain.utils.url_utils.urlparse", side_effect=Exception("parse fail")):
         assert get_domain_from_url("http://test.com") == "unknown"
 
 
@@ -31,7 +33,7 @@ def test_get_domain_from_url_coverage() -> None:
 async def test_run_scraper_and_ingest_task_no_script() -> None:
     """Test run_scraper_and_ingest_task when script does not exist."""
     with patch("pathlib.Path.exists", return_value=False):
-        await run_scraper_and_ingest_task()
+        await HarvesterOrchestrator.run_pipeline()
         # Should return early without error
 
 
@@ -43,7 +45,7 @@ async def test_run_scraper_and_ingest_task_scraper_error() -> None:
     mock_process.communicate.return_value = (b"", b"Error message")
 
     with patch("asyncio.create_subprocess_exec", return_value=mock_process):
-        await run_scraper_and_ingest_task()
+        await HarvesterOrchestrator.run_pipeline()
 
 
 @pytest.mark.asyncio
@@ -54,7 +56,7 @@ async def test_run_scraper_and_ingest_task_json_error() -> None:
     mock_process.communicate.return_value = (b"invalid json", b"")
 
     with patch("asyncio.create_subprocess_exec", return_value=mock_process):
-        await run_scraper_and_ingest_task()
+        await HarvesterOrchestrator.run_pipeline()
 
 
 @pytest.mark.asyncio
@@ -97,10 +99,11 @@ async def test_run_scraper_and_ingest_task_various_items(session: Session) -> No
             # Trigger exception in detect_country_from_url or similar by using a bad URL
             # but wait, it has a try/except in the loop
             with patch(
-                "app.api.v1.internal.detect_country_from_url", side_effect=Exception("fail")
+                "app.services.harvester.orchestrator.detect_country_from_url",
+                side_effect=Exception("fail"),
             ):
-                with patch("app.api.v1.internal.engine", session.get_bind()):
-                    await run_scraper_and_ingest_task()
+                with patch("app.services.harvester.orchestrator.engine", session.get_bind()):
+                    await HarvesterOrchestrator.run_pipeline()
 
 
 @pytest.mark.asyncio
@@ -114,4 +117,4 @@ async def test_run_scraper_and_ingest_task_n8n_error(session: Session) -> None:
     with patch("asyncio.create_subprocess_exec", return_value=mock_process):
         with patch("app.core.config.settings.N8N_WEBHOOK_URL", "http://n8n.test"):
             with patch("httpx.AsyncClient.post", side_effect=Exception("n8n fail")):
-                await run_scraper_and_ingest_task()
+                await HarvesterOrchestrator.run_pipeline()
