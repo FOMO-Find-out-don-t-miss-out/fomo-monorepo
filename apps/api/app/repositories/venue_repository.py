@@ -2,8 +2,9 @@ import difflib
 import logging
 
 from app.core.geography_constants import COUNTRY_DEFAULTS
-from app.models.venue import Venue
 from sqlmodel import Session, select
+
+from packages.domain.models import Venue
 
 logger = logging.getLogger(__name__)
 

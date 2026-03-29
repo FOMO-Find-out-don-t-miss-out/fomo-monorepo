@@ -2,9 +2,10 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
-from app.models.event import PendingEvent
 from httpx import AsyncClient
 from sqlmodel import Session
+
+from packages.domain.models import PendingEvent
 
 
 @pytest.mark.asyncio
@@ -157,7 +158,7 @@ async def test_to_pending_event_response_invalid_loc(session: Session, client: A
     # Trigger _to_pending_event_response with invalid location
     from uuid import uuid4
 
-    from app.models.event import PendingEvent
+    from packages.domain.models import PendingEvent
 
     pending = PendingEvent(
         id=uuid4(),

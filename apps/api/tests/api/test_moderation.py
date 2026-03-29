@@ -1,9 +1,10 @@
 from datetime import UTC, datetime
 
 import pytest
-from app.models.event import Event, PendingEvent
 from httpx import AsyncClient
 from sqlmodel import Session
+
+from packages.domain.models import Event, PendingEvent
 
 
 @pytest.mark.asyncio
@@ -110,7 +111,7 @@ async def test_update_pending_event(client: AsyncClient, session: Session) -> No
 
 @pytest.mark.asyncio
 async def test_get_venues(client: AsyncClient, session: Session) -> None:
-    from app.models.venue import Venue
+    from packages.domain.models import Venue
 
     v = Venue(name="Venue X", country_code="GR", lat=0, lng=0, full_address="A", relevance=1.0)
     session.add(v)
@@ -123,7 +124,7 @@ async def test_get_venues(client: AsyncClient, session: Session) -> None:
 
 @pytest.mark.asyncio
 async def test_delete_venue(client: AsyncClient, session: Session) -> None:
-    from app.models.venue import Venue
+    from packages.domain.models import Venue
 
     v = Venue(name="Delete Me", country_code="GR", lat=0, lng=0, full_address="A", relevance=1.0)
     session.add(v)

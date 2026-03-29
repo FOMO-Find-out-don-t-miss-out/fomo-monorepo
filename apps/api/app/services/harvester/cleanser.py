@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import re
 from datetime import UTC, datetime
@@ -102,9 +103,10 @@ class IterableExtractedEvent(BaseModel):
 # Configure Gemini if API key is present
 _client: Any = None
 if hasattr(settings, "GOOGLE_API_KEY") and settings.GOOGLE_API_KEY:
-    client = genai.Client(api_key=settings.GOOGLE_API_KEY, http_options={"api_version": "v1alpha"})
+    client = genai.Client(api_key=settings.GOOGLE_API_KEY)
     # Corrected method name for this SDK/instructor version
     _client = instructor.from_genai(client=client)
+    logger.info(f"Gemini client initialized with model: {settings.GEMINI_MODEL}")
 
 # --- Cleansing Logic ---
 
@@ -115,7 +117,7 @@ class CleansingService:
         data: dict[str, Any] | list[dict[str, Any]],
         country_hint: str | None = None,
         source_domain: str | None = None,
-    ) -> ExtractedEvent | None:
+    ) -> ExtractedEvent | list[ExtractedEvent] | None:
         """
         Maps Schema.org / JSON-LD event data directly to ExtractedEvent.
         Uses GeocoderService if coordinates are missing.
@@ -227,23 +229,130 @@ class CleansingService:
             elif isinstance(image_data, dict):
                 photo_url = image_data.get("url")
 
+            # Category Logic Upgrade
+            category = "Other"
+            sub_category = None
+            tags = []
+
+            type_str = str(item_data.get("@type")).lower()
+            if "music" in type_str or "concert" in type_str:
+                category = "Music"
+            elif "art" in type_str:
+                category = "Art"
+            elif "theater" in type_str:
+                category = "Art"
+                sub_category = "Theater"
+
+            # Keyword-based enrichment
+            title_lower = str(title).lower()
+            desc_lower = str(get_val("description") or "").lower()
+            combined_text = f"{title_lower} {desc_lower}"
+
+            # Music Sub-categories
+            music_map = {
+                "techno": "Techno",
+                "house": "House",
+                "jazz": "Jazz",
+                "rock": "Rock",
+                "hip hop": "Hip-Hop",
+                "rap": "Hip-Hop",
+                "classical": "Classical",
+                "rebetiko": "Rebetiko",
+                "laiko": "Laiko",
+                "pop": "Pop",
+                "electronic": "Electronic",
+                "metal": "Metal",
+                "blues": "Blues",
+                "punk": "Punk",
+                "indie": "Indie",
+                "dj set": "Electronic",
+                "party": "Electronic",
+            }
+
+            # Music detection keywords
+            music_keywords = [
+                "concert",
+                "συναυλία",
+                "μουσική",
+                "live",
+                "tour",
+                "περιοδεία",
+                "βραδιά",
+                "guest",
+                "performance",
+            ]
+
+            for kw, val in music_map.items():
+                if kw in combined_text:
+                    category = "Music"
+                    sub_category = val
+                    tags.append(val)
+                    break
+
+            if category == "Other":
+                if any(kw in combined_text for kw in music_keywords):
+                    category = "Music"
+
+            organizer_name = str(item_data.get("organizer", {}).get("name") or "").lower()
+            if any(
+                kw in organizer_name for kw in ["festival", "productions", "music"]
+            ):
+                category = "Music"
+
+            if "festival" in combined_text or "φεστιβάλ" in combined_text:
+                tags.append("Festival")
+                category = "Music"
+
+            # Check source_domain for '/music/'
+            if source_domain and "/music/" in source_domain.lower():
+                category = "Music"
+
+            # Multi-Day Support
+            start_dates = item_data.get("startDate")
+            end_dates = item_data.get("endDate")
+
+            common_fields = {
+                "title": str(title),
+                "location_name": location_name,
+                "street_address": street_address,
+                "lat": lat,
+                "lng": lng,
+                "category": category,
+                "sub_category": sub_category,
+                "tags": list(set(tags)),
+                "ticket_url": get_val("url"),
+                "description": get_val("description"),
+                "confidence_score": confidence_score,
+                "geocoding_status": geocoding_status,
+                "geocoding_metadata": geocoding_metadata,
+                "source_provider": source_domain or "unknown",
+                "ingestion_method": "json_ld",
+            }
+
+            if isinstance(start_dates, list) and len(start_dates) > 1:
+                events = []
+                for i, start_date in enumerate(start_dates):
+                    end_date = None
+                    if isinstance(end_dates, list) and len(end_dates) > i:
+                        end_date = end_dates[i]
+
+                    events.append(
+                        ExtractedEvent(
+                            **common_fields,
+                            start_time=start_date,  # type: ignore
+                            end_time=end_date,  # type: ignore
+                            event_metadata=(
+                                {**item_data, "image": photo_url} if photo_url else item_data
+                            ),
+                        )
+                    )
+                return events
+
             return ExtractedEvent(
-                title=str(title),
+                **common_fields,
                 start_time=item_data.get("startDate"),  # type: ignore
                 end_time=item_data.get("endDate"),  # type: ignore
-                location_name=location_name,
-                street_address=street_address,
-                lat=lat,
-                lng=lng,
-                category="Music" if "MusicEvent" in str(item_data.get("@type")) else "Other",
-                ticket_url=get_val("url"),
-                description=get_val("description"),
-                event_metadata={**item_data, "image": photo_url} if photo_url else item_data,
-                confidence_score=confidence_score,
-                geocoding_status=geocoding_status,
-                geocoding_metadata=geocoding_metadata,
-                source_provider=source_domain or "unknown",
-                ingestion_method="json_ld",
+                event_metadata=({**item_data, "image": photo_url} if photo_url else item_data),
             )
         except Exception as e:
             logger.error(f"Error cleansing JSON-LD: {e}")
@@ -300,7 +409,12 @@ class CleansingService:
         ]
 
         try:
+            # Small throttle to avoid hitting RPM limits too fast
+            await asyncio.sleep(1.0)
+
             response = _client.chat.completions.create(
+                model=settings.GEMINI_MODEL,
+                max_retries=3,
                 messages=[
                     {
                         "role": "system",
@@ -322,14 +436,17 @@ Return a JSON list of events. Context country: {country_hint or "Global"}.
 Strict Junk Detection: Exclude Noise. Only specific, single events.
 
 Details to provide:
-- search_term: descriptive term for geocoding
+- title: The name of the event (e.g., 'Release Athens Festival')
+- location_name: The specific name of the venue (e.g., 'Plateia Nerou').
+  DO NOT put the event title here.
+- search_term: descriptive term for geocoding (venue name + city)
 - city_hint: City/neighborhood
 - street_address: specific street name and number
 - sub_category: Identify specific genre/vibe
 - tags: Select 2-5 tags from: {", ".join(global_tags)}.
 
 Text: {cleaned_text}""",
-                    }
+                    },
                 ],
                 response_model=IterableExtractedEvent,
             )

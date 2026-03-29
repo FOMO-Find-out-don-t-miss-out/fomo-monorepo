@@ -7,8 +7,7 @@ from geoalchemy2.elements import WKTElement
 from geoalchemy2.shape import to_shape
 from sqlmodel import Session, and_, select
 
-from app.models.event import Event, PendingEvent
-from app.models.venue import Venue
+from packages.domain.models import Event, PendingEvent, Venue
 
 logger = logging.getLogger(__name__)
 

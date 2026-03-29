@@ -4,21 +4,22 @@ import logging
 import sys
 import traceback
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Annotated, Any
 from urllib.parse import urlparse
 from uuid import UUID, uuid4
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from geoalchemy2 import WKTElement
 from sqlmodel import Session, select
 
 from app.core.config import settings
 from app.db.session import engine, get_db
-from app.models.event import Event, PendingEvent
-from app.models.venue import Venue
 from app.schemas.event import EventIngest, IngestSummary
 from app.services.harvester.cleanser import CleansingService, ExtractedEvent
 from app.services.harvester.geocoder import GeocoderService
+from packages.domain.models import Event, PendingEvent, Venue
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -65,7 +66,7 @@ def get_domain_from_url(url: str | None) -> str:
         return "unknown"
 
 
-def internal_ingest_logic(db: Session, events: list[ExtractedEvent]) -> IngestSummary:
+async def internal_ingest_logic(db: Session, events: list[ExtractedEvent]) -> IngestSummary:
     """Ingests ExtractedEvent objects into the PendingEvent table with Auto-Approve Gate."""
     added_count = 0
     updated_count = 0
@@ -75,13 +76,28 @@ def internal_ingest_logic(db: Session, events: list[ExtractedEvent]) -> IngestSu
             logger.info(f"[INGEST] Skipping junk (AI Category): {event_data.title}")
             continue
 
-        junk_keywords = ["προσφορές", "εκδηλώσεις", "εισιτήρια", "tickets", "offers", "newsletter"]
+        junk_keywords = [
+            "προσφορές",
+            "προσφορά",
+            "εκδηλώσεις",
+            "εισιτήρια",
+            "tickets",
+            "offers",
+            "newsletter",
+            "τριήμερο",
+            "διήμερο",
+        ]
         if (
             any(keyword in event_data.title.lower() for keyword in junk_keywords)
-            and len(event_data.title) < 40
+            and len(event_data.title) < 100
         ):
             logger.info(f"[INGEST] Skipping junk (Title Match): {event_data.title}")
             continue
+
+        # Ensure event_metadata is a dict
+        if not isinstance(event_data.event_metadata, dict):
+            logger.warning(f"event_metadata for '{event_data.title}' is not a dict, fixing.")
+            event_data.event_metadata = {}
 
         if event_data.location_name:
             venue = db.exec(select(Venue).where(Venue.name == event_data.location_name)).first()
@@ -91,6 +107,23 @@ def internal_ingest_logic(db: Session, events: list[ExtractedEvent]) -> IngestSu
                 event_data.lng = venue.lng
                 event_data.geocoding_status = "verified"
                 event_data.confidence_score = 1.0
+            elif event_data.lat is None or event_data.lng is None:
+                logger.info(
+                    f"[INGEST] No Venue Cache Match for '{event_data.location_name}'. "
+                    "Triggering Geocoder."
+                )
+                geo_res = await GeocoderService.get_coordinates(
+                    event_data.location_name,
+                    event_data.country_code or "GR",
+                    city_hint=event_data.event_metadata.get("city")
+                    or event_data.event_metadata.get("addressLocality"),
+                    source_address=event_data.street_address,
+                )
+                if geo_res:
+                    event_data.lat, event_data.lng = geo_res.lat, geo_res.lng
+                    event_data.confidence_score = geo_res.relevance
+                    event_data.geocoding_status = geo_res.geocoding_status
+                    event_data.geocoding_metadata = geo_res.geocoding_metadata
 
         logger.info(f">>> INGESTING: {event_data.title} at {event_data.location_name}")
 
@@ -101,7 +134,35 @@ def internal_ingest_logic(db: Session, events: list[ExtractedEvent]) -> IngestSu
             and event_data.lat != 0.0
             and event_data.lng != 0.0
         ):
-            wkt_point = f"POINT({event_data.lng} {event_data.lat})"
+            wkt_point = WKTElement(f"POINT({event_data.lng} {event_data.lat})", srid=4326)
+
+            # SAVE/UPDATE VENUE CACHE
+            if event_data.location_name:
+                from app.repositories.venue_repository import VenueRepository
+
+                # Safe city extraction
+                loc_meta = event_data.event_metadata.get("location", {})
+                loc_city = None
+                if isinstance(loc_meta, dict):
+                    addr_meta = loc_meta.get("address", {})
+                    if isinstance(addr_meta, dict):
+                        loc_city = addr_meta.get("addressLocality")
+
+                final_city = (
+                    event_data.event_metadata.get("city")
+                    or event_data.event_metadata.get("addressLocality")
+                    or loc_city
+                )
+
+                VenueRepository(db).save_venue(
+                    name=event_data.location_name,
+                    country_code=event_data.country_code or "GR",
+                    lat=event_data.lat,
+                    lng=event_data.lng,
+                    full_address=event_data.street_address or event_data.location_name,
+                    relevance=event_data.confidence_score or 0.9,
+                    city=str(final_city) if final_city else None,
+                )
 
         is_auto_approved = (
             event_data.ingestion_method == "json_ld"
@@ -114,6 +175,7 @@ def internal_ingest_logic(db: Session, events: list[ExtractedEvent]) -> IngestSu
             select(PendingEvent).where(
                 PendingEvent.title == event_data.title,
                 PendingEvent.start_time == event_data.start_time,
+                PendingEvent.location_name == event_data.location_name,
             )
         ).first()
 
@@ -132,9 +194,16 @@ def internal_ingest_logic(db: Session, events: list[ExtractedEvent]) -> IngestSu
             existing_pending.geocoding_status = event_data.geocoding_status
             existing_pending.geocoding_metadata = event_data.geocoding_metadata
             existing_pending.status = pending_status
+            existing_pending.source_provider = event_data.source_provider
+            existing_pending.ingestion_method = event_data.ingestion_method
+            existing_pending.description = event_data.description
 
             if event_data.event_metadata.get("original_link"):
                 existing_pending.source_url = event_data.event_metadata["original_link"]
+
+            # Ensure existing metadata is also a dict
+            if not isinstance(existing_pending.event_metadata, dict):
+                existing_pending.event_metadata = {}
 
             existing_pending.event_metadata = {
                 **existing_pending.event_metadata,
@@ -161,6 +230,9 @@ def internal_ingest_logic(db: Session, events: list[ExtractedEvent]) -> IngestSu
                 geocoding_status=event_data.geocoding_status,
                 geocoding_metadata=event_data.geocoding_metadata,
                 status=pending_status,
+                source_provider=event_data.source_provider,
+                ingestion_method=event_data.ingestion_method,
+                description=event_data.description,
             )
             db.add(new_pending)
             added_count += 1
@@ -178,7 +250,10 @@ def internal_ingest_logic(db: Session, events: list[ExtractedEvent]) -> IngestSu
                 live_event = Event(
                     id=live_id,
                     title=event_data.title,
+                    description=event_data.description,
                     location=wkt_point,
+                    location_name=event_data.location_name,
+                    country_code=event_data.country_code,
                     start_time=event_data.start_time,
                     end_time=event_data.end_time,
                     category=event_data.category,
@@ -187,7 +262,11 @@ def internal_ingest_logic(db: Session, events: list[ExtractedEvent]) -> IngestSu
                     hype_score=event_data.hype_score,
                     ticket_url=event_data.ticket_url,
                     source_url=event_data.event_metadata.get("original_link"),
+                    source_provider=event_data.source_provider,
+                    ingestion_method=event_data.ingestion_method,
                     event_metadata=event_data.event_metadata,
+                    geocoding_status=event_data.geocoding_status,
+                    geocoding_metadata=event_data.geocoding_metadata,
                     parent_id=live_id,
                 )
                 db.add(live_event)
@@ -201,10 +280,20 @@ async def run_scraper_and_ingest_task(default_country: str = "GR") -> None:
     logger.info(f"Background Task: Starting pipeline (country={default_country})")
 
     try:
-        script_path = "app/services/harvester/simple_scraper.py"
+        # Resolve script path relative to this file (app/api/v1/internal.py)
+        # to app/services/harvester/simple_scraper.py
+        current_file = Path(__file__)
+        script_path = (
+            current_file.parent.parent.parent / "services" / "harvester" / "simple_scraper.py"
+        )
+
+        if not script_path.exists():
+            logger.error(f"Scraper script not found at {script_path}")
+            return
+
         process = await asyncio.create_subprocess_exec(
             sys.executable,
-            script_path,
+            str(script_path),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
@@ -250,7 +339,12 @@ async def run_scraper_and_ingest_task(default_country: str = "GR") -> None:
                     extracted = await CleansingService.clean_json_ld(
                         item.get("structured_data", {}), country_hint, source_domain=source_domain
                     )
-                    if extracted:
+                    if isinstance(extracted, list):
+                        for ev in extracted:
+                            ev.event_metadata["original_link"] = original_link
+                            ev.country_code = country_hint
+                            cleaned_events.append(ev)
+                    elif extracted:
                         extracted.event_metadata["original_link"] = original_link
                         extracted.country_code = country_hint
                         cleaned_events.append(extracted)
@@ -296,7 +390,7 @@ async def run_scraper_and_ingest_task(default_country: str = "GR") -> None:
         if cleaned_events:
             try:
                 with Session(engine) as db:
-                    summary = internal_ingest_logic(db, cleaned_events)
+                    summary = await internal_ingest_logic(db, cleaned_events)
                 logger.info(f"Ingest Result: Added={summary.added}, Updated={summary.updated}")
             except Exception as db_err:
                 logger.error(f"Database error during ingestion: {db_err}")
@@ -348,7 +442,7 @@ async def ingest_events(
                 event_metadata={**e.event_metadata, "original_link": e.source_url},
             )
         )
-    return internal_ingest_logic(db, extracted_list)
+    return await internal_ingest_logic(db, extracted_list)
 
 
 @router.post("/approve/{pending_id}")
@@ -366,7 +460,10 @@ async def approve_event(
     live_event = Event(
         id=primary_id,
         title=pending.title,
+        description=pending.description,
         location=pending.location,
+        location_name=pending.location_name,
+        country_code=pending.country_code,
         start_time=pending.start_time,
         end_time=pending.end_time,
         category=pending.category,
@@ -375,7 +472,11 @@ async def approve_event(
         hype_score=pending.hype_score,
         ticket_url=pending.ticket_url,
         source_url=pending.source_url,
+        source_provider=pending.source_provider,
+        ingestion_method=pending.ingestion_method,
         event_metadata=pending.event_metadata,
+        geocoding_status=pending.geocoding_status,
+        geocoding_metadata=pending.geocoding_metadata,
         parent_id=primary_id,
     )
     db.add(live_event)
@@ -385,7 +486,10 @@ async def approve_event(
         occ_start = datetime.fromisoformat(occ["start_time"])
         occ_event = Event(
             title=pending.title,
+            description=pending.description,
             location=pending.location,
+            location_name=pending.location_name,
+            country_code=pending.country_code,
             start_time=occ_start,
             end_time=None,
             category=pending.category,
@@ -394,7 +498,11 @@ async def approve_event(
             hype_score=pending.hype_score,
             ticket_url=pending.ticket_url,
             source_url=pending.source_url,
+            source_provider=pending.source_provider,
+            ingestion_method=pending.ingestion_method,
             event_metadata=pending.event_metadata,
+            geocoding_status=pending.geocoding_status,
+            geocoding_metadata=pending.geocoding_metadata,
             parent_id=primary_id,
         )
         db.add(occ_event)

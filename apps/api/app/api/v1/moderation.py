@@ -8,8 +8,6 @@ from shapely.wkb import loads as wkb_loads
 from sqlmodel import Session, select
 
 from app.db.session import get_db
-from app.models.event import Event, PendingEvent
-from app.models.venue import Venue
 from app.schemas.moderation import (
     BatchApproveRequest,
     BatchRejectRequest,
@@ -23,6 +21,7 @@ from app.schemas.moderation import (
 from app.services.harvester.geocoder import GeocodeResult, GeocoderService
 from app.services.moderation.moderation_service import ModerationService
 from app.services.moderation.venue_service import VenueModerationService
+from packages.domain.models import Event, PendingEvent, Venue
 
 router = APIRouter()
 

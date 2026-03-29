@@ -2,15 +2,10 @@ from logging.config import fileConfig
 
 from alembic import context
 from app.core.config import settings
-
-# Import all models to ensure they are registered with SQLModel.metadata
-from app.models.event import Event, PendingEvent  # noqa: F401
-from app.models.hype import HypeLedger  # noqa: F401
-from app.models.social import SocialConnection  # noqa: F401
-from app.models.user import Profile, User  # noqa: F401
-from app.models.venue import Venue  # noqa: F401
 from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
+
+# Import all models to ensure they are registered with SQLModel.metadata
 
 # this is the Alembic Config object, which provides access to the values within the .ini file
 config = context.config

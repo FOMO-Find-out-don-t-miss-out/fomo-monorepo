@@ -1,10 +1,10 @@
 from datetime import UTC, datetime
 
 import pytest
-from app.models.event import PendingEvent
-from app.models.venue import Venue
 from httpx import AsyncClient
 from sqlmodel import Session
+
+from packages.domain.models import PendingEvent, Venue
 
 
 @pytest.mark.asyncio

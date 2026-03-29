@@ -7,4 +7,8 @@ domain.egg-info/top_level.txt
 models/__init__.py
 models/event.py
 models/generated.py
+models/hype.py
 models/pending_event.py
+models/social.py
+models/user.py
+models/venue.py

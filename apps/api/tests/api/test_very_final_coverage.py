@@ -2,9 +2,10 @@ from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
-from app.models.event import Event, PendingEvent
 from httpx import AsyncClient
 from sqlmodel import Session
+
+from packages.domain.models import Event, PendingEvent
 
 
 @pytest.mark.asyncio

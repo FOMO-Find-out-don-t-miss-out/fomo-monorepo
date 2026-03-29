@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock, patch
 
-from app.models.event import Event, PendingEvent
+from packages.domain.models import Event, PendingEvent
 
 
 def test_event_photo_url_normalization():
@@ -26,8 +26,6 @@ def test_event_photo_url_normalization():
 def test_event_location_serialization():
     from unittest.mock import MagicMock
 
-    from app.models.event import Event
-
     e = Event(title="T")
     # Test serializer directly
     assert e.serialize_location(None) is None
@@ -37,19 +35,17 @@ def test_event_location_serialization():
     mock_shape.x = 1.0
     mock_shape.y = 2.0
 
-    with patch("app.models.event.to_shape", return_value=mock_shape):
+    with patch("packages.domain.models.event.to_shape", return_value=mock_shape):
         res = e.serialize_location(MagicMock())
         assert res == {"type": "Point", "coordinates": [1.0, 2.0]}
 
     # Test exception path
-    with patch("app.models.event.to_shape", side_effect=Exception("Fail")):
+    with patch("packages.domain.models.event.to_shape", side_effect=Exception("Fail")):
         val = "some_val"
         assert e.serialize_location(val) == val
 
 
 def test_pending_event_location_serialization():
-    from app.models.event import PendingEvent
-
     p = PendingEvent(title="P")
     assert p.serialize_location(None) is None
 
@@ -57,7 +53,7 @@ def test_pending_event_location_serialization():
     mock_shape.x = 3.0
     mock_shape.y = 4.0
 
-    with patch("app.models.event.to_shape", return_value=mock_shape):
+    with patch("packages.domain.models.event.to_shape", return_value=mock_shape):
         res = p.serialize_location(MagicMock())
         assert res == {"type": "Point", "coordinates": [3.0, 4.0]}
 

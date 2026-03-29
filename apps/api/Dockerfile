@@ -24,6 +24,7 @@ COPY apps/api/pyproject.toml ./apps/api/pyproject.toml
 RUN uv sync --frozen --no-install-project --no-dev --all-packages
 
 # 3. Copy the actual source code
+COPY packages/__init__.py ./packages/__init__.py
 COPY packages/domain ./packages/domain
 COPY apps/api ./apps/api
 
@@ -31,13 +32,16 @@ COPY apps/api ./apps/api
 ENV PATH="/app/.venv/bin:$PATH"
 # Force uv to use the workspace-root virtual environment
 ENV UV_PROJECT_ENVIRONMENT="/app/.venv"
+# Explicitly set PYTHONPATH to include /app for 'packages' imports
+ENV PYTHONPATH="/app"
 
 # 5. Runtime
-WORKDIR /app/apps/api
+WORKDIR /app
 
 # Verify uvicorn is present in the synced environment
-RUN python -m uvicorn --version
+RUN uv run uvicorn --version
 
-# Run uvicorn using 'uv run' to ensure the workspace environment is correctly activated
-# We run from /app/apps/api so it finds the 'app' module
-CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run uvicorn using 'uv run' to ensure the workspace environment is correctly activated.
+# We run from the monorepo root so 'packages' is importable.
+# We use --app-dir to add 'apps/api' to the PYTHONPATH so 'app' is importable.
+CMD ["uv", "run", "uvicorn", "app.main:app", "--app-dir", "apps/api", "--host", "0.0.0.0", "--port", "8000"]

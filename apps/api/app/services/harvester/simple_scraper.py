@@ -283,7 +283,7 @@ async def main() -> None:
 
     TARGET_URL = "https://www.more.com/gr-el/tickets/music/"
     BASE_URL = "https://www.more.com"
-    MAX_EVENTS = 5
+    MAX_EVENTS = 60
 
     engine = ScraperEngine()
     results: list[dict[str, Any]] = []

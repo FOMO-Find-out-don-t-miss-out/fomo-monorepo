@@ -1,4 +1,6 @@
-from datetime import datetime
+from __future__ import annotations
+
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 from uuid import UUID, uuid4
@@ -31,15 +33,15 @@ class EventBase(SQLModel):
     title: str = Field(index=True)
     description: str | None = Field(default=None)
     start_time: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(UTC),
         index=True,
     )
     end_time: datetime | None = Field(
         default=None,
         index=True,
     )
-    category: EventCategory = Field(
-        default=EventCategory.Other,
+    category: str = Field(
+        default="Other",
         index=True,
     )
     sub_category: str | None = Field(
@@ -78,23 +80,14 @@ class EventBase(SQLModel):
     )
 
     # Infrastructure fields
-    location: Any = Field(sa_column=Column(Geography(geometry_type="POINT", srid=4326)))
-    event_metadata: dict[str, Any] = Field(
-        default_factory=dict,
-        sa_column=Column(JSON),
-    )
-    tags: list[str] = Field(
-        default_factory=list,
-        sa_column=Column(JSON),
-    )
-    geocoding_status: GeocodingStatus = Field(
-        default=GeocodingStatus.failed,
+    location: Any = Field(default=None)
+    event_metadata: dict[str, Any] = Field(default_factory=dict)
+    tags: list[str] = Field(default_factory=list)
+    geocoding_status: str = Field(
+        default="failed",
         index=True,
     )
-    geocoding_metadata: dict[str, Any] = Field(
-        default_factory=dict,
-        sa_column=Column(JSON),
-    )
+    geocoding_metadata: dict[str, Any] = Field(default_factory=dict)
 
     @computed_field(alias="photoUrl")
     @property
@@ -140,14 +133,14 @@ class EventBase(SQLModel):
             return 0.0
 
     @field_serializer("location")
-    def serialize_location(self, v: object) -> dict[str, Any] | None:
+    def serialize_location(self, v: Any) -> Any:  # noqa: ANN401
         if v is None:
             return None
         try:
             shape = to_shape(v)
             return {"type": "Point", "coordinates": [shape.x, shape.y]}
         except Exception:
-            return None
+            return v
 
 
 class Event(EventBase, table=True):
@@ -155,4 +148,20 @@ class Event(EventBase, table=True):
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
 
-    __table_args__ = (UniqueConstraint("title", "start_time", name="unique_event_occurrence"),)
+    location: Any = Field(sa_column=Column(Geography(geometry_type="POINT", srid=4326)))
+    event_metadata: dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSON),
+    )
+    tags: list[str] = Field(
+        default_factory=list,
+        sa_column=Column(JSON),
+    )
+    geocoding_metadata: dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSON),
+    )
+
+    __table_args__ = (
+        UniqueConstraint("title", "start_time", "location_name", name="unique_event_occurrence"),
+    )

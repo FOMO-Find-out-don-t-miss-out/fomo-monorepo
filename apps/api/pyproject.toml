@@ -18,6 +18,7 @@ dependencies = [
     "shapely>=2.0.6",
     "alembic>=1.13.3",
     "domain",
+    "jsonref>=1.1.0",
 ]
 
 [tool.uv]

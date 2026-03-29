@@ -1,9 +1,9 @@
 from unittest.mock import patch
 from uuid import uuid4
 
-from app.models.event import Event, PendingEvent
-from app.models.venue import Venue
 from sqlmodel import Session
+
+from packages.domain.models import Event, PendingEvent, Venue
 
 # Mock WKTElement globally for this test file
 with patch("app.services.moderation.venue_service.WKTElement", side_effect=lambda x, srid: x):

@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class MapboxFeature(BaseModel):
-    id: str
+    id: str | None = None
     type: str
     geometry: dict[str, Any]
     properties: dict[str, Any]

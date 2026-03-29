@@ -9,7 +9,7 @@ from sqlmodel import Session
 async def test_merge_venues_endpoint(client: AsyncClient, session: Session) -> None:
     from uuid import uuid4
 
-    from app.models.venue import Venue
+    from packages.domain.models import Venue
 
     v1_id = uuid4()
     v2_id = uuid4()

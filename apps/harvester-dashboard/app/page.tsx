@@ -102,7 +102,8 @@ function EventsDashboard() {
     setInspectorOpen(true)
   }
 
-  const handleSuggestionSelect = (suggestion: GeocodeSuggestion) => {
+  const handleSuggestionSelect = (_suggestion: GeocodeSuggestion) => {
+    void _suggestion
     if (selectedEvent) {
         // Find & Sync logic here if needed
         toast.info("Select an event first to apply this location");

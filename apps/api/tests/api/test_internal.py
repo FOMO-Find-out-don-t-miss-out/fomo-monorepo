@@ -4,9 +4,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from app.models.event import Event, PendingEvent
 from httpx import AsyncClient
 from sqlmodel import Session, select
+
+from packages.domain.models import Event, PendingEvent
 
 
 @pytest.mark.asyncio
@@ -325,14 +326,28 @@ async def test_run_scraper_and_ingest_task(session: Session) -> None:
     mock_response = MagicMock()
     mock_response.status_code = 200
 
+    from app.services.harvester.geocoder import GeocodeResult
+    mock_geo = GeocodeResult(
+        lat=37.9,
+        lng=23.7,
+        relevance=1.0,
+        full_address="A",
+        country_code="GR",
+        geocoding_status="verified",
+    )
+
     with patch("asyncio.create_subprocess_exec", return_value=mock_process):
         with patch(
             "app.services.harvester.cleanser.CleansingService.clean_json_ld", return_value=extracted
         ):
-            with patch("httpx.AsyncClient.post", return_value=mock_response):
-                with patch("app.api.v1.internal.engine", session.get_bind()):
-                    with patch("app.core.config.settings.N8N_WEBHOOK_URL", "http://n8n.test"):
-                        await run_scraper_and_ingest_task(default_country="GR")
+            with patch(
+                "app.services.harvester.geocoder.GeocoderService.get_coordinates",
+                return_value=mock_geo,
+            ):
+                with patch("httpx.AsyncClient.post", return_value=mock_response):
+                    with patch("app.api.v1.internal.engine", session.get_bind()):
+                        with patch("app.core.config.settings.N8N_WEBHOOK_URL", "http://n8n.test"):
+                            await run_scraper_and_ingest_task(default_country="GR")
 
     pending = session.exec(select(PendingEvent).where(PendingEvent.title == "Test Event")).first()
     assert pending is not None
@@ -364,14 +379,28 @@ async def test_run_scraper_and_ingest_task_html_fallback(session: Session) -> No
         event_metadata={},
     )
 
+    from app.services.harvester.geocoder import GeocodeResult
+    mock_geo = GeocodeResult(
+        lat=37.9,
+        lng=23.7,
+        relevance=1.0,
+        full_address="A",
+        country_code="GR",
+        geocoding_status="verified",
+    )
+
     with patch("asyncio.create_subprocess_exec", return_value=mock_process):
         with patch(
             "app.services.harvester.cleanser.CleansingService.clean_html_fallback",
             return_value=[extracted],
         ):
-            with patch("httpx.AsyncClient.post"):
-                with patch("app.api.v1.internal.engine", session.get_bind()):
-                    await run_scraper_and_ingest_task(default_country="GR")
+            with patch(
+                "app.services.harvester.geocoder.GeocoderService.get_coordinates",
+                return_value=mock_geo,
+            ):
+                with patch("httpx.AsyncClient.post"):
+                    with patch("app.api.v1.internal.engine", session.get_bind()):
+                        await run_scraper_and_ingest_task(default_country="GR")
 
     pending = session.exec(
         select(PendingEvent).where(PendingEvent.title == "AI Extracted Event")
@@ -433,15 +462,16 @@ async def test_internal_ingest_logic_junk_filters(session: Session) -> None:
         ExtractedEvent(title="Προσφορές tickets", category="Other", start_time=datetime.now(UTC)),
     ]
 
-    summary = internal_ingest_logic(session, events)
+    summary = await internal_ingest_logic(session, events)
     assert summary.added == 0
 
 
 @pytest.mark.asyncio
 async def test_internal_ingest_logic_venue_match(session: Session) -> None:
     from app.api.v1.internal import internal_ingest_logic
-    from app.models.venue import Venue
     from app.services.harvester.cleanser import ExtractedEvent
+
+    from packages.domain.models import Venue
 
     venue = Venue(
         name="MatchMe", country_code="GR", lat=10.0, lng=20.0, full_address="A", relevance=1.0
@@ -455,7 +485,7 @@ async def test_internal_ingest_logic_venue_match(session: Session) -> None:
         )
     ]
 
-    summary = internal_ingest_logic(session, events)
+    summary = await internal_ingest_logic(session, events)
     assert summary.added == 1
 
     pending = session.exec(select(PendingEvent).where(PendingEvent.title == "Event")).first()
@@ -482,7 +512,7 @@ async def test_internal_ingest_logic_auto_approve(session: Session) -> None:
             lng=1.0,
         )
     ]
-    summary = internal_ingest_logic(session, events)
+    summary = await internal_ingest_logic(session, events)
     assert summary.added == 1
 
     pending = session.exec(select(PendingEvent).where(PendingEvent.title == "Auto Event")).first()

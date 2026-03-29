@@ -5,10 +5,10 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from app.core.geography_constants import DEFAULT_COUNTRY_CODE, get_country_config
 from app.infrastructure.external.mapbox_client import MapboxClient, MapboxFeature, MapboxResponse
-from app.models.event import PendingEvent
-from app.models.venue import Venue
 from app.services.harvester.geocoder import GeocoderService, GeocodingPolicy
 from sqlmodel import Session, select
+
+from packages.domain.models import PendingEvent, Venue
 
 
 def test_enrich_query() -> None:

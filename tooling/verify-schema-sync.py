@@ -13,11 +13,15 @@ sys.path.append(str(Path.cwd() / "apps" / "api"))
 
 # Import all models to ensure they are registered in SQLModel.metadata
 try:
-    from app.models.event import Event, PendingEvent  # noqa: F401
-    from app.models.hype import HypeLedger  # noqa: F401
-    from app.models.social import SocialConnection  # noqa: F401
-    from app.models.user import Profile, User  # noqa: F401
-    from app.models.venue import Venue  # noqa: F401
+    from packages.domain.models import (
+        Event,
+        HypeLedger,
+        PendingEvent,
+        Profile,
+        SocialConnection,
+        User,
+        Venue,
+    )
 except ImportError as e:
     print(f"Warning: Some models could not be imported: {e}")  # noqa: T201
 

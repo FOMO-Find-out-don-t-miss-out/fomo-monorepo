@@ -12,9 +12,9 @@ from app.core.config import settings
 from app.core.geography_constants import DEFAULT_COUNTRY_CODE, CountryConfig, get_country_config
 from app.db.session import engine
 from app.infrastructure.external.mapbox_client import MapboxClient, MapboxFeature
-from app.models.event import PendingEvent
 from app.repositories.venue_repository import VenueRepository
 from app.utils.geo_utils import haversine_distance, normalize_string
+from packages.domain.models import PendingEvent
 
 logger = logging.getLogger(__name__)
 

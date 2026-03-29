@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import httpx
 import pytest
 from app.infrastructure.external.mapbox_client import MapboxClient, MapboxResponse
@@ -78,10 +80,12 @@ async def test_mapbox_generic_error(respx_mock: object) -> None:
 
 @pytest.mark.asyncio
 async def test_mapbox_no_token() -> None:
-    client = MapboxClient(access_token=None)
-    # This should return None immediately because token is missing
-    resp = await client.search_box("Athens")
-    assert resp is None
+    with patch("app.infrastructure.external.mapbox_client.settings") as mock_settings:
+        mock_settings.MAPBOX_ACCESS_TOKEN = None
+        client = MapboxClient(access_token=None)
+        # This should return None immediately because token is missing
+        resp = await client.search_box("Athens")
+        assert resp is None
 
 
 @pytest.mark.asyncio

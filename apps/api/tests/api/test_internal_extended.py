@@ -41,8 +41,9 @@ async def test_run_scraper_registry_source(session: Session) -> None:
             with patch("app.api.v1.internal.engine", session.get_bind()):
                 await run_scraper_and_ingest_task(default_country="GR")
 
-    from app.models.event import PendingEvent
     from sqlmodel import select
+
+    from packages.domain.models import PendingEvent
 
     statement = select(PendingEvent).where(PendingEvent.title == "Registry Event")
     pending = session.exec(statement).first()
@@ -53,7 +54,7 @@ async def test_run_scraper_registry_source(session: Session) -> None:
 @pytest.mark.asyncio
 async def test_trigger_batch_geocode_endpoint(client: AsyncClient, session: Session) -> None:
     # Add an event that needs geocoding
-    from app.models.event import PendingEvent
+    from packages.domain.models import PendingEvent
 
     pending = PendingEvent(
         title="Needs Geocode",

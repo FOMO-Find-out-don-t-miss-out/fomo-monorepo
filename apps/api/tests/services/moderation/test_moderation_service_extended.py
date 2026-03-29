@@ -2,8 +2,9 @@ from datetime import UTC, datetime
 from unittest.mock import patch
 from uuid import uuid4
 
-from app.models.event import Event, PendingEvent
 from sqlmodel import Session
+
+from packages.domain.models import Event, PendingEvent
 
 # Mock WKTElement globally
 with patch("app.services.moderation.moderation_service.WKTElement", side_effect=lambda x, srid: x):

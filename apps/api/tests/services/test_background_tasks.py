@@ -6,8 +6,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 from app.api.v1.internal import run_scraper_and_ingest_task
-from app.models.event import PendingEvent
 from sqlmodel import Session, select
+
+from packages.domain.models import PendingEvent
 
 
 @pytest.mark.asyncio
@@ -31,12 +32,23 @@ async def test_run_scraper_and_ingest_task_success(
     )
     mock_process.communicate.return_value = (mock_stdout.encode(), b"")
 
+    from app.services.harvester.geocoder import GeocodeResult
+    mock_geo = GeocodeResult(
+        lat=37.9,
+        lng=23.7,
+        relevance=1.0,
+        full_address="A",
+        country_code="GR",
+        geocoding_status="verified",
+    )
+
     with patch("asyncio.create_subprocess_exec", return_value=mock_process):
         # 2. Mock Geocoder
         with patch(
             "app.services.harvester.geocoder.GeocoderService.get_coordinates",
-            new_callable=AsyncMock,
+            return_value=mock_geo,
         ):
+
             # 3. Mock CleansingService
             async def mock_clean_side_effect(
                 data_or_text: object, country_hint: str | None = None, **kwargs: Any

@@ -59,9 +59,8 @@ async def test_clean_html_fallback_success(session: Session) -> None:
         "for events happening at Technopolis at 9pm.</body></html>"
     )
     mock_event = ExtractedEvent(
-        title="AI Event", start_time=datetime(2026, 1, 1, tzinfo=UTC), category="Tech"
+        title="AI Event", start_time="2026-01-01T00:00:00Z", category="Tech"
     )
-
     # We must use a real object or a very careful mock because pydantic validates the response
     mock_response = MagicMock()
     mock_response.tasks = [mock_event]
@@ -104,7 +103,7 @@ async def test_clean_html_fallback_exception() -> None:
 async def test_clean_html_fallback_with_geocoding(session: Session) -> None:
     mock_event = ExtractedEvent(
         title="AI Event",
-        start_time=datetime(2026, 1, 1, tzinfo=UTC),
+        start_time="2026-01-01T00:00:00Z",
         location_name="Technopolis",
         category="Tech",
     )
@@ -143,7 +142,7 @@ async def test_clean_html_fallback_with_geocoding(session: Session) -> None:
 async def test_clean_html_fallback_geocoding_fail() -> None:
     mock_event = ExtractedEvent(
         title="AI Event",
-        start_time=datetime(2026, 1, 1, tzinfo=UTC),
+        start_time="2026-01-01T00:00:00Z",
         location_name="Unknown",
         category="Tech",
     )

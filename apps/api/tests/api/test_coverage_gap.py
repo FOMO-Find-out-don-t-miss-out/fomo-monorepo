@@ -159,7 +159,7 @@ async def test_clean_html_fallback_geocoding_fail():
     # Covers cleanser.py: 343-347 (geocoding Exception)
     mock_client = MagicMock()
     mock_response = MagicMock()
-    mock_event = ExtractedEvent(title="E1", location_name="V1")
+    mock_event = ExtractedEvent(title="E1", start_time="2026-01-01T10:00:00Z", location_name="V1")
     mock_response.tasks = [mock_event]
     mock_client.chat.completions.create.return_value = mock_response
 

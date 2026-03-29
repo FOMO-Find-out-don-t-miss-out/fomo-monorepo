@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     N8N_WEBHOOK_URL: str | None = None
     GOOGLE_API_KEY: str | None = None
     MAPBOX_ACCESS_TOKEN: str | None = None
+    GEMINI_MODEL: str = "gemini-2.5-flash"
+
 
 
 settings = Settings()
