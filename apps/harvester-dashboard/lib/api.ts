@@ -167,7 +167,7 @@ export const moderationApi = {
    * Merges a source venue into a target venue
    */
   mergeVenues: (sourceVenueId: string, targetVenueId: string): Promise<{ status: string }> => {
-    return request<{ status: string }>("/moderation/merge", {
+    return request<{ status: string }>("/moderation/venues/merge", {
       method: "POST",
       body: JSON.stringify({
         source_venue_id: sourceVenueId,

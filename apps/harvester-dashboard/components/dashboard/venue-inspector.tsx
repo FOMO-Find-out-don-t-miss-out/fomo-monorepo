@@ -342,7 +342,7 @@ export function VenueInspector({ venue, open, onOpenChange }: VenueInspectorProp
                             </Badge>
                           </div>
                           <p className="text-[10px] text-muted-foreground">
-                            {format(new Date(ev.start_time), 'MMM d, yyyy')}
+                            {format(new Date(ev.start_time), 'dd/MM/yyyy')}
                           </p>
                         </div>
                         <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />

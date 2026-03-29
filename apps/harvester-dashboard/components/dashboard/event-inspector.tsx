@@ -17,6 +17,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { Calendar } from '@/components/ui/calendar'
 import type { PendingEvent, GeocodeSuggestion } from '@/types/moderation'
 import { moderationApi } from '@/lib/api'
 import {
@@ -25,7 +31,7 @@ import {
   X,
   GitMerge,
   RefreshCw,
-  Calendar,
+  Calendar as CalendarIcon,
   MapPin,
   Search,
   ImageOff,
@@ -72,11 +78,69 @@ const ingestionConfig: Record<string, { icon: React.ElementType, label: string, 
   }
 }
 
+function DateTimePicker({ 
+  value, 
+  onChange, 
+  label 
+}: { 
+  value: string | undefined, 
+  onChange: (val: string) => void,
+  label: string
+}) {
+  const date = value ? new Date(value) : undefined;
+  
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant={"outline"}
+          className={cn(
+            "w-full justify-start text-left font-normal bg-input/50",
+            !value && "text-muted-foreground"
+          )}
+        >
+          <CalendarIcon className="mr-2 h-4 w-4" />
+          {value ? format(date!, "dd/MM/yyyy HH:mm") : <span>Pick a date</span>}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={date}
+          onSelect={(d) => {
+            if (d) {
+              const newDate = new Date(value || new Date());
+              newDate.setFullYear(d.getFullYear(), d.getMonth(), d.getDate());
+              onChange(newDate.toISOString());
+            }
+          }}
+          initialFocus
+        />
+        <div className="p-3 border-t border-border flex items-center gap-2">
+          <Input
+            type="time"
+            value={date ? format(date, "HH:mm") : "00:00"}
+            onChange={(e) => {
+              const [hours, minutes] = e.target.value.split(":");
+              const newDate = new Date(value || new Date());
+              newDate.setHours(parseInt(hours), parseInt(minutes));
+              onChange(newDate.toISOString());
+            }}
+            className="w-24 h-8 text-xs"
+          />
+          <span className="text-xs text-muted-foreground">24h format</span>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function EventInspector({ event, open, onOpenChange, onApprove, onReject }: EventInspectorProps) {
   const queryClient = useQueryClient()
   const [editedEvent, setEditedEvent] = useState<PendingEvent | null>(null)
   const [locationSearch, setLocationSearch] = useState('')
   const [suggestions, setSuggestions] = useState<GeocodeSuggestion[]>([])
+  const [newOccDate, setNewOccDate] = useState<string>('')
 
   useEffect(() => {
     if (event) {
@@ -214,24 +278,20 @@ export function EventInspector({ event, open, onOpenChange, onApprove, onReject 
                   <Label htmlFor="startTime" className="text-xs text-muted-foreground uppercase tracking-wider">
                     Start Time
                   </Label>
-                  <Input
-                    id="startTime"
-                    type="datetime-local"
-                    value={editedEvent.start_time.slice(0, 16)}
-                    onChange={(e) => setEditedEvent({ ...editedEvent, start_time: e.target.value })}
-                    className="bg-input/50"
+                  <DateTimePicker 
+                    label="Start Time"
+                    value={editedEvent.start_time} 
+                    onChange={(val) => setEditedEvent({ ...editedEvent, start_time: val })} 
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="endTime" className="text-xs text-muted-foreground uppercase tracking-wider">
                     End Time
                   </Label>
-                  <Input
-                    id="endTime"
-                    type="datetime-local"
-                    value={editedEvent.end_time?.slice(0, 16) || ''}
-                    onChange={(e) => setEditedEvent({ ...editedEvent, end_time: e.target.value })}
-                    className="bg-input/50"
+                  <DateTimePicker 
+                    label="End Time"
+                    value={editedEvent.end_time || undefined} 
+                    onChange={(val) => setEditedEvent({ ...editedEvent, end_time: val })} 
                   />
                 </div>
               </div>
@@ -292,7 +352,7 @@ export function EventInspector({ event, open, onOpenChange, onApprove, onReject 
             <Separator className="bg-border" />
             <div className="space-y-4">
               <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                <Calendar className="w-3 h-3" />
+                <CalendarIcon className="w-3 h-3" />
                 Additional Dates (Recurring)
               </Label>
               
@@ -301,7 +361,7 @@ export function EventInspector({ event, open, onOpenChange, onApprove, onReject 
                   {occurrences.map((occ: { start_time: string }, idx: number) => (
                     <div key={idx} className="flex items-center justify-between p-2 rounded-md bg-muted/50 border border-border">
                       <span className="text-sm">
-                        {format(new Date(occ.start_time), 'MMM d, yyyy h:mm a')}
+                        {format(new Date(occ.start_time), 'dd/MM/yyyy HH:mm')}
                       </span>
                       <Button 
                         variant="ghost" 
@@ -324,19 +384,21 @@ export function EventInspector({ event, open, onOpenChange, onApprove, onReject 
               )}
 
               <div className="flex gap-2">
-                <Input
-                  type="datetime-local"
-                  className="bg-input/50 text-sm"
-                  id="new-occurrence-date"
-                />
+                <div className="flex-1">
+                  <DateTimePicker 
+                    label="New Date"
+                    value={newOccDate} 
+                    onChange={setNewOccDate} 
+                  />
+                </div>
                 <Button 
                   size="sm" 
                   variant="outline"
+                  className="h-9"
                   onClick={() => {
-                    const input = document.getElementById('new-occurrence-date') as HTMLInputElement;
-                    if (input?.value) {
-                      addOccurrenceMutation.mutate(new Date(input.value).toISOString());
-                      input.value = '';
+                    if (newOccDate) {
+                      addOccurrenceMutation.mutate(new Date(newOccDate).toISOString());
+                      setNewOccDate('');
                     }
                   }}
                 >

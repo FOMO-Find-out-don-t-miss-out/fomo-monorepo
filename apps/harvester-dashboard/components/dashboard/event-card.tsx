@@ -133,7 +133,7 @@ export function EventCard({ event, isSelected, isChecked, onSelect, onToggleChec
 
           <div className="flex items-center gap-1 mt-0.5 text-xs text-muted-foreground">
             <Calendar className="w-3 h-3 flex-shrink-0" />
-            <span>{format(new Date(event.start_time), 'MMM d, yyyy h:mm a')}</span>
+            <span>{format(new Date(event.start_time), 'dd/MM/yyyy HH:mm')}</span>
           </div>
 
           <div className="flex items-center justify-between mt-2">
