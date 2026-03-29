@@ -214,6 +214,21 @@ class ModerationService:
         statement = statement.order_by(Event.start_time.desc())
         return list(self.session.exec(statement).all())
 
+    def get_pending_events(
+        self,
+        location_name: str | None = None,
+        geocoding_status: list[str] | None = None,
+    ) -> list[PendingEvent]:
+        """Fetches pending events with filtering."""
+        statement = select(PendingEvent).where(PendingEvent.status == "pending")
+        if location_name:
+            statement = statement.where(PendingEvent.location_name == location_name)
+        if geocoding_status:
+            statement = statement.where(PendingEvent.geocoding_status.in_(geocoding_status))
+
+        statement = statement.order_by(PendingEvent.location_name)
+        return list(self.session.exec(statement).all())
+
     def unpublish_event(self, event_id: UUID) -> bool:
         """Unpublishes an event by updating its status in pending_events."""
         event = self.session.get(Event, event_id)

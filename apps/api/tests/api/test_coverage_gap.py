@@ -4,8 +4,8 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from app.api.v1.moderation import _to_pending_event_response
 from app.main import app
+from app.schemas.moderation import PendingEventResponse
 from app.services.harvester.cleanser import CleansingService, ExtractedEvent
 from fastapi.testclient import TestClient
 
@@ -45,34 +45,43 @@ class MockEvent:
             if not hasattr(self, k):
                 setattr(self, k, v)
 
+    def model_dump(self) -> dict[str, Any]:
+        return {
+            k: v for k, v in vars(self).items() 
+            if not k.startswith("_") and k != "model_dump"
+        }
+
 
 def test_to_pending_event_response_hex_location():
-    # Covers moderation.py: 38-47 (parsing hex WKB string)
+    # Covers geo_utils.py: 16-24 (parsing hex WKB string)
     event = MockEvent(id=uuid4(), title="Test", start_time=datetime.now(UTC), location="some_hex")
 
     mock_shape = MagicMock()
     mock_shape.x = 1.0
     mock_shape.y = 2.0
 
-    with patch("app.api.v1.moderation.to_shape", side_effect=Exception("not WKBElement")):
-        with patch("app.api.v1.moderation.wkb_loads", return_value=mock_shape):
+    with patch("packages.domain.utils.geo_utils.to_shape", side_effect=Exception("not WKBElement")):
+        with patch("packages.domain.utils.geo_utils.wkb_loads", return_value=mock_shape):
             with patch("binascii.unhexlify", return_value=b"some_bytes"):
-                resp = _to_pending_event_response(event)
+                resp = PendingEventResponse.model_validate(event)
                 assert resp.location == {"type": "Point", "coordinates": [1.0, 2.0]}
 
 
 def test_to_pending_event_response_invalid_location():
-    # Covers the second 'except' in moderation.py location parsing
+    # Covers the second 'except' in geo_utils.py location parsing
     event = MockEvent(id=uuid4(), title="Test", start_time=datetime.now(UTC), location=MagicMock())
     event.location.__str__.return_value = "raw_string"
 
-    with patch("app.api.v1.moderation.to_shape", side_effect=Exception("to_shape fail")):
-        resp = _to_pending_event_response(event)
-        assert resp.location == "raw_string"
+    with patch("packages.domain.utils.geo_utils.to_shape", side_effect=Exception("to_shape fail")):
+        resp = PendingEventResponse.model_validate(event)
+        # In the new implementation, if it fails all parsing, it returns None 
+        # or original if it was not None.
+        # Actually parse_wkb_to_geojson returns None if it fails.
+        assert resp.location is None
 
 
 def test_moderation_404_errors():
-    # Covers lines 147, 158, 189, 215, 226 (HTTPException(404))
+    # Covers HTTPException(404) in moderation router
     uid = uuid4()
     mod_svc = "app.services.moderation.moderation_service.ModerationService"
 

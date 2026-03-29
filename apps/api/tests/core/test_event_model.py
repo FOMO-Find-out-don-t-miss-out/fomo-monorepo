@@ -74,12 +74,13 @@ def test_response_schema_location_serialization():
     mock_shape.x = 5.0
     mock_shape.y = 6.0
 
-    with patch("app.schemas.moderation.to_shape", return_value=mock_shape):
+    with patch("packages.domain.utils.geo_utils.to_shape", return_value=mock_shape):
         res = resp.serialize_location(MagicMock())
         assert res == {"type": "Point", "coordinates": [5.0, 6.0]}
 
-    with patch("app.schemas.moderation.to_shape", side_effect=Exception()):
+    with patch("packages.domain.utils.geo_utils.to_shape", side_effect=Exception()):
         val = {"type": "Point"}
+        # parse_wkb_to_geojson returns dicts as-is
         assert resp.serialize_location(val) == val
 
 

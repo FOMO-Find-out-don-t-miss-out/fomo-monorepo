@@ -1,11 +1,8 @@
-import binascii
 from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from geoalchemy2.shape import to_shape
-from shapely.wkb import loads as wkb_loads
-from sqlmodel import Session, select
+from sqlmodel import Session
 
 from app.db.session import get_db
 from app.schemas.moderation import (
@@ -21,60 +18,9 @@ from app.schemas.moderation import (
 from app.services.harvester.geocoder import GeocodeResult, GeocoderService
 from app.services.moderation.moderation_service import ModerationService
 from app.services.moderation.venue_service import VenueModerationService
-from packages.domain.models import Event, PendingEvent, Venue
+from packages.domain.models import Venue
 
 router = APIRouter()
-
-
-def _to_pending_event_response(ev: PendingEvent | Event) -> PendingEventResponse:
-    # Handle location serialization manually
-    location_data: dict[str, Any] | str | None = None
-    if ev.location is not None:
-        try:
-            # Try to_shape first (for WKBElement)
-            shape = to_shape(ev.location)
-            location_data = {"type": "Point", "coordinates": [shape.x, shape.y]}
-        except Exception:
-            try:
-                # Try parsing as hex WKB string if it's a string
-                if isinstance(ev.location, str):
-                    shape = wkb_loads(binascii.unhexlify(ev.location))
-                    location_data = {"type": "Point", "coordinates": [shape.x, shape.y]}
-                else:
-                    location_data = str(ev.location)
-            except Exception:
-                location_data = str(ev.location)
-
-    return PendingEventResponse(
-        id=ev.id,
-        title=ev.title,
-        start_time=ev.start_time,
-        end_time=ev.end_time,
-        hype_score=ev.hype_score,
-        category=ev.category,
-        sub_category=ev.sub_category,
-        ticket_url=ev.ticket_url,
-        source_url=ev.source_url,
-        source_provider=ev.source_provider,
-        ingestion_method=ev.ingestion_method,
-        location_name=ev.location_name,
-        country_code=ev.country_code,
-        parent_id=ev.parent_id,
-        location=location_data,
-        photo_url=ev.photo_url,
-        event_metadata=ev.event_metadata,
-        tags=ev.tags,
-        status=getattr(ev, "status", "published"),
-        raw_content=getattr(ev, "raw_content", None),
-        rejection_reason=getattr(ev, "rejection_reason", None),
-        confidence_score=getattr(ev, "confidence_score", None),
-        geocoding_status=getattr(ev, "geocoding_status", "verified"),
-        geocoding_metadata={
-            **getattr(ev, "geocoding_metadata", {}),
-            "full_address": getattr(ev, "geocoding_metadata", {}).get("full_address")
-            or ev.location_name,
-        },
-    )
 
 
 @router.get("/pending-events", response_model=list[PendingEventResponse])
@@ -83,15 +29,9 @@ def get_pending_events(
     location_name: str | None = None,
     geocoding_status: Annotated[list[str] | None, Query()] = None,
 ) -> list[PendingEventResponse]:
-    statement = select(PendingEvent).where(PendingEvent.status == "pending")
-    if location_name:
-        statement = statement.where(PendingEvent.location_name == location_name)
-    if geocoding_status:
-        statement = statement.where(PendingEvent.geocoding_status.in_(geocoding_status))
-
-    statement = statement.order_by(PendingEvent.location_name)
-    events = session.exec(statement).all()
-    return [_to_pending_event_response(e) for e in events]
+    service = ModerationService(session)
+    events = service.get_pending_events(location_name, geocoding_status)
+    return [PendingEventResponse.model_validate(e) for e in events]
 
 
 @router.get("/events", response_model=list[PendingEventResponse])
@@ -101,7 +41,7 @@ def get_published_events(
 ) -> list[PendingEventResponse]:
     service = ModerationService(session)
     events = service.get_published_events(location_name)
-    return [_to_pending_event_response(e) for e in events]
+    return [PendingEventResponse.model_validate(e) for e in events]
 
 
 @router.post("/events/{event_id}/unpublish")
@@ -125,7 +65,7 @@ def update_published_event(
     updated = service.update_published_event(event_id, **update.model_dump(exclude_unset=True))
     if not updated:
         raise HTTPException(status_code=404, detail="Published event not found")
-    return _to_pending_event_response(updated)
+    return PendingEventResponse.model_validate(updated)
 
 
 @router.patch("/pending-events/{event_id}", response_model=PendingEventResponse)
@@ -138,7 +78,7 @@ def update_pending_event(
     updated = service.update_pending_event(event_id, **update.model_dump(exclude_unset=True))
     if not updated:
         raise HTTPException(status_code=404, detail="Pending event not found")
-    return _to_pending_event_response(updated)
+    return PendingEventResponse.model_validate(updated)
 
 
 @router.post("/pending-events/{event_id}/approve")
@@ -191,7 +131,7 @@ def add_occurrence(
     new_occ = service.add_occurrence(event_id, occurrence.start_time)
     if not new_occ:
         raise HTTPException(status_code=404, detail="Pending event not found")
-    return _to_pending_event_response(new_occ)
+    return PendingEventResponse.model_validate(new_occ)
 
 
 @router.get("/venues", response_model=list[Venue])
@@ -200,12 +140,8 @@ def get_venues(
     search_query: str | None = None,
     only_unverified: bool = False,
 ) -> list[Venue]:
-    statement = select(Venue).order_by(Venue.name)
-    if search_query:
-        statement = statement.where(Venue.name.ilike(f"%{search_query}%"))
-    if only_unverified:
-        statement = statement.where(not Venue.is_manually_verified)
-    return list(session.exec(statement).all())
+    service = VenueModerationService(session)
+    return service.get_venues(search_query, only_unverified)
 
 
 @router.patch("/venues/{venue_id}", response_model=Venue)

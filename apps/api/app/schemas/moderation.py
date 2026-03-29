@@ -2,8 +2,9 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from geoalchemy2.shape import to_shape
-from pydantic import BaseModel, ConfigDict, field_serializer
+from pydantic import BaseModel, ConfigDict, field_serializer, model_validator
+
+from packages.domain.utils.geo_utils import parse_wkb_to_geojson
 
 
 class PendingEventUpdate(BaseModel):
@@ -85,13 +86,7 @@ class EventBaseResponse(BaseModel):
 
     @field_serializer("location")
     def serialize_location(self, v: object | None) -> dict[str, Any] | None:
-        if v is None:
-            return None
-        try:
-            shape = to_shape(v)
-            return {"type": "Point", "coordinates": [shape.x, shape.y]}
-        except Exception:
-            return v
+        return parse_wkb_to_geojson(v)
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -107,3 +102,25 @@ class PendingEventResponse(EventBaseResponse):
     confidence_score: float | None = None
     geocoding_status: str
     geocoding_metadata: dict[str, Any] = {}
+
+    @model_validator(mode="before")
+    @classmethod
+    def map_from_orm(cls, data: Any) -> Any:  # noqa: ANN401
+        if hasattr(data, "id") and not isinstance(data, dict):
+            # It's an ORM model (Event or PendingEvent)
+            payload = data.model_dump()
+            payload["location"] = parse_wkb_to_geojson(data.location)
+            return {
+                **payload,
+                "status": getattr(data, "status", "published"),
+                "raw_content": getattr(data, "raw_content", None),
+                "rejection_reason": getattr(data, "rejection_reason", None),
+                "confidence_score": getattr(data, "confidence_score", None),
+                "geocoding_status": getattr(data, "geocoding_status", "verified"),
+                "geocoding_metadata": {
+                    **getattr(data, "geocoding_metadata", {}),
+                    "full_address": getattr(data, "geocoding_metadata", {}).get("full_address")
+                    or data.location_name,
+                },
+            }
+        return data

@@ -82,6 +82,19 @@ class VenueModerationService:
         self.session.refresh(venue)
         return venue
 
+    def get_venues(
+        self,
+        search_query: str | None = None,
+        only_unverified: bool = False,
+    ) -> list[Venue]:
+        """Fetches venues with filtering."""
+        statement = select(Venue).order_by(Venue.name)
+        if search_query:
+            statement = statement.where(Venue.name.ilike(f"%{search_query}%"))
+        if only_unverified:
+            statement = statement.where(not Venue.is_manually_verified)
+        return list(self.session.exec(statement).all())
+
     def merge_venues(self, source_venue_id: UUID, target_venue_id: UUID) -> bool:
         """Merges source venue into target venue, updating all linked events."""
         source = self.session.get(Venue, source_venue_id)
