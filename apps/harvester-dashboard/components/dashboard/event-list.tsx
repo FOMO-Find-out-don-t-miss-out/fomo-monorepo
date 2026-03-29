@@ -5,11 +5,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
 import { EventCard } from './event-card'
 import type { PendingEvent } from '@/types/moderation'
 import { Search, Check, X } from 'lucide-react'
 
 interface EventListProps {
+  mode: 'pending' | 'published'
   events: PendingEvent[]
   selectedEvent: PendingEvent | null
   selectedEventIds: string[]
@@ -23,6 +25,7 @@ interface EventListProps {
 }
 
 export function EventList({
+  mode,
   events,
   selectedEvent,
   selectedEventIds,
@@ -43,9 +46,17 @@ export function EventList({
       <div className="p-4 border-b border-border bg-card/30">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold text-foreground">Events</h1>
-            <Badge variant="secondary" className="text-xs">
-              {events.length} pending
+            <h1 className="text-xl font-semibold text-foreground capitalize">
+              {mode} Events
+            </h1>
+            <Badge 
+              variant={mode === 'pending' ? 'secondary' : 'default'} 
+              className={cn(
+                "text-xs font-normal",
+                mode === 'published' && "bg-green-600 hover:bg-green-600 text-white"
+              )}
+            >
+              {events.length} {mode}
             </Badge>
           </div>
         </div>

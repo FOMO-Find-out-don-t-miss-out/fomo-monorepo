@@ -30,7 +30,7 @@ function PublishedEventsDashboard() {
 
   // Queries
   const { data: events = [], isLoading: eventsLoading } = useQuery({
-    queryKey: ['published-events', searchQuery],
+    queryKey: ['published-events'],
     queryFn: () => moderationApi.getPublishedEvents()
   })
 
@@ -96,6 +96,7 @@ function PublishedEventsDashboard() {
     <DashboardLayout>
       <div className="h-full flex min-h-0">
         <FilterSidebar
+          mode="published"
           selectedCategory={selectedCategory}
           setSelectedCategory={setSelectedCategory}
           selectedStatus={selectedStatus}
@@ -113,6 +114,7 @@ function PublishedEventsDashboard() {
               </div>
             ) : (
               <EventList
+                mode="published"
                 events={filteredEvents}
                 selectedEvent={selectedEvent}
                 selectedEventIds={selectedEventIds}

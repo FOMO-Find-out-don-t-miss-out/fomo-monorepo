@@ -36,11 +36,15 @@ class ModerationService:
                     hype_score=pending.hype_score,
                     ticket_url=pending.ticket_url,
                     source_url=pending.source_url,
+                    source_provider=pending.source_provider,
+                    ingestion_method=pending.ingestion_method,
                     event_metadata=pending.event_metadata,
                     location_name=pending.location_name,
                     country_code=pending.country_code,
                     parent_id=pending.parent_id or primary_id,
                     tags=pending.tags,
+                    geocoding_status=pending.geocoding_status,
+                    geocoding_metadata=pending.geocoding_metadata,
                 )
                 self.session.add(live_event)
 

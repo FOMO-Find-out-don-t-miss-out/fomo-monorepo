@@ -281,7 +281,12 @@ class GeocoderService:
                             country_code=config.code,
                             city=feat.properties.get("context", {}).get("place", {}).get("name"),
                             geocoding_status="verified",
-                            geocoding_metadata={"source": "suggestion"},
+                            geocoding_metadata={
+                                "source": "suggestion",
+                                "full_address": feat.properties.get(
+                                    "full_address", feat.properties.get("name", "Unknown")
+                                ),
+                            },
                         )
                     )
         except Exception as e:
@@ -321,6 +326,9 @@ class GeocoderService:
             geocoding_metadata={
                 "source": "mapbox",
                 "feature_type": best_feat.properties.get("feature_type"),
+                "full_address": best_feat.properties.get(
+                    "full_address", best_feat.properties.get("name", "")
+                ),
             },
         )
 

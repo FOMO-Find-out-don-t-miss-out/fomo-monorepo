@@ -33,12 +33,10 @@ class EventBase(SQLModel):
     start_time: datetime = Field(
         default_factory=datetime.utcnow,
         index=True,
-        serialization_alias="startTime",
     )
     end_time: datetime | None = Field(
         default=None,
         index=True,
-        serialization_alias="endTime",
     )
     category: EventCategory = Field(
         default=EventCategory.Other,
@@ -47,45 +45,36 @@ class EventBase(SQLModel):
     sub_category: str | None = Field(
         default=None,
         index=True,
-        serialization_alias="subCategory",
     )
     hype_score: int = Field(
         default=0,
         index=True,
-        serialization_alias="hypeScore",
     )
     ticket_url: str | None = Field(
         default=None,
-        serialization_alias="ticketUrl",
     )
     source_url: str | None = Field(
         default=None,
-        serialization_alias="sourceUrl",
     )
     source_provider: str = Field(
         default="unknown",
         index=True,
-        serialization_alias="sourceProvider",
     )
     ingestion_method: str = Field(
         default="unknown",
         index=True,
-        serialization_alias="ingestionMethod",
     )
     location_name: str | None = Field(
         default=None,
         index=True,
-        serialization_alias="locationName",
     )
     country_code: str | None = Field(
         default=None,
         index=True,
-        serialization_alias="countryCode",
     )
     parent_id: UUID | None = Field(
         default=None,
         index=True,
-        serialization_alias="parentId",
     )
 
     # Infrastructure fields
@@ -93,7 +82,6 @@ class EventBase(SQLModel):
     event_metadata: dict[str, Any] = Field(
         default_factory=dict,
         sa_column=Column(JSON),
-        serialization_alias="eventMetadata",
     )
     tags: list[str] = Field(
         default_factory=list,
@@ -102,12 +90,10 @@ class EventBase(SQLModel):
     geocoding_status: GeocodingStatus = Field(
         default=GeocodingStatus.failed,
         index=True,
-        serialization_alias="geocodingStatus",
     )
     geocoding_metadata: dict[str, Any] = Field(
         default_factory=dict,
         sa_column=Column(JSON),
-        serialization_alias="geocodingMetadata",
     )
 
     @computed_field(alias="photoUrl")

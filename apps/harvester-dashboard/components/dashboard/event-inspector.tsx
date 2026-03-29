@@ -132,15 +132,23 @@ export function EventInspector({ event, open, onOpenChange, onApprove, onReject 
   const occurrences = editedEvent.event_metadata?.occurrences || []
 
   // Extract coordinates for Mapbox iframe
-  // location might be a WKT string like "POINT(lng lat)" or null
+  // location might be a WKT string like "POINT(lng lat)" OR a GeoJSON object {"type": "Point", "coordinates": [lng, lat]}
   let lat = 37.9838, lng = 23.7275 // Default Athens
-  if (typeof editedEvent.location === 'string' && editedEvent.location.startsWith('POINT')) {
-    const coords = editedEvent.location.match(/POINT\((.+) (.+)\)/)
-    if (coords) {
-      lng = parseFloat(coords[1])
-      lat = parseFloat(coords[2])
+  
+  if (editedEvent.location) {
+    if (typeof editedEvent.location === 'string' && editedEvent.location.startsWith('POINT')) {
+      const coords = editedEvent.location.match(/POINT\((.+) (.+)\)/)
+      if (coords) {
+        lng = parseFloat(coords[1])
+        lat = parseFloat(coords[2])
+      }
+    } else if (typeof editedEvent.location === 'object' && editedEvent.location.type === 'Point' && Array.isArray(editedEvent.location.coordinates)) {
+      lng = editedEvent.location.coordinates[0]
+      lat = editedEvent.location.coordinates[1]
     }
   }
+
+  const fullAddress = editedEvent.geocoding_metadata?.full_address || editedEvent.event_metadata?.full_address || null;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -389,6 +397,11 @@ export function EventInspector({ event, open, onOpenChange, onApprove, onReject 
               <div className="text-xs text-muted-foreground">
                 {lat.toFixed(4)}, {lng.toFixed(4)}
               </div>
+              {fullAddress && (
+                <div className="text-[10px] text-muted-foreground/80 italic mt-1">
+                  {fullAddress as string}
+                </div>
+              )}
             </div>
 
             {/* Location Search */}

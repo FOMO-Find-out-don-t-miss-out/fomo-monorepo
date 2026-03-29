@@ -70,7 +70,11 @@ def _to_pending_event_response(ev: PendingEvent | Event) -> PendingEventResponse
         rejection_reason=getattr(ev, "rejection_reason", None),
         confidence_score=getattr(ev, "confidence_score", None),
         geocoding_status=getattr(ev, "geocoding_status", "verified"),
-        geocoding_metadata=getattr(ev, "geocoding_metadata", {}),
+        geocoding_metadata={
+            **getattr(ev, "geocoding_metadata", {}),
+            "full_address": getattr(ev, "geocoding_metadata", {}).get("full_address")
+            or ev.location_name,
+        },
     )
 
 

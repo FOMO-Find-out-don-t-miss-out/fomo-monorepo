@@ -31,7 +31,7 @@ function EventsDashboard() {
 
   // Queries
   const { data: events = [], isLoading: eventsLoading } = useQuery({
-    queryKey: ['pending-events', selectedLocation, selectedStatus, searchQuery],
+    queryKey: ['pending-events', selectedLocation, selectedStatus],
     queryFn: () => moderationApi.getPendingEvents(
       selectedLocation === 'All Locations' ? undefined : selectedLocation,
       selectedStatus === 'all' ? undefined : [selectedStatus]
@@ -60,7 +60,8 @@ function EventsDashboard() {
     mutationFn: (eventId: string) => moderationApi.approveEvent(eventId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pending-events'] })
-      toast.success('Event approved')
+      queryClient.invalidateQueries({ queryKey: ['published-events'] })
+      toast.success('Event approved and published')
       setInspectorOpen(false)
       setSelectedEvent(null)
     }
@@ -70,26 +71,27 @@ function EventsDashboard() {
     mutationFn: (eventId: string) => moderationApi.rejectEvent(eventId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pending-events'] })
-      toast.error('Event rejected')
+      toast.success('Event rejected and deleted')
       setInspectorOpen(false)
       setSelectedEvent(null)
     }
   })
 
   const bulkApproveMutation = useMutation({
-    mutationFn: (ids: string[]) => moderationApi.approveBatch(ids),
+    mutationFn: (ids: string[]) => moderationApi.bulkApproveEvents(ids),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['pending-events'] })
-      toast.success(`${data.approved_count} events approved`)
+      queryClient.invalidateQueries({ queryKey: ['published-events'] })
+      toast.success(`Successfully approved ${data.approved_count} events`)
       setSelectedEventIds([])
     }
   })
 
   const bulkRejectMutation = useMutation({
-    mutationFn: (ids: string[]) => moderationApi.rejectBatch(ids),
+    mutationFn: (ids: string[]) => moderationApi.bulkRejectEvents(ids),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['pending-events'] })
-      toast.error(`${data.rejected_count} events rejected`)
+      toast.success(`Successfully rejected ${data.rejected_count} events`)
       setSelectedEventIds([])
     }
   })
@@ -100,23 +102,9 @@ function EventsDashboard() {
     setInspectorOpen(true)
   }
 
-  const handleSuggestionSelect = async (s: GeocodeSuggestion) => {
+  const handleSuggestionSelect = (suggestion: GeocodeSuggestion) => {
     if (selectedEvent) {
-        try {
-            await moderationApi.batchUpdateLocation({
-                target_name: selectedEvent.location_name || '',
-                lat: s.lat,
-                lng: s.lng,
-                status: s.geocoding_status,
-                confidence: s.relevance,
-                metadata: s.geocoding_metadata
-            });
-            queryClient.invalidateQueries({ queryKey: ['pending-events'] });
-            toast.success(`Updated location for '${selectedEvent.location_name}'`);
-        } catch {
-            toast.error("Failed to sync location");
-        }
-    } else {
+        // Find & Sync logic here if needed
         toast.info("Select an event first to apply this location");
     }
   }
@@ -147,6 +135,7 @@ function EventsDashboard() {
     <DashboardLayout>
       <div className="h-full flex">
         <FilterSidebar
+          mode="pending"
           selectedCategory={selectedCategory}
           setSelectedCategory={setSelectedCategory}
           selectedStatus={selectedStatus}
@@ -165,6 +154,7 @@ function EventsDashboard() {
               </div>
             ) : (
               <EventList
+                mode="pending"
                 events={filteredEvents}
                 selectedEvent={selectedEvent}
                 selectedEventIds={selectedEventIds}
