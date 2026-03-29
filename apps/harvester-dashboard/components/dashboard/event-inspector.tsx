@@ -80,12 +80,10 @@ const ingestionConfig: Record<string, { icon: React.ElementType, label: string, 
 
 function DateTimePicker({ 
   value, 
-  onChange, 
-  label 
+  onChange
 }: { 
   value: string | undefined, 
-  onChange: (val: string) => void,
-  label: string
+  onChange: (val: string) => void
 }) {
   const date = value ? new Date(value) : undefined;
   
@@ -278,22 +276,18 @@ export function EventInspector({ event, open, onOpenChange, onApprove, onReject 
                   <Label htmlFor="startTime" className="text-xs text-muted-foreground uppercase tracking-wider">
                     Start Time
                   </Label>
-                  <DateTimePicker 
-                    label="Start Time"
-                    value={editedEvent.start_time} 
-                    onChange={(val) => setEditedEvent({ ...editedEvent, start_time: val })} 
-                  />
-                </div>
+                  <DateTimePicker
+                    value={editedEvent.start_time}
+                    onChange={(val) => setEditedEvent({ ...editedEvent, start_time: val })}
+                  />                </div>
                 <div className="space-y-2">
                   <Label htmlFor="endTime" className="text-xs text-muted-foreground uppercase tracking-wider">
                     End Time
                   </Label>
-                  <DateTimePicker 
-                    label="End Time"
-                    value={editedEvent.end_time || undefined} 
-                    onChange={(val) => setEditedEvent({ ...editedEvent, end_time: val })} 
-                  />
-                </div>
+                  <DateTimePicker
+                    value={editedEvent.end_time || undefined}
+                    onChange={(val) => setEditedEvent({ ...editedEvent, end_time: val })}
+                  />                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -385,12 +379,10 @@ export function EventInspector({ event, open, onOpenChange, onApprove, onReject 
 
               <div className="flex gap-2">
                 <div className="flex-1">
-                  <DateTimePicker 
-                    label="New Date"
-                    value={newOccDate} 
-                    onChange={setNewOccDate} 
-                  />
-                </div>
+                  <DateTimePicker
+                    value={newOccDate}
+                    onChange={setNewOccDate}
+                  />                </div>
                 <Button 
                   size="sm" 
                   variant="outline"
