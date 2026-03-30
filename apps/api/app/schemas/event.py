@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, computed_field
 
-from app.utils.datetime_utils import DateTimeHelper
+from packages.domain.utils.datetime_utils import DateTimeHelper
 
 
 class EventBase(BaseModel):

@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from app.utils.datetime_utils import DateTimeHelper
+from packages.domain.utils.datetime_utils import DateTimeHelper
 
 
 def test_safe_parse_valid_iso():

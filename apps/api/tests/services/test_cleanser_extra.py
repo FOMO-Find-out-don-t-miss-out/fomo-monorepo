@@ -1,7 +1,7 @@
 from unittest.mock import patch
 
 import pytest
-from app.services.harvester.cleanser import CleansingService
+from app.services.harvester.cleansing_service import CleansingService
 from sqlmodel import Session
 
 

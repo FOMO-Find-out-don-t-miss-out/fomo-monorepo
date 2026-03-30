@@ -6,8 +6,10 @@ from uuid import uuid4
 import pytest
 from app.main import app
 from app.schemas.moderation import PendingEventResponse
-from app.services.harvester.cleanser import CleansingService, ExtractedEvent
+from app.services.harvester.cleansing_service import CleansingService
 from fastapi.testclient import TestClient
+
+from packages.domain.schemas.extracted_event import ExtractedEvent
 
 client = TestClient(app)
 
@@ -122,7 +124,8 @@ async def test_clean_json_ld_variations():
         "location": {"name": "Venue"},
     }
     with patch(
-        "app.services.harvester.cleanser.DateTimeHelper.safe_parse", return_value="not-a-datetime"
+        "packages.domain.schemas.extracted_event.DateTimeHelper.safe_parse",
+        return_value="not-a-datetime",
     ):
         res = await CleansingService.clean_json_ld(data)
         assert res is None
@@ -151,7 +154,7 @@ async def test_clean_json_ld_exception():
 @pytest.mark.asyncio
 async def test_clean_html_fallback_no_client():
     # Covers cleanser.py: 268-270
-    with patch("app.services.harvester.cleanser._client", None):
+    with patch("app.services.harvester.cleansing.ai_extractor._client", None):
         res = await CleansingService.clean_html_fallback("some html")
         assert res == []
 
@@ -173,7 +176,7 @@ async def test_clean_html_fallback_geocoding_fail():
     mock_client.chat.completions.create.return_value = mock_response
 
     long_text = "Long enough text to trigger extraction " * 5
-    with patch("app.services.harvester.cleanser._client", mock_client):
+    with patch("app.services.harvester.cleansing.ai_extractor._client", mock_client):
         with patch(
             "app.services.harvester.geocoder.GeocoderService.get_coordinates",
             side_effect=Exception("Geo Fail"),
@@ -190,6 +193,6 @@ async def test_clean_html_fallback_exception():
     mock_client.chat.completions.create.side_effect = Exception("Gemini Fail")
 
     long_text = "Long enough text to trigger extraction " * 5
-    with patch("app.services.harvester.cleanser._client", mock_client):
+    with patch("app.services.harvester.cleansing.ai_extractor._client", mock_client):
         res = await CleansingService.clean_html_fallback(long_text)
         assert res == []

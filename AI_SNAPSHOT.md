@@ -68,8 +68,11 @@ fomo-monorepo/
 │   │   ├───package.json
 │   │   └───tspconfig.yaml
 │   ├───domain/
-│   │   ├───domain.egg-info/
 │   │   ├───models/
+│   │   ├───schemas/
+│   │   ├───services/
+│   │   ├───tests/
+│   │   ├───utils/
 │   │   ├───__init__.py
 │   │   ├───package.json
 │   │   └───pyproject.toml

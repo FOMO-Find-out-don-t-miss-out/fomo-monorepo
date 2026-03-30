@@ -301,8 +301,9 @@ async def test_cleanup_pending_events(client: AsyncClient, session: Session) -> 
 @pytest.mark.asyncio
 async def test_run_scraper_and_ingest_task(session: Session) -> None:
     """Test the full scraper background task pipeline."""
-    from app.services.harvester.cleanser import ExtractedEvent
     from app.services.harvester.orchestrator import HarvesterOrchestrator
+
+    from packages.domain.schemas.extracted_event import ExtractedEvent
 
     mock_process = AsyncMock()
     mock_process.returncode = 0
@@ -339,7 +340,8 @@ async def test_run_scraper_and_ingest_task(session: Session) -> None:
 
     with patch("asyncio.create_subprocess_exec", return_value=mock_process):
         with patch(
-            "app.services.harvester.cleanser.CleansingService.clean_json_ld", return_value=extracted
+            "app.services.harvester.cleansing_service.CleansingService.clean_json_ld",
+            return_value=extracted,
         ):
             with patch(
                 "app.services.harvester.geocoder.GeocoderService.get_coordinates",
@@ -358,8 +360,9 @@ async def test_run_scraper_and_ingest_task(session: Session) -> None:
 @pytest.mark.asyncio
 async def test_run_scraper_and_ingest_task_html_fallback(session: Session) -> None:
     """Test the scraper background task with HTML fallback items."""
-    from app.services.harvester.cleanser import ExtractedEvent
     from app.services.harvester.orchestrator import HarvesterOrchestrator
+
+    from packages.domain.schemas.extracted_event import ExtractedEvent
 
     mock_process = AsyncMock()
     mock_process.returncode = 0
@@ -393,7 +396,7 @@ async def test_run_scraper_and_ingest_task_html_fallback(session: Session) -> No
 
     with patch("asyncio.create_subprocess_exec", return_value=mock_process):
         with patch(
-            "app.services.harvester.cleanser.CleansingService.clean_html_fallback",
+            "app.services.harvester.cleansing_service.CleansingService.clean_html_fallback",
             return_value=[extracted],
         ):
             with patch(
@@ -426,8 +429,9 @@ async def test_run_scraper_and_ingest_task_timeout() -> None:
 
 @pytest.mark.asyncio
 async def test_run_scraper_and_ingest_task_db_error(session: Session) -> None:
-    from app.services.harvester.cleanser import ExtractedEvent
     from app.services.harvester.orchestrator import HarvesterOrchestrator
+
+    from packages.domain.schemas.extracted_event import ExtractedEvent
 
     mock_process = AsyncMock()
     mock_process.returncode = 0
@@ -446,7 +450,8 @@ async def test_run_scraper_and_ingest_task_db_error(session: Session) -> None:
 
     with patch("asyncio.create_subprocess_exec", return_value=mock_process):
         with patch(
-            "app.services.harvester.cleanser.CleansingService.clean_json_ld", return_value=extracted
+            "app.services.harvester.cleansing_service.CleansingService.clean_json_ld",
+            return_value=extracted,
         ):
             with patch(
                 "app.services.harvester.ingestion_service.IngestionService.ingest_events",
@@ -457,8 +462,9 @@ async def test_run_scraper_and_ingest_task_db_error(session: Session) -> None:
 
 @pytest.mark.asyncio
 async def test_internal_ingest_logic_junk_filters(session: Session) -> None:
-    from app.services.harvester.cleanser import ExtractedEvent
     from app.services.harvester.ingestion_service import IngestionService
+
+    from packages.domain.schemas.extracted_event import ExtractedEvent
 
     events = [
         ExtractedEvent(title="Junk", category="Junk", start_time=datetime.now(UTC)),
@@ -471,10 +477,10 @@ async def test_internal_ingest_logic_junk_filters(session: Session) -> None:
 
 @pytest.mark.asyncio
 async def test_internal_ingest_logic_venue_match(session: Session) -> None:
-    from app.services.harvester.cleanser import ExtractedEvent
     from app.services.harvester.ingestion_service import IngestionService
 
     from packages.domain.models import Venue
+    from packages.domain.schemas.extracted_event import ExtractedEvent
 
     venue = Venue(
         name="MatchMe", country_code="GR", lat=10.0, lng=20.0, full_address="A", relevance=1.0
@@ -499,8 +505,9 @@ async def test_internal_ingest_logic_venue_match(session: Session) -> None:
 
 @pytest.mark.asyncio
 async def test_internal_ingest_logic_auto_approve(session: Session) -> None:
-    from app.services.harvester.cleanser import ExtractedEvent
     from app.services.harvester.ingestion_service import IngestionService
+
+    from packages.domain.schemas.extracted_event import ExtractedEvent
 
     future_date = datetime.now(UTC).replace(year=datetime.now(UTC).year + 1)
     events = [

@@ -16,7 +16,7 @@ async def test_run_scraper_and_ingest_task_success(
     session: Session, monkeypatch: pytest.MonkeyPatch, respx_mock: object
 ) -> None:
     """Test successful scraper run and ingestion."""
-    from app.services.harvester.cleanser import ExtractedEvent
+    from packages.domain.schemas.extracted_event import ExtractedEvent
 
     # 1. Mock subprocess
     mock_process = AsyncMock()
@@ -73,11 +73,11 @@ async def test_run_scraper_and_ingest_task_success(
                 return [ev]
 
             with patch(
-                "app.services.harvester.cleanser.CleansingService.clean_json_ld",
+                "app.services.harvester.cleansing_service.CleansingService.clean_json_ld",
                 side_effect=mock_clean_side_effect,
             ):
                 with patch(
-                    "app.services.harvester.cleanser.CleansingService.clean_html_fallback",
+                    "app.services.harvester.cleansing_service.CleansingService.clean_html_fallback",
                     side_effect=mock_html_side_effect,
                 ):
                     # 4. Mock Engine

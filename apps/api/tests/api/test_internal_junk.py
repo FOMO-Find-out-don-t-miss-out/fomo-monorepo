@@ -1,7 +1,8 @@
 import pytest
-from app.services.harvester.cleanser import ExtractedEvent
 from app.services.harvester.ingestion_service import IngestionService
 from sqlmodel import Session
+
+from packages.domain.schemas.extracted_event import ExtractedEvent
 
 
 @pytest.mark.asyncio

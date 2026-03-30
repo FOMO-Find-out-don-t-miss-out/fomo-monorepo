@@ -68,7 +68,7 @@ async def test_scraper_engine_ensure_string_non_str() -> None:
 
 
 def test_datetime_helper_formats() -> None:
-    from app.utils.datetime_utils import DateTimeHelper
+    from packages.domain.utils.datetime_utils import DateTimeHelper
 
     # Test various formats
     assert DateTimeHelper.safe_parse("2026-03-28 20:00:00").hour == 20
@@ -97,14 +97,14 @@ def test_purge_cache_error() -> None:
 
 
 def test_datetime_helper_list_dt() -> None:
-    from app.utils.datetime_utils import DateTimeHelper
+    from packages.domain.utils.datetime_utils import DateTimeHelper
 
     dt = datetime(2026, 1, 1, tzinfo=UTC)
     assert DateTimeHelper.safe_parse([dt]) == dt
 
 
 def test_datetime_helper_invalid_str() -> None:
-    from app.utils.datetime_utils import DateTimeHelper
+    from packages.domain.utils.datetime_utils import DateTimeHelper
 
     default = datetime(2026, 1, 1, tzinfo=UTC)
     assert DateTimeHelper.safe_parse("invalid", default=default) == default
@@ -112,7 +112,7 @@ def test_datetime_helper_invalid_str() -> None:
 
 @pytest.mark.asyncio
 async def test_clean_json_ld_headline(session: Session) -> None:
-    from app.services.harvester.cleanser import CleansingService
+    from app.services.harvester.cleansing_service import CleansingService
 
     data = {"@type": "MusicEvent", "headline": "Headline Test", "startDate": "2026-01-01"}
     with patch("app.services.harvester.geocoder.engine", session.get_bind()):
@@ -148,7 +148,7 @@ async def test_mapbox_client_geocode_v6_error() -> None:
 
 @pytest.mark.asyncio
 async def test_clean_json_ld_list_empty() -> None:
-    from app.services.harvester.cleanser import CleansingService
+    from app.services.harvester.cleansing_service import CleansingService
 
     assert await CleansingService.clean_json_ld([]) is None
 
@@ -176,7 +176,7 @@ async def test_to_pending_event_response_invalid_loc(session: Session, client: A
 
 @pytest.mark.asyncio
 async def test_clean_json_ld_list_fields(session: Session) -> None:
-    from app.services.harvester.cleanser import CleansingService
+    from app.services.harvester.cleansing_service import CleansingService
 
     data = {
         "@type": ["Event"],
@@ -205,7 +205,7 @@ async def test_batch_geocode_db_error() -> None:
 
 @pytest.mark.asyncio
 async def test_clean_json_ld_image_dict(session: Session) -> None:
-    from app.services.harvester.cleanser import CleansingService
+    from app.services.harvester.cleansing_service import CleansingService
 
     data = {
         "@type": "Event",

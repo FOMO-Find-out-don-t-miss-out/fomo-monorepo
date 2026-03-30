@@ -44,7 +44,7 @@ async def test_approve_events_batch_success(client: AsyncClient, session: Sessio
 
 @pytest.mark.asyncio
 async def test_clean_json_ld_various_branches(session: Session) -> None:
-    from app.services.harvester.cleanser import CleansingService
+    from app.services.harvester.cleansing_service import CleansingService
 
     # 1. Location as list
     data1 = {

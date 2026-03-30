@@ -11,8 +11,8 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 # Mock engine before importing anything that uses it
 with patch("sqlmodel.create_engine"):
-    from app.services.harvester.geocoder import GeocoderService
     from app.core.config import settings
+    from app.services.harvester.geocoder import GeocoderService
 
 async def debug_geocoder():
     # Load env from apps/api/.env

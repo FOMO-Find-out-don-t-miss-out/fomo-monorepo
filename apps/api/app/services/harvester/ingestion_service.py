@@ -6,9 +6,9 @@ from geoalchemy2 import WKTElement
 from sqlmodel import Session, select
 
 from app.schemas.event import IngestSummary
-from app.services.harvester.cleanser import ExtractedEvent
 from app.services.harvester.geocoder import GeocoderService
 from packages.domain.models import Event, PendingEvent, Venue
+from packages.domain.schemas.extracted_event import ExtractedEvent
 
 logger = logging.getLogger(__name__)
 

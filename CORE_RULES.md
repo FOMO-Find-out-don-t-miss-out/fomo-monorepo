@@ -9,7 +9,7 @@ Maintain strict separation of concerns across the monorepo to ensure scalability
 
 - **APPS (`apps/*`)**: Can depend on **PACKAGES**. These are deployment targets (e.g., `apps/api`, `apps/mobile`).
 - **PACKAGES (`packages/*`)**: Shared libraries and core logic. **PACKAGES MUST NOT depend on APPS** (Circular dependency violation).
-- **DOMAIN LOGIC**: All business logic, including Pydantic models (Schemas), SQLModel definitions (Models), and Services, **MUST** reside in `packages/domain`.
+- **DOMAIN LOGIC**: All business logic, including Pydantic models (Schemas), SQLModel definitions (Models), Services, and cross-package Utilities, **MUST** reside in `packages/domain`.
 - **API ENTRY POINTS**: `apps/api` is strictly for routing, dependency injection, and HTTP-related entry points. No business logic is allowed in `apps/api`.
 
 ---
@@ -70,8 +70,10 @@ Every coding task performed by an AI agent must follow this iterative cycle:
 - **SYNC LOCK**: No PR shall be merged if the `verify-schema-sync` check fails. Any change to TypeSpec MUST be followed by a generated Alembic migration in the same commit.
 
 ### Data Pipeline (Harvester)
-- **Cleansing**: Gemini-powered extraction via `instructor`.
-- **Geocoding**: Mapbox-based location resolution.
+- **Extraction**: Modular extractors (JSON-LD, AI/LLM via Gemini/Instructor) in `apps/api/app/services/harvester/cleansing/`.
+- **Classification**: Business logic for taxonomy and tagging MUST reside in `packages/domain/services/event_classifier.py`.
+- **Orchestration**: `CleansingService` (orchestrator) coordinates extraction, domain-driven classification, and geocoding.
+- **Geocoding**: Mapbox-based location resolution via `GeocoderService`.
 - **Moderation**: Events flow from `pending_events` (moderation) to `events` (live) via the dashboard.
 
 ---

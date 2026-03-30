@@ -14,7 +14,7 @@ The project is structured as a modular monorepo:
 │   └── mobile/                # Expo/React Native mobile application
 ├── packages/
 │   ├── api-spec/              # TypeSpec API Definitions (Source of Truth)
-│   └── domain/                # Shared Logic & Domain Models (SQLModel, Services)
+│   └── domain/                # Shared Logic (SQLModel, Services, Schemas, Utils)
 ├── infra/                     # Docker & Database Provisioning
 ├── tooling/                   # Quality & Build Scripts
 ├── docker-compose.yml         # Local Infrastructure Orchestration

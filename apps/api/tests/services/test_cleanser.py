@@ -2,8 +2,10 @@ from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
-from app.services.harvester.cleanser import CleansingService, ExtractedEvent
+from app.services.harvester.cleansing_service import CleansingService
 from sqlmodel import Session
+
+from packages.domain.schemas.extracted_event import ExtractedEvent
 
 
 @pytest.mark.asyncio
@@ -65,7 +67,7 @@ async def test_clean_html_fallback_success(session: Session) -> None:
     mock_response = MagicMock()
     mock_response.tasks = [mock_event]
 
-    with patch("app.services.harvester.cleanser._client") as mock_client:
+    with patch("app.services.harvester.cleansing.ai_extractor._client") as mock_client:
         mock_client.chat.completions.create.return_value = mock_response
         with patch("app.services.harvester.geocoder.engine", session.get_bind()):
             with patch("app.repositories.venue_repository.Session", return_value=session):
@@ -76,9 +78,9 @@ async def test_clean_html_fallback_success(session: Session) -> None:
 
 @pytest.mark.asyncio
 async def test_clean_html_fallback_no_client(monkeypatch: pytest.MonkeyPatch) -> None:
-    import app.services.harvester.cleanser as cleanser
+    import app.services.harvester.cleansing.ai_extractor as ai_extractor
 
-    monkeypatch.setattr(cleanser, "_client", None)
+    monkeypatch.setattr(ai_extractor, "_client", None)
     result = await CleansingService.clean_html_fallback("some text")
     assert result == []
 
@@ -91,7 +93,7 @@ async def test_clean_html_fallback_short_text() -> None:
 
 @pytest.mark.asyncio
 async def test_clean_html_fallback_exception() -> None:
-    with patch("app.services.harvester.cleanser._client") as mock_client:
+    with patch("app.services.harvester.cleansing.ai_extractor._client") as mock_client:
         mock_client.chat.completions.create.side_effect = Exception("AI Fail")
         result = await CleansingService.clean_html_fallback(
             "This is a sufficiently long text to pass the 50 character minimum check."
@@ -121,7 +123,7 @@ async def test_clean_html_fallback_with_geocoding(session: Session) -> None:
         geocoding_status="verified",
     )
 
-    with patch("app.services.harvester.cleanser._client") as mock_client:
+    with patch("app.services.harvester.cleansing.ai_extractor._client") as mock_client:
         mock_client.chat.completions.create.return_value = mock_response
         with patch("app.services.harvester.geocoder.engine", session.get_bind()):
             with patch("app.repositories.venue_repository.Session", return_value=session):
@@ -149,7 +151,7 @@ async def test_clean_html_fallback_geocoding_fail() -> None:
     mock_response = MagicMock()
     mock_response.tasks = [mock_event]
 
-    with patch("app.services.harvester.cleanser._client") as mock_client:
+    with patch("app.services.harvester.cleansing.ai_extractor._client") as mock_client:
         mock_client.chat.completions.create.return_value = mock_response
         with patch(
             "app.services.harvester.geocoder.GeocoderService.get_coordinates", return_value=None
@@ -172,7 +174,7 @@ def test_extracted_event_validators() -> None:
 
 @pytest.mark.asyncio
 async def test_clean_html_fallback_client_none() -> None:
-    with patch("app.services.harvester.cleanser._client", None):
+    with patch("app.services.harvester.cleansing.ai_extractor._client", None):
         result = await CleansingService.clean_html_fallback(
             "Some long enough text to pass the check"
         )

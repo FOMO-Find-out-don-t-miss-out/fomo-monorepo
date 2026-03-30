@@ -12,9 +12,10 @@ from sqlmodel import Session
 from app.core.config import settings
 from app.db.session import engine
 from app.schemas.event import IngestSummary
-from app.services.harvester.cleanser import CleansingService, ExtractedEvent
+from app.services.harvester.cleansing_service import CleansingService
 from app.services.harvester.geocoder import GeocoderService
 from app.services.harvester.ingestion_service import IngestionService
+from packages.domain.schemas.extracted_event import ExtractedEvent
 from packages.domain.utils.url_utils import detect_country_from_url, get_domain_from_url
 
 logger = logging.getLogger(__name__)

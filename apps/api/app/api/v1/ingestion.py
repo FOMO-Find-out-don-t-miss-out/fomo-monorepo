@@ -8,11 +8,11 @@ from sqlmodel import Session, select
 
 from app.db.session import get_db
 from app.schemas.event import EventIngest, IngestSummary
-from app.services.harvester.cleanser import ExtractedEvent
 from app.services.harvester.geocoder import GeocoderService
 from app.services.harvester.ingestion_service import IngestionService
 from app.services.harvester.orchestrator import HarvesterOrchestrator
 from packages.domain.models import Event, PendingEvent
+from packages.domain.schemas.extracted_event import ExtractedEvent
 from packages.domain.utils.url_utils import get_domain_from_url
 
 router = APIRouter()
