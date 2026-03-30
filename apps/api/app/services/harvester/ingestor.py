@@ -22,7 +22,8 @@ class IngestionService:
 
         for event_data in events:
             # Junk Detection logic moved to TrustEngine
-            if TrustEngine.is_junk(event_data):
+            trust_engine = TrustEngine(country_code=event_data.country_code or "GR")
+            if trust_engine.is_junk(event_data):
                 logger.info(f"[INGEST] Skipping junk (TrustEngine): {event_data.title}")
                 continue
 
@@ -96,7 +97,7 @@ class IngestionService:
                         city=str(final_city) if final_city else None,
                     )
 
-            is_auto_approved = TrustEngine.is_trusted_for_autopublish(event_data)
+            is_auto_approved = trust_engine.is_trusted_for_autopublish(event_data)
 
             existing_pending = db.exec(
                 select(PendingEvent).where(

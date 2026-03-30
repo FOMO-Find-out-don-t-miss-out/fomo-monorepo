@@ -1,0 +1,20 @@
+city_centers:
+  nicosia: [35.1856, 33.3823]
+  limassol: [34.6786, 33.0413]
+  larnaca: [34.9175, 33.6300]
+  paphos: [34.7721, 32.4231]
+
+junk_keywords:
+  - "προσφορές"
+  - "προσφορά"
+  - "εκδηλώσεις"
+  - "εισιτήρια"
+  - "tickets"
+  - "offers"
+  - "newsletter"
+  - "τριήμερο"
+  - "διήμερο"
+  - "offer"
+  - "events"
+  - "special"
+  - "exclusive"

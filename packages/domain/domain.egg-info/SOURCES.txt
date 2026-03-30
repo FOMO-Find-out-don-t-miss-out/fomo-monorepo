@@ -12,3 +12,11 @@ models/pending_event.py
 models/social.py
 models/user.py
 models/venue.py
+schemas/extracted_event.py
+services/event_classifier.py
+services/trust_engine.py
+tests/test_event_classifier.py
+tests/test_trust_engine.py
+utils/datetime_utils.py
+utils/geo_utils.py
+utils/url_utils.py

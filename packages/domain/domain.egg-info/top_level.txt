@@ -1,1 +1,6 @@
 models
+resources
+schemas
+services
+tests
+utils
