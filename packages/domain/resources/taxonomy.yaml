@@ -1,0 +1,40 @@
+categories:
+  Music:
+    sub_categories:
+      Techno:
+        keywords: ["techno", "electronic", "dj set", "party"]
+      House:
+        keywords: ["house", "deep house", "tech house"]
+      Jazz:
+        keywords: ["jazz", "blues", "swing"]
+      Rock:
+        keywords: ["rock", "metal", "punk", "indie", "hardcore"]
+      Hip-Hop:
+        keywords: ["hip hop", "rap", "trap", "r&b"]
+      Classical:
+        keywords: ["classical", "opera", "symphony", "orchestra"]
+      Rebetiko:
+        keywords: ["rebetiko", "ρεμπέτικο", "μπουζούκι"]
+      Laiko:
+        keywords: ["laiko", "λαϊκό", "μπουζούκια"]
+      Pop:
+        keywords: ["pop", "synth-pop", "dance-pop"]
+    keywords: ["concert", "συναυλία", "μουσική", "live", "tour", "περιοδεία", "βραδιά", "guest", "performance"]
+
+  Arts:
+    sub_categories:
+      Theater:
+        keywords: ["theater", "theatre", "θέατρο", "παράσταση", "drama", "comedy"]
+      Stand-up:
+        keywords: ["stand-up", "comedy", "stand up comedy", "κωμωδία"]
+      Exhibition:
+        keywords: ["exhibition", "gallery", "art", "museum", "έκθεση", "εικαστικά"]
+    keywords: ["art", "arts", "culture", "πολιτισμός"]
+
+  Tech:
+    sub_categories:
+      Conference:
+        keywords: ["conference", "summit", "forum", "synedrio", "συνέδριο"]
+      Workshop:
+        keywords: ["workshop", "seminar", "bootcamp", "webinar", "σεμινάριο", "εργαστήριο"]
+    keywords: ["tech", "technology", "software", "ai", "data", "coding", "τεχνολογία"]

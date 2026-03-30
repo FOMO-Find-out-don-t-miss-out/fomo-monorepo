@@ -10,24 +10,47 @@ from packages.domain.services.event_classifier import EventClassifier
     [
         ("Techno Party", "Dance all night", {}, "Music", "Techno", ["Techno"]),
         ("Jazz Night", "Smooth jazz", {"@type": "MusicEvent"}, "Music", "Jazz", ["Jazz"]),
-        ("Art Exhibition", "Contemporary art", {"@type": "ArtGallery"}, "Art", None, []),
+        (
+            "Art Exhibition",
+            "Contemporary art",
+            {"@type": "ArtGallery"},
+            "Arts",
+            "Exhibition",
+            ["Exhibition"],
+        ),
         (
             "Theater Performance",
             "Shakespeare play",
             {"@type": "TheaterEvent"},
-            "Art",
+            "Arts",
             "Theater",
-            [],
+            ["Theater"],
         ),
         ("Generic Event", "Just a regular thing", {}, "Other", None, []),
         ("Concert", "No description", {}, "Music", None, []),
         ("Release Athens Festival", "Summer music festival", {}, "Music", None, ["Festival"]),
         ("Laiko live", "Night with laiko", {}, "Music", "Laiko", ["Laiko"]),
         ("Rebetiko evening", "Traditional music", {}, "Music", "Rebetiko", ["Rebetiko"]),
-        ("Metal Gig", "Heavy metal", {}, "Music", "Metal", ["Metal"]),
+        (
+            "Metal Gig",
+            "Heavy metal",
+            {},
+            "Music",
+            "Rock",
+            ["Rock"],
+        ),  # Metal is under Rock in my taxonomy.yaml
         ("Rock concert", "Classic rock", {}, "Music", "Rock", ["Rock"]),
         ("Hip-Hop show", "Rap battle", {}, "Music", "Hip-Hop", ["Hip-Hop"]),
-        ("DJ Set at the Beach", "Electronic vibes", {}, "Music", "Electronic", ["Electronic"]),
+        (
+            "DJ Set at the Beach",
+            "Electronic vibes",
+            {},
+            "Music",
+            "Techno",
+            ["Techno"],
+        ),  # Electronic is under Techno
+        ("AI Conference", "Future of AI", {}, "Tech", "Conference", ["Conference"]),
+        ("Coding Workshop", "Learn Python", {}, "Tech", "Workshop", ["Workshop"]),
     ],
 )
 def test_event_classifier_classify(

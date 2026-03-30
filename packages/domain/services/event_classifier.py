@@ -1,5 +1,7 @@
 from typing import Any, ClassVar
 
+from packages.domain.services.taxonomy_manager import TaxonomyManager
+
 
 class EventClassifier:
     """
@@ -7,37 +9,7 @@ class EventClassifier:
     Follows FOMO classification standards.
     """
 
-    MUSIC_MAP: ClassVar[dict[str, str]] = {
-        "techno": "Techno",
-        "house": "House",
-        "jazz": "Jazz",
-        "rock": "Rock",
-        "hip hop": "Hip-Hop",
-        "rap": "Hip-Hop",
-        "classical": "Classical",
-        "rebetiko": "Rebetiko",
-        "laiko": "Laiko",
-        "pop": "Pop",
-        "electronic": "Electronic",
-        "metal": "Metal",
-        "blues": "Blues",
-        "punk": "Punk",
-        "indie": "Indie",
-        "dj set": "Electronic",
-        "party": "Electronic",
-    }
-
-    MUSIC_KEYWORDS: ClassVar[list[str]] = [
-        "concert",
-        "συναυλία",
-        "μουσική",
-        "live",
-        "tour",
-        "περιοδεία",
-        "βραδιά",
-        "guest",
-        "performance",
-    ]
+    _taxonomy_manager: ClassVar[TaxonomyManager] = TaxonomyManager()
 
     @classmethod
     def classify(
@@ -45,16 +17,16 @@ class EventClassifier:
     ) -> tuple[str, str | None, list[str]]:
         """
         Extracts category, sub-category, and tags from event text and metadata.
+        Uses the TaxonomyManager for keyword-based matching and metadata for refinement.
         """
         title_lower = title.lower()
         desc_lower = (description or "").lower()
         combined_text = f"{title_lower} {desc_lower}"
 
-        category = "Other"
-        sub_category = None
-        tags: list[str] = []
+        # 1. Keyword-based lookup using TaxonomyManager
+        category, sub_category, tags = cls._taxonomy_manager.find_match(combined_text)
 
-        # 1. Type-based initial classification
+        # 2. Type-based initial classification (refinement)
         item_type_raw = metadata.get("@type", "")
         item_types = (
             item_type_raw if isinstance(item_type_raw, list) else [str(item_type_raw).lower()]
@@ -64,22 +36,10 @@ class EventClassifier:
         if "music" in type_str or "concert" in type_str:
             category = "Music"
         elif "art" in type_str:
-            category = "Art"
+            category = "Arts"
         elif "theater" in type_str:
-            category = "Art"
+            category = "Arts"
             sub_category = "Theater"
-
-        # 2. Keyword-based music enrichment
-        for kw, val in cls.MUSIC_MAP.items():
-            if kw in combined_text:
-                category = "Music"
-                sub_category = val
-                tags.append(val)
-                break
-
-        if category == "Other":
-            if any(kw in combined_text for kw in cls.MUSIC_KEYWORDS):
-                category = "Music"
 
         # 3. Metadata-based refinement
         organizer = metadata.get("organizer", {})
@@ -95,7 +55,8 @@ class EventClassifier:
         if "festival" in combined_text or "φεστιβάλ" in combined_text:
             if "Festival" not in tags:
                 tags.append("Festival")
-            category = "Music"
+            if category == "Other":
+                category = "Music"
 
         # 4. Source-based hint
         source_domain = metadata.get("source_domain")
