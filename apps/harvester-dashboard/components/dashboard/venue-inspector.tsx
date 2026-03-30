@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -38,7 +37,7 @@ import {
   Save,
   CheckCircle2,
   Calendar,
-  ChevronRight, MapPin, Search, ExternalLink
+  ChevronRight, Search, ExternalLink, Building2
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
@@ -175,74 +174,98 @@ export function VenueInspector({ venue, open, onOpenChange }: VenueInspectorProp
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-xl p-0 flex flex-col bg-card border-l border-border h-full">
+      <SheetContent className="w-full sm:max-w-xl p-0 flex flex-col bg-card/95 backdrop-blur-xl border-l border-neon-blue/20 shadow-[0_0_50px_rgba(0,0,0,0.5)] h-full">
         <SheetHeader className="sr-only">
           <SheetTitle>Venue Details: {venue.name}</SheetTitle>
           <SheetDescription>View and edit details for venue {venue.name}</SheetDescription>
         </SheetHeader>
-        <ScrollArea className="flex-1 min-h-0">
+        <ScrollArea className="flex-1 min-h-0 scrollbar-neon">
           {/* Map Header */}
-          <div className="relative w-full h-48 bg-muted">
+          <div className="relative w-full h-56 bg-muted">
             <iframe
               src={`https://api.mapbox.com/styles/v1/mapbox/dark-v11.html?title=false&access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw&zoomwheel=false#14/${editedVenue.lat}/${editedVenue.lng}`}
-              className="w-full h-full border-0"
+              className="w-full h-full border-0 grayscale-[0.5] contrast-[1.2] brightness-[0.8]"
               title="Venue Location"
             />
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-              <div className="w-5 h-5 bg-primary rounded-full border-2 border-primary-foreground shadow-lg" />
+              <div className="w-6 h-6 bg-neon-blue rounded-full border-2 border-white neon-glow-blue animate-neon-pulse" />
             </div>
-            <div className="absolute top-4 right-12">
-              <Badge
-                variant={editedVenue.is_manually_verified ? 'default' : 'secondary'}
-                className={editedVenue.is_manually_verified ? 'bg-green-600 text-white' : ''}
-              >
-                {editedVenue.is_manually_verified ? 'Verified' : 'Unverified'}
-              </Badge>
+            
+            <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent pointer-events-none" />
+            
+            <div className="absolute bottom-6 left-6 right-6">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-neon-blue/20 backdrop-blur-md border border-neon-blue/30 flex items-center justify-center">
+                    <Building2 className="w-5 h-5 text-neon-blue" />
+                </div>
+                <Badge
+                    variant="outline"
+                    className={cn(
+                        "uppercase tracking-widest font-black h-5 px-2",
+                        editedVenue.is_manually_verified ? 'badge-neon-green' : 'badge-neon-purple opacity-70'
+                    )}
+                >
+                    {editedVenue.is_manually_verified ? 'Verified Node' : 'Unverified Node'}
+                </Badge>
+              </div>
+              <h2 className="text-2xl font-black text-foreground text-neon-glow-blue leading-tight tracking-tight uppercase italic truncate">
+                {venue.name}
+              </h2>
             </div>
           </div>
 
-          <div className="p-4 space-y-6">
+          <div className="p-6 space-y-8">
             {/* Basic Info */}
-            <div className="space-y-4">
+            <div className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="venueTitle" className="text-xs text-muted-foreground uppercase tracking-wider">
-                  Venue Name
+                <Label htmlFor="venueTitle" className="text-[10px] font-bold text-neon-blue uppercase tracking-[0.2em] ml-1">
+                  Registry Name
                 </Label>
                 <Input
                   id="venueTitle"
                   value={editedVenue.name}
                   onChange={(e) => setEditedVenue({ ...editedVenue, name: e.target.value })}
-                  className="bg-input/50"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="city" className="text-xs text-muted-foreground uppercase tracking-wider">
-                  City
-                </Label>
-                <Input
-                  id="city"
-                  value={editedVenue.city || ''}
-                  onChange={(e) => setEditedVenue({ ...editedVenue, city: e.target.value })}
-                  className="bg-input/50"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="address" className="text-xs text-muted-foreground uppercase tracking-wider">
-                  Full Address
-                </Label>
-                <Input
-                  id="address"
-                  value={editedVenue.full_address}
-                  onChange={(e) => setEditedVenue({ ...editedVenue, full_address: e.target.value })}
-                  className="bg-input/50"
+                  className="bg-card/40 input-neon font-bold"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="latitude" className="text-xs text-muted-foreground uppercase tracking-wider">
+                  <Label htmlFor="city" className="text-[10px] font-bold text-neon-blue uppercase tracking-[0.2em] ml-1">
+                    City Node
+                  </Label>
+                  <Input
+                    id="city"
+                    value={editedVenue.city || ''}
+                    onChange={(e) => setEditedVenue({ ...editedVenue, city: e.target.value })}
+                    className="bg-card/40 input-neon font-medium"
+                  />
+                </div>
+                <div className="space-y-2">
+                    <Label className="text-[10px] font-bold text-neon-blue uppercase tracking-[0.2em] ml-1">
+                        Country
+                    </Label>
+                    <div className="h-10 px-3 flex items-center rounded-md bg-card/20 border border-border/50 text-sm font-bold text-muted-foreground uppercase tracking-widest">
+                        {venue.country_code || 'GR'}
+                    </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="address" className="text-[10px] font-bold text-neon-blue uppercase tracking-[0.2em] ml-1">
+                  Physical Protocol (Address)
+                </Label>
+                <Input
+                  id="address"
+                  value={editedVenue.full_address}
+                  onChange={(e) => setEditedVenue({ ...editedVenue, full_address: e.target.value })}
+                  className="bg-card/40 input-neon font-medium"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="latitude" className="text-[10px] font-bold text-neon-purple uppercase tracking-[0.2em] ml-1">
                     Latitude
                   </Label>
                   <Input
@@ -251,11 +274,11 @@ export function VenueInspector({ venue, open, onOpenChange }: VenueInspectorProp
                     step="0.0001"
                     value={editedVenue.lat}
                     onChange={(e) => setEditedVenue({ ...editedVenue, lat: parseFloat(e.target.value) || 0 })}
-                    className="bg-input/50"
+                    className="bg-card/40 input-neon font-mono text-xs"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="longitude" className="text-xs text-muted-foreground uppercase tracking-wider">
+                  <Label htmlFor="longitude" className="text-[10px] font-bold text-neon-purple uppercase tracking-[0.2em] ml-1">
                     Longitude
                   </Label>
                   <Input
@@ -264,123 +287,136 @@ export function VenueInspector({ venue, open, onOpenChange }: VenueInspectorProp
                     step="0.0001"
                     value={editedVenue.lng}
                     onChange={(e) => setEditedVenue({ ...editedVenue, lng: parseFloat(e.target.value) || 0 })}
-                    className="bg-input/50"
+                    className="bg-card/40 input-neon font-mono text-xs"
                   />
                 </div>
               </div>
 
               {/* Manual Verified Toggle */}
-              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-green-500" />
+              <div className={cn(
+                  "flex items-center justify-between p-4 rounded-xl transition-all duration-300 border",
+                  editedVenue.is_manually_verified 
+                    ? "bg-neon-green/5 border-neon-green/20 neon-glow-sm-green" 
+                    : "bg-muted/10 border-border/50"
+              )}>
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 className={cn(
+                      "w-5 h-5 transition-colors",
+                      editedVenue.is_manually_verified ? "text-neon-green text-neon-glow-green" : "text-muted-foreground"
+                  )} />
                   <div>
-                    <Label htmlFor="verified" className="text-sm font-medium cursor-pointer">
-                      Manual Verified
+                    <Label htmlFor="verified" className="text-xs font-black uppercase tracking-widest cursor-pointer">
+                      Manual Verification
                     </Label>
-                    <p className="text-xs text-muted-foreground">Mark this venue as manually verified</p>
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight opacity-70">Elevate node to trusted status</p>
                   </div>
                 </div>
                 <Switch
                   id="verified"
                   checked={editedVenue.is_manually_verified}
                   onCheckedChange={(checked) => setEditedVenue({ ...editedVenue, is_manually_verified: checked })}
+                  className="data-[state=checked]:bg-neon-green"
                 />
               </div>
 
               {/* Sync Flag */}
-              <div className="flex items-center space-x-2 p-3 rounded-lg border border-dashed border-primary/30 bg-primary/5">
+              <div className="flex items-center space-x-3 p-4 rounded-xl border border-dashed border-neon-blue/30 bg-neon-blue/5">
                 <Checkbox 
                     id="syncAll" 
                     checked={applyToAll} 
-                    onCheckedChange={(checked) => setApplyToAll(checked === true)} 
+                    onCheckedChange={(checked) => setApplyToAll(checked === true)}
+                    className="checkbox-neon"
                 />
                 <div className="grid gap-1.5 leading-none">
                   <label
                     htmlFor="syncAll"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    className="text-xs font-black uppercase tracking-wider leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neon-blue"
                   >
-                    Apply to all events at this venue
+                    Sync Entire Venue Protocol
                   </label>
-                  <p className="text-xs text-muted-foreground">
-                    This will update the location and status for all published and pending events.
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight opacity-60 leading-normal">
+                    Propagate location & status updates to all linked nodes (Published & Pending).
                   </p>
                 </div>
               </div>
 
               {/* Linked Events */}
-              <div className="space-y-3">
+              <div className="space-y-4 pt-4 border-t border-neon-purple/10">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    Linked Events ({allLinkedEvents.length})
+                  <Label className="text-[10px] font-bold text-neon-purple uppercase tracking-[0.2em] ml-1 flex items-center gap-2">
+                    <Calendar className="w-4 h-4" />
+                    Linked Signals ({allLinkedEvents.length})
                   </Label>
                   {venue?.name && (
-                    <Button variant="link" size="sm" className="h-auto p-0 text-[10px]" asChild>
+                    <Button variant="link" size="sm" className="h-auto p-0 text-[10px] font-bold uppercase tracking-widest text-neon-purple hover:text-neon-purple/80" asChild>
                       <Link href={`/?search=${encodeURIComponent(venue.name)}`}>
-                        View on dashboard
-                        <ExternalLink className="w-2.5 h-2.5 ml-1" />
+                        Dashboard Trace
+                        <ExternalLink className="w-3 h-3 ml-2" />
                       </Link>
                     </Button>
                   )}
                 </div>
                 {allLinkedEvents.length > 0 ? (
-                  <div className="space-y-2 max-h-56 overflow-y-auto pr-2">
+                  <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto pr-2 scrollbar-neon">
                     {allLinkedEvents.map((ev) => (
                       <Link 
                         key={ev.id} 
                         href={ev.isPublished ? `/published?id=${ev.id}` : `/?id=${ev.id}`}
-                        className="flex items-center justify-between p-2 rounded-md bg-muted/30 border border-border group hover:bg-muted/50 transition-colors"
+                        className="flex items-center justify-between p-3 rounded-xl bg-card/40 border border-border/50 group hover:border-neon-purple/40 hover:bg-neon-purple/5 transition-all duration-300"
                       >
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium truncate">{ev.title}</p>
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="text-xs font-black uppercase truncate group-hover:text-neon-purple transition-colors">{ev.title}</p>
                             <Badge variant="outline" className={cn(
-                                "text-[9px] h-3.5 px-1 font-normal",
-                                ev.isPublished ? "text-green-600 border-green-200 bg-green-50" : "text-amber-600 border-amber-200 bg-amber-50"
+                                "text-[8px] h-4 px-1.5 font-black uppercase tracking-tighter",
+                                ev.isPublished ? "badge-neon-green" : "badge-neon-purple"
                             )}>
-                                {ev.isPublished ? 'Published' : 'Pending'}
+                                {ev.isPublished ? 'LIVE' : 'PENDING'}
                             </Badge>
                           </div>
-                          <p className="text-[10px] text-muted-foreground">
-                            {format(new Date(ev.start_time), 'dd/MM/yyyy')}
-                          </p>
+                          <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-bold uppercase tracking-widest opacity-60">
+                            <span>{format(new Date(ev.start_time), 'dd MMM yyyy')}</span>
+                            <span>•</span>
+                            <span className="truncate">{ev.category}</span>
+                          </div>
                         </div>
-                        <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+                        <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-neon-purple group-hover:translate-x-1 transition-all" />
                       </Link>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground italic">No events linked to this venue name.</p>
+                  <div className="p-8 rounded-xl border border-dashed border-border/50 text-center">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-50 italic">No signals linked to this node.</p>
+                  </div>
                 )}
               </div>
             </div>
 
             {/* Location Search */}
-            <Separator className="bg-border" />
-            <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                <MapPin className="w-3 h-3" />
-                Live Mapbox Suggestions
+            <div className="space-y-4 pt-4 border-t border-neon-blue/10">
+              <Label className="text-[10px] font-bold text-neon-blue uppercase tracking-[0.2em] ml-1 flex items-center gap-2">
+                <Search className="w-4 h-4" />
+                Registry Search & Sync
               </Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <div className="relative group">
+                <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-neon-blue transition-colors" />
                 <Input
-                  placeholder="Search for an address..."
+                  placeholder="Search for physical address..."
                   value={locationSearch}
                   onChange={(e) => setLocationSearch(e.target.value)}
-                  className="pl-9 bg-input/50"
+                  className="pl-11 bg-card/40 input-neon h-11"
                 />
               </div>
               {suggestions.length > 0 && (
-                <div className="border border-border rounded-lg overflow-hidden">
+                <div className="border border-neon-blue/20 rounded-xl overflow-hidden bg-card/80 backdrop-blur-md shadow-2xl animate-in fade-in slide-in-from-top-2 duration-300">
                   {suggestions.map((suggestion, idx) => (
                     <button
                       key={idx}
-                      className="w-full p-3 text-left hover:bg-accent transition-colors border-b border-border last:border-b-0"
+                      className="w-full p-4 text-left hover:bg-neon-blue/10 transition-all border-b border-neon-blue/10 last:border-b-0 group"
                       onClick={() => handleLocationSelect(suggestion)}
                     >
-                      <div className="font-medium text-sm text-foreground">{suggestion.full_address}</div>
-                      <div className="text-xs text-muted-foreground">{suggestion.city}, {suggestion.country_code}</div>
+                      <div className="font-bold text-sm text-foreground group-hover:text-neon-blue transition-colors">{suggestion.full_address}</div>
+                      <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mt-1">{suggestion.city}, {suggestion.country_code}</div>
                     </button>
                   ))}
                 </div>
@@ -388,29 +424,28 @@ export function VenueInspector({ venue, open, onOpenChange }: VenueInspectorProp
             </div>
 
             {/* Merge Venue */}
-            <Separator className="bg-border" />
-            <div className="space-y-4">
-              <div className="flex items-center gap-1.5">
-                <GitMerge className="w-4 h-4 text-primary" />
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider">
-                  Merge INTO another venue
+            <div className="space-y-5 pt-4 pb-8 border-t border-neon-pink/10">
+              <div className="flex items-center gap-3 ml-1">
+                <GitMerge className="w-5 h-5 text-neon-pink animate-pulse" />
+                <Label className="text-[10px] font-bold text-neon-pink uppercase tracking-[0.2em]">
+                  Merge Protocol
                 </Label>
               </div>
-              <p className="text-xs text-muted-foreground">
-                This will move all events from &quot;{venue.name}&quot; to the selected venue and delete this record.
+              <p className="text-[11px] font-medium leading-relaxed text-muted-foreground bg-neon-pink/5 p-4 rounded-xl border border-neon-pink/10">
+                Warning: This will decommission the current node and migrate all linked signals to a new target node. This action is final.
               </p>
               
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <Select value={targetVenueId || ''} onValueChange={setTargetVenueId}>
-                    <SelectTrigger className="bg-input/50">
-                        <SelectValue placeholder="Select target venue..." />
+                    <SelectTrigger className="h-11 bg-card/40 input-neon font-bold uppercase tracking-widest text-[10px] border-neon-pink/20 focus:ring-neon-pink">
+                        <SelectValue placeholder="SELECT TARGET NODE..." />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-card border-neon-pink/20">
                         {allVenues
                           .filter(v => v.id !== venue.id)
                           .map(v => (
-                            <SelectItem key={v.id} value={v.id}>
-                                {v.name} ({v.city || 'Unknown City'})
+                            <SelectItem key={v.id} value={v.id} className="text-[10px] font-bold uppercase tracking-widest">
+                                {v.name} ({v.city || '??'})
                             </SelectItem>
                         ))}
                     </SelectContent>
@@ -419,24 +454,25 @@ export function VenueInspector({ venue, open, onOpenChange }: VenueInspectorProp
                 <AlertDialog>
                     <AlertDialogTrigger asChild>
                         <Button 
-                            variant="outline" 
-                            className="w-full border-primary/30 hover:bg-primary/10 text-primary"
+                            variant="neon-purple" 
+                            className="w-full h-11 font-black uppercase tracking-[0.2em] border-neon-pink/30"
                             disabled={!targetVenueId || mergeMutation.isPending}
                         >
                             <GitMerge className="w-4 h-4 mr-2" />
-                            {mergeMutation.isPending ? 'Merging...' : 'Merge Venues'}
+                            {mergeMutation.isPending ? 'MIGRATING...' : 'EXECUTE MERGE'}
                         </Button>
                     </AlertDialogTrigger>
-                    <AlertDialogContent>
+                    <AlertDialogContent className="bg-card border-neon-red/30">
                         <AlertDialogHeader>
-                            <AlertDialogTitle>Confirm Merge</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                This action is irreversible. All events linked to &quot;{venue.name}&quot; will be updated to point to the new venue, and &quot;{venue.name}&quot; will be deleted.
+                            <AlertDialogTitle className="text-neon-red uppercase font-black tracking-tighter">Initiate Merge Protocol?</AlertDialogTitle>
+                            <AlertDialogDescription className="text-muted-foreground font-medium italic">
+                                Irreversible decommissioning of &quot;{venue.name}&quot;. All child signals will be rerouted. Proceed?
                             </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogCancel className="bg-card border-border uppercase font-bold tracking-widest text-[10px]">Abort</AlertDialogCancel>
                             <AlertDialogAction
+                                className="bg-neon-red hover:bg-neon-red/80 text-white font-black uppercase tracking-[0.2em] text-[10px]"
                                 onClick={() => targetVenueId && mergeMutation.mutate(targetVenueId)}
                             >
                                 Confirm Merge
@@ -450,37 +486,38 @@ export function VenueInspector({ venue, open, onOpenChange }: VenueInspectorProp
         </ScrollArea>
 
         {/* Action Buttons */}
-        <div className="p-4 border-t border-border bg-card/80 backdrop-blur-sm sticky bottom-0 space-y-2">
+        <div className="p-6 border-t border-neon-blue/20 bg-card/90 backdrop-blur-xl sticky bottom-0 z-30 space-y-3 shadow-[0_-10px_30px_rgba(0,0,0,0.3)]">
           <Button
-            className="w-full"
+            variant="neon"
+            className="w-full h-12 font-black uppercase tracking-[0.2em]"
             onClick={() => saveMutation.mutate(editedVenue)}
             disabled={saveMutation.isPending}
           >
-            <Save className="w-4 h-4 mr-2" />
-            {saveMutation.isPending ? 'Saving...' : 'Save Changes'}
+            <Save className="w-5 h-5 mr-3" />
+            {saveMutation.isPending ? 'SYNCING...' : 'Save Registry Changes'}
           </Button>
 
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive" className="w-full">
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete Venue
+              <Button variant="neon-red" className="w-full h-11 font-black uppercase tracking-[0.2em] opacity-80 hover:opacity-100">
+                <Trash2 className="w-5 h-5 mr-3" />
+                Delete Node
               </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent>
+            <AlertDialogContent className="bg-card border-neon-red/40">
               <AlertDialogHeader>
-                <AlertDialogTitle>Delete Venue</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to delete &quot;{venue.name}&quot;? This will unlink it from all events.
+                <AlertDialogTitle className="text-neon-red uppercase font-black tracking-tighter">Decommission Node?</AlertDialogTitle>
+                <AlertDialogDescription className="text-muted-foreground font-medium">
+                  Deletetion of &quot;{venue.name}&quot; will leave linked signals unrouted.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel className="bg-card border-border uppercase font-bold tracking-widest text-[10px]">Abort</AlertDialogCancel>
                 <AlertDialogAction
-                  className="bg-destructive text-white hover:bg-destructive/90"
+                  className="bg-neon-red hover:bg-neon-red/80 text-white font-black uppercase tracking-[0.2em] text-[10px]"
                   onClick={() => deleteMutation.mutate(venue.id)}
                 >
-                  Delete
+                  Confirm Delete
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

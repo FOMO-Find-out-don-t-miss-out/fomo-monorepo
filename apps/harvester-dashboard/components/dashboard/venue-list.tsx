@@ -40,53 +40,53 @@ export function VenueList({
   unverifiedCount
 }: VenueListProps) {
   return (
-    <div className="flex-1 flex flex-col min-w-0 min-h-0 bg-background">
+    <div className="flex-1 flex flex-col min-w-0 min-h-0 bg-background/50">
       {/* Header */}
-      <div className="p-4 border-b border-border bg-card/30">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold text-foreground">Venues</h1>
-            <Badge variant="secondary" className="text-xs">
-              {totalCount} total
+      <div className="p-6 border-b border-neon-blue/10 bg-card/40 backdrop-blur-md">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <h1 className="text-2xl font-black text-foreground text-neon-glow-blue uppercase tracking-tighter italic">Venues Registry</h1>
+            <Badge variant="outline" className="badge-neon h-6 px-3 text-[10px] font-bold tracking-[0.2em] uppercase">
+              {totalCount} Nodes
             </Badge>
           </div>
         </div>
 
         {/* Search and Filter */}
-        <div className="flex items-center gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <div className="flex items-center gap-6">
+          <div className="relative flex-1 max-w-md group">
+            <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-neon-blue transition-colors" />
             <Input
-              placeholder="Search venues..."
+              placeholder="Search registry by name or city..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="pl-9 bg-input/50"
+              className="pl-11 bg-card/60 input-neon h-11 text-sm font-medium"
             />
           </div>
 
-          <div className="flex items-center gap-2 border-l border-border pl-4">
-             <div className="flex items-center gap-2">
-                <Filter className="w-3.5 h-3.5 text-muted-foreground" />
+          <div className="flex items-center gap-4 border-l border-neon-purple/20 pl-6">
+             <div className="flex items-center gap-3">
+                <Filter className="w-4 h-4 text-neon-purple/60" />
                 <Select
                     value={filterStatus}
                     onValueChange={(value) => onFilterStatusChange(value as 'all' | 'verified' | 'unverified')}
                 >
-                    <SelectTrigger className="h-9 w-[160px] bg-input/50 text-xs border-border/50">
-                        <SelectValue placeholder="Filter by status" />
+                    <SelectTrigger className="h-11 w-[180px] bg-card/60 input-neon text-xs font-bold uppercase tracking-widest">
+                        <SelectValue placeholder="STATUS FILTER" />
                     </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all" className="text-xs">
-                            All Venues
+                    <SelectContent className="bg-card border-neon-purple/20">
+                        <SelectItem value="all" className="text-[10px] font-bold uppercase tracking-widest">
+                            All Registry
                         </SelectItem>
-                        <SelectItem value="verified" className="text-xs">
+                        <SelectItem value="verified" className="text-[10px] font-bold uppercase tracking-widest">
                             <div className="flex items-center gap-2">
-                                <ShieldCheck className="w-3 h-3 text-green-500" />
+                                <ShieldCheck className="w-3.5 h-3.5 text-neon-green" />
                                 Verified
                             </div>
                         </SelectItem>
-                        <SelectItem value="unverified" className="text-xs">
+                        <SelectItem value="unverified" className="text-[10px] font-bold uppercase tracking-widest">
                             <div className="flex items-center gap-2">
-                                <ShieldAlert className="w-3 h-3 text-yellow-500" />
+                                <ShieldAlert className="w-3.5 h-3.5 text-neon-yellow" />
                                 Unverified
                             </div>
                         </SelectItem>
@@ -94,8 +94,8 @@ export function VenueList({
                 </Select>
              </div>
              {unverifiedCount > 0 && filterStatus !== 'unverified' && (
-                <Badge variant="outline" className="text-[10px] bg-yellow-500/10 text-yellow-600 border-yellow-500/20">
-                    {unverifiedCount} unverified
+                <Badge variant="outline" className="badge-neon-purple animate-neon-pulse h-6 px-3 text-[9px] font-black tracking-widest uppercase">
+                    {unverifiedCount} AMBIGUOUS
                 </Badge>
              )}
           </div>
@@ -103,19 +103,20 @@ export function VenueList({
       </div>
 
       {/* Venue Cards */}
-      <ScrollArea className="flex-1 min-h-0">
-        <div className="p-4 space-y-2 relative">
+      <ScrollArea className="flex-1 min-h-0 scrollbar-neon">
+        <div className="p-6 space-y-3 relative">
           {isLoading ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <div className="flex flex-col items-center justify-center py-24 text-center">
+               <div className="w-12 h-12 rounded-full border-t-2 border-r-2 border-neon-blue animate-spin shadow-[0_0_15px_var(--neon-blue)]"></div>
+               <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.3em] text-neon-blue animate-pulse">Scanning Registry...</p>
             </div>
           ) : venues.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                <Building2 className="w-8 h-8 text-muted-foreground" />
+            <div className="flex flex-col items-center justify-center py-24 text-center">
+              <div className="w-20 h-20 rounded-2xl bg-muted/10 border border-dashed border-border flex items-center justify-center mb-6">
+                <Building2 className="w-10 h-10 text-muted-foreground/30" />
               </div>
-              <p className="text-muted-foreground">No venues found</p>
-              <p className="text-sm text-muted-foreground mt-1">Try adjusting your search</p>
+              <p className="text-xl font-bold text-foreground/50 uppercase tracking-widest">No nodes found</p>
+              <p className="text-xs text-muted-foreground/60 mt-2 uppercase tracking-tight">Adjust search parameters or sync protocol</p>
             </div>
           ) : (
             venues.map((venue) => (

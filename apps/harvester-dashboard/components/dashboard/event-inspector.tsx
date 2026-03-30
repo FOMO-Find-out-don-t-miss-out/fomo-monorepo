@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
 import {
   Select,
   SelectContent,
@@ -59,22 +58,22 @@ const ingestionConfig: Record<string, { icon: React.ElementType, label: string, 
   json_ld: {
     icon: Code,
     label: 'JSON-LD',
-    color: 'text-blue-500'
+    color: 'text-neon-blue'
   },
   html_fallback: {
     icon: Sparkles,
     label: 'AI Fallback',
-    color: 'text-purple-500'
+    color: 'text-neon-purple'
   },
   registry: {
     icon: Database,
     label: 'Registry',
-    color: 'text-amber-500'
+    color: 'text-neon-yellow'
   },
   manual: {
     icon: Database,
     label: 'Manual',
-    color: 'text-gray-500'
+    color: 'text-muted-foreground'
   }
 }
 
@@ -93,15 +92,15 @@ function DateTimePicker({
         <Button
           variant={"outline"}
           className={cn(
-            "w-full justify-start text-left font-normal bg-input/50",
+            "w-full justify-start text-left font-normal bg-card/40 backdrop-blur-sm input-neon",
             !value && "text-muted-foreground"
           )}
         >
-          <CalendarIcon className="mr-2 h-4 w-4" />
+          <CalendarIcon className="mr-2 h-4 w-4 text-neon-purple/70" />
           {value ? format(date!, "dd/MM/yyyy HH:mm") : <span>Pick a date</span>}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
+      <PopoverContent className="w-auto p-0 bg-card border-neon-purple/20 shadow-2xl" align="start">
         <Calendar
           mode="single"
           selected={date}
@@ -113,8 +112,9 @@ function DateTimePicker({
             }
           }}
           initialFocus
+          className="bg-card"
         />
-        <div className="p-3 border-t border-border flex items-center gap-2">
+        <div className="p-3 border-t border-border flex items-center gap-2 bg-muted/20">
           <Input
             type="time"
             value={date ? format(date, "HH:mm") : "00:00"}
@@ -124,9 +124,9 @@ function DateTimePicker({
               newDate.setHours(parseInt(hours), parseInt(minutes));
               onChange(newDate.toISOString());
             }}
-            className="w-24 h-8 text-xs"
+            className="w-24 h-8 text-xs bg-card/60 input-neon"
           />
-          <span className="text-xs text-muted-foreground">24h format</span>
+          <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">24h format</span>
         </div>
       </PopoverContent>
     </Popover>
@@ -194,7 +194,6 @@ export function EventInspector({ event, open, onOpenChange, onApprove, onReject 
   const occurrences = editedEvent.event_metadata?.occurrences || []
 
   // Extract coordinates for Mapbox iframe
-  // location might be a WKT string like "POINT(lng lat)" OR a GeoJSON object {"type": "Point", "coordinates": [lng, lat]}
   let lat = 37.9838, lng = 23.7275 // Default Athens
   
   if (editedEvent.location) {
@@ -214,66 +213,66 @@ export function EventInspector({ event, open, onOpenChange, onApprove, onReject 
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-xl p-0 flex flex-col bg-card border-l border-border h-full">
+      <SheetContent className="w-full sm:max-w-xl p-0 flex flex-col bg-card/95 backdrop-blur-xl border-l border-neon-blue/20 shadow-[0_0_50px_rgba(0,0,0,0.5)] h-full">
         <SheetHeader className="sr-only">
           <SheetTitle>Event Details: {event.title}</SheetTitle>
           <SheetDescription>View and edit details for the event {event.title}</SheetDescription>
         </SheetHeader>
         <ScrollArea className="flex-1 min-h-0">
           {/* Image Header */}
-          <div className="relative w-full h-48 bg-muted">
+          <div className="relative w-full h-56 bg-muted">
             {event.photo_url ? (
               <Image
                 src={event.photo_url}
                 alt={event.title}
                 fill
-                className="object-cover"
+                className="object-cover transition-transform duration-1000 group-hover:scale-105"
                 sizes="(max-width: 640px) 100vw, 576px"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
-                <ImageOff className="w-12 h-12 text-muted-foreground" />
+                <ImageOff className="w-12 h-12 text-muted-foreground/30" />
               </div>
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent" />
-            <div className="absolute bottom-4 left-4 right-4">
-              <Badge variant="secondary" className="mb-2">
+            <div className="absolute inset-0 bg-gradient-to-t from-card via-card/40 to-transparent" />
+            <div className="absolute bottom-6 left-6 right-6">
+              <Badge variant="outline" className="badge-neon-purple mb-3 uppercase tracking-widest font-bold">
                 {event.category}
               </Badge>
-              <h2 className="text-lg font-semibold text-foreground">{event.title}</h2>
+              <h2 className="text-2xl font-black text-foreground text-neon-glow-blue leading-tight tracking-tight uppercase italic">{event.title}</h2>
             </div>
           </div>
 
-          <div className="p-4 space-y-6">
+          <div className="p-6 space-y-8">
             {/* Basic Info */}
-            <div className="space-y-4">
+            <div className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="title" className="text-xs text-muted-foreground uppercase tracking-wider">
-                  Title
+                <Label htmlFor="title" className="text-[10px] font-bold text-neon-blue uppercase tracking-[0.2em] ml-1">
+                  Event Title
                 </Label>
                 <Input
                   id="title"
                   value={editedEvent.title}
                   onChange={(e) => setEditedEvent({ ...editedEvent, title: e.target.value })}
-                  className="bg-input/50"
+                  className="bg-card/40 input-neon font-medium"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="venue" className="text-xs text-muted-foreground uppercase tracking-wider">
+                <Label htmlFor="venue" className="text-[10px] font-bold text-neon-blue uppercase tracking-[0.2em] ml-1">
                   Venue Name
                 </Label>
                 <Input
                   id="venue"
                   value={editedEvent.location_name || ''}
                   onChange={(e) => setEditedEvent({ ...editedEvent, location_name: e.target.value })}
-                  className="bg-input/50"
+                  className="bg-card/40 input-neon font-medium"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="startTime" className="text-xs text-muted-foreground uppercase tracking-wider">
+                  <Label htmlFor="startTime" className="text-[10px] font-bold text-neon-purple uppercase tracking-[0.2em] ml-1">
                     Start Time
                   </Label>
                   <DateTimePicker
@@ -281,7 +280,7 @@ export function EventInspector({ event, open, onOpenChange, onApprove, onReject 
                     onChange={(val) => setEditedEvent({ ...editedEvent, start_time: val })}
                   />                </div>
                 <div className="space-y-2">
-                  <Label htmlFor="endTime" className="text-xs text-muted-foreground uppercase tracking-wider">
+                  <Label htmlFor="endTime" className="text-[10px] font-bold text-neon-purple uppercase tracking-[0.2em] ml-1">
                     End Time
                   </Label>
                   <DateTimePicker
@@ -292,17 +291,17 @@ export function EventInspector({ event, open, onOpenChange, onApprove, onReject 
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                  <Label className="text-[10px] font-bold text-neon-blue uppercase tracking-[0.2em] ml-1">
                     Category
                   </Label>
                   <Select
                     value={editedEvent.category}
                     onValueChange={(value) => setEditedEvent({ ...editedEvent, category: value })}
                   >
-                    <SelectTrigger className="bg-input/50">
+                    <SelectTrigger className="bg-card/40 input-neon font-medium">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-card border-neon-blue/20">
                       {categories.map((cat) => (
                         <SelectItem key={cat} value={cat}>
                           {cat}
@@ -312,8 +311,8 @@ export function EventInspector({ event, open, onOpenChange, onApprove, onReject 
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="hypeScore" className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                    <Flame className="w-3 h-3" />
+                  <Label htmlFor="hypeScore" className="text-[10px] font-bold text-neon-pink uppercase tracking-[0.2em] ml-1 flex items-center gap-1">
+                    <Flame className="w-3 h-3 text-neon-pink animate-pulse" />
                     Hype Score
                   </Label>
                   <Input
@@ -323,44 +322,55 @@ export function EventInspector({ event, open, onOpenChange, onApprove, onReject 
                     max="100"
                     value={editedEvent.hype_score}
                     onChange={(e) => setEditedEvent({ ...editedEvent, hype_score: parseInt(e.target.value) || 0 })}
-                    className="bg-input/50"
+                    className="bg-card/40 input-neon font-bold text-neon-pink"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="ticketUrl" className="text-xs text-muted-foreground uppercase tracking-wider">
+                <Label htmlFor="ticketUrl" className="text-[10px] font-bold text-neon-blue uppercase tracking-[0.2em] ml-1">
                   Ticket URL
                 </Label>
-                <Input
-                  id="ticketUrl"
-                  value={editedEvent.ticket_url || ''}
-                  onChange={(e) => setEditedEvent({ ...editedEvent, ticket_url: e.target.value })}
-                  placeholder="https://"
-                  className="bg-input/50"
-                />
+                <div className="relative group">
+                  <Input
+                    id="ticketUrl"
+                    value={editedEvent.ticket_url || ''}
+                    onChange={(e) => setEditedEvent({ ...editedEvent, ticket_url: e.target.value })}
+                    placeholder="https://"
+                    className="bg-card/40 input-neon pr-10"
+                  />
+                  {editedEvent.ticket_url && (
+                    <a 
+                      href={editedEvent.ticket_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-neon-blue transition-colors"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
 
             {/* Additional Dates */}
-            <Separator className="bg-border" />
-            <div className="space-y-4">
-              <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                <CalendarIcon className="w-3 h-3" />
+            <div className="space-y-4 pt-4 border-t border-neon-purple/10">
+              <Label className="text-[10px] font-bold text-neon-purple uppercase tracking-[0.2em] ml-1 flex items-center gap-2">
+                <CalendarIcon className="w-4 h-4" />
                 Additional Dates (Recurring)
               </Label>
               
               {occurrences.length > 0 && (
-                <div className="space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {occurrences.map((occ: { start_time: string }, idx: number) => (
-                    <div key={idx} className="flex items-center justify-between p-2 rounded-md bg-muted/50 border border-border">
-                      <span className="text-sm">
-                        {format(new Date(occ.start_time), 'dd/MM/yyyy HH:mm')}
+                    <div key={idx} className="flex items-center justify-between p-2.5 rounded-lg bg-card/40 border border-neon-purple/20 group hover:border-neon-purple/50 transition-colors">
+                      <span className="text-xs font-medium">
+                        {format(new Date(occ.start_time), 'dd MMM, HH:mm')}
                       </span>
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        className="h-7 w-7 p-0 text-destructive"
+                        className="h-6 w-6 p-0 text-muted-foreground hover:text-neon-red hover:bg-neon-red/10"
                         onClick={() => {
                             const newOcc = [...occurrences];
                             newOcc.splice(idx, 1);
@@ -385,8 +395,8 @@ export function EventInspector({ event, open, onOpenChange, onApprove, onReject 
                   />                </div>
                 <Button 
                   size="sm" 
-                  variant="outline"
-                  className="h-9"
+                  variant="neon-purple"
+                  className="h-9 px-4 font-bold"
                   onClick={() => {
                     if (newOccDate) {
                       addOccurrenceMutation.mutate(new Date(newOccDate).toISOString());
@@ -394,95 +404,99 @@ export function EventInspector({ event, open, onOpenChange, onApprove, onReject 
                     }
                   }}
                 >
-                  <Plus className="w-4 h-4 mr-1" />
+                  <Plus className="w-4 h-4 mr-2" />
                   Add
                 </Button>
               </div>
             </div>
 
-            {/* Source */}
-            <Separator className="bg-border" />
-            <div className="space-y-3">
+            {/* Source Info */}
+            <div className="p-4 rounded-xl bg-muted/20 border border-border/50 space-y-4">
               <div className="flex items-center justify-between">
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                  <Database className="w-3 h-3" />
-                  Source: {event.source_provider || 'unknown'}
-                </Label>
-                <Badge variant="outline" className="text-[10px] h-5 px-1.5 gap-1.5 font-normal">
+                <div className="flex items-center gap-2">
+                  <Database className="w-4 h-4 text-neon-blue/60" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80">
+                    Source: {event.source_provider || 'unknown'}
+                  </span>
+                </div>
+                <Badge variant="outline" className="badge-neon h-5 px-2 gap-2 font-bold uppercase tracking-tighter">
                   {(() => {
                     const Ingestion = ingestionConfig[event.ingestion_method] || ingestionConfig.manual
                     const Icon = Ingestion.icon
                     return (
                       <>
-                        <Icon className={cn("w-2.5 h-2.5", Ingestion.color)} />
+                        <Icon className={cn("w-3 h-3", Ingestion.color)} />
                         {Ingestion.label}
                       </>
                     )
                   })()}
                 </Badge>
               </div>
-              <Button variant="outline" size="sm" className="w-full justify-start" asChild>
+              <Button variant="neon" size="sm" className="w-full font-bold uppercase tracking-widest text-[10px]" asChild>
                 <a href={event.source_url || '#'} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  View Original Page
+                  <ExternalLink className="w-3.5 h-3.5 mr-2" />
+                  Inspect Original Source
                 </a>
               </Button>
             </div>
 
-            {/* Map */}
-            <Separator className="bg-border" />
-            <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                <MapPin className="w-3 h-3" />
-                Location ({editedEvent.geocoding_status})
-              </Label>
-              <div className="rounded-lg overflow-hidden border border-border">
-                <div className="h-40 bg-muted relative">
+            {/* Map Section */}
+            <div className="space-y-3 pt-4 border-t border-neon-blue/10">
+              <div className="flex items-center justify-between">
+                <Label className="text-[10px] font-bold text-neon-blue uppercase tracking-[0.2em] ml-1 flex items-center gap-2">
+                  <MapPin className="w-4 h-4" />
+                  Geocoding: {editedEvent.geocoding_status}
+                </Label>
+                <div className="text-[10px] font-mono text-muted-foreground bg-card/60 px-2 py-0.5 rounded border border-border/50">
+                  {lat.toFixed(6)}, {lng.toFixed(6)}
+                </div>
+              </div>
+              
+              <div className="rounded-xl overflow-hidden border border-neon-blue/30 shadow-[0_0_15px_rgba(37,99,235,0.1)] group">
+                <div className="h-48 bg-muted relative">
                   <iframe
                     src={`https://api.mapbox.com/styles/v1/mapbox/dark-v11.html?title=false&access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw&zoomwheel=false#15/${lat}/${lng}`}
-                    className="w-full h-full border-0"
+                    className="w-full h-full border-0 grayscale-[0.5] contrast-[1.2] brightness-[0.8] group-hover:grayscale-0 group-hover:brightness-100 transition-all duration-500"
                     title="Event Location"
                   />
                   <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-                    <div className="w-4 h-4 bg-primary rounded-full border-2 border-primary-foreground shadow-lg" />
+                    <div className="w-5 h-5 bg-neon-blue rounded-full border-2 border-white neon-glow-blue animate-neon-pulse" />
                   </div>
                 </div>
               </div>
-              <div className="text-xs text-muted-foreground">
-                {lat.toFixed(4)}, {lng.toFixed(4)}
-              </div>
+              
               {fullAddress && (
-                <div className="text-[10px] text-muted-foreground/80 italic mt-1">
+                <div className="p-3 rounded-lg bg-card/60 border border-border/50 text-[11px] font-medium leading-relaxed italic text-muted-foreground/90">
                   {fullAddress as string}
                 </div>
               )}
             </div>
 
             {/* Location Search */}
-            <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground uppercase tracking-wider">
-                Find & Sync Location
+            <div className="space-y-3 pb-8">
+              <Label className="text-[10px] font-bold text-neon-blue uppercase tracking-[0.2em] ml-1">
+                Refine Geolocation
               </Label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-neon-blue transition-colors" />
                 <Input
-                  placeholder="Search for a location..."
+                  placeholder="Type to search Mapbox Registry..."
                   value={locationSearch}
                   onChange={(e) => setLocationSearch(e.target.value)}
-                  className="pl-9 bg-input/50"
+                  className="pl-10 bg-card/40 input-neon h-10"
                 />
               </div>
               {suggestions.length > 0 && (
-                <div className="border border-border rounded-lg overflow-hidden">
+                <div className="border border-neon-blue/20 rounded-xl overflow-hidden bg-card/80 backdrop-blur-md shadow-2xl animate-in fade-in slide-in-from-top-2 duration-300">
                   {suggestions.map((suggestion, idx) => (
                     <button
                       key={idx}
-                      className="w-full p-3 text-left hover:bg-accent transition-colors border-b border-border last:border-b-0"
+                      className="w-full p-4 text-left hover:bg-neon-blue/10 transition-all border-b border-neon-blue/10 last:border-b-0 group"
                       onClick={() => syncLocationMutation.mutate(suggestion)}
                       disabled={syncLocationMutation.isPending}
                     >
-                      <div className="font-medium text-sm text-foreground">{suggestion.full_address}</div>
-                      <div className="text-xs text-muted-foreground">{suggestion.city}, {suggestion.country_code}</div>
+                      <div className="font-bold text-sm text-foreground group-hover:text-neon-blue transition-colors">{suggestion.full_address}</div>
+                      <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mt-1">{suggestion.city}, {suggestion.country_code}</div>
                     </button>
                   ))}
                 </div>
@@ -492,45 +506,47 @@ export function EventInspector({ event, open, onOpenChange, onApprove, onReject 
         </ScrollArea>
 
         {/* Action Buttons */}
-        <div className="p-4 border-t border-border bg-card/80 backdrop-blur-sm sticky bottom-0">
-          <div className="grid grid-cols-2 gap-2 mb-2">
+        <div className="p-6 border-t border-neon-blue/20 bg-card/90 backdrop-blur-xl sticky bottom-0 z-30 space-y-3 shadow-[0_-10px_30px_rgba(0,0,0,0.3)]">
+          <div className="grid grid-cols-2 gap-3">
             {event.status === 'published' ? (
               <Button
-                variant="destructive"
-                className="col-span-2"
+                variant="neon-red"
+                className="col-span-2 h-11 font-black uppercase tracking-[0.2em]"
                 onClick={() => onReject(editedEvent)}
               >
-                <X className="w-4 h-4 mr-2" />
+                <X className="w-5 h-5 mr-3" />
                 Unpublish Event
               </Button>
             ) : (
               <>
                 <Button
-                  variant="default"
-                  className="bg-green-600 hover:bg-green-700 text-white"
+                  variant="neon-green"
+                  className="h-11 font-black uppercase tracking-[0.2em]"
                   onClick={() => onApprove(editedEvent)}
                 >
-                  <Check className="w-4 h-4 mr-2" />
+                  <Check className="w-5 h-5 mr-2" />
                   Approve
                 </Button>
                 <Button
-                  variant="destructive"
+                  variant="neon-red"
+                  className="h-11 font-black uppercase tracking-[0.2em]"
                   onClick={() => onReject(editedEvent)}
                 >
-                  <X className="w-4 h-4 mr-2" />
+                  <X className="w-5 h-5 mr-2" />
                   Reject
                 </Button>
               </>
             )}
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" size="sm" onClick={() => toast.info('Merge feature coming soon')}>
+          <div className="grid grid-cols-2 gap-3">
+            <Button variant="neon" size="sm" className="h-9 font-bold uppercase tracking-widest text-[10px]" onClick={() => toast.info('Merge feature coming soon')}>
               <GitMerge className="w-4 h-4 mr-2" />
               Merge Venue
             </Button>
             <Button 
-                variant="outline" 
+                variant="neon-purple" 
                 size="sm" 
+                className="h-9 font-bold uppercase tracking-widest text-[10px]"
                 onClick={() => {
                   const updateFn = event.status === 'published' 
                     ? moderationApi.updatePublishedEvent 
