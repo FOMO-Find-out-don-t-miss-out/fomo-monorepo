@@ -1,5 +1,5 @@
 import pytest
-from app.services.harvester.ingestion_service import IngestionService
+from app.services.harvester.ingestor import IngestionService
 from sqlmodel import Session
 
 from packages.domain.schemas.extracted_event import ExtractedEvent

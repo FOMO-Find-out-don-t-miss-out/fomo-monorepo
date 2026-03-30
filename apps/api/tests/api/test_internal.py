@@ -327,7 +327,7 @@ async def test_run_scraper_and_ingest_task(session: Session) -> None:
     mock_response = MagicMock()
     mock_response.status_code = 200
 
-    from app.services.harvester.geocoder import GeocodeResult
+    from app.services.harvester.location.geocoder import GeocodeResult
 
     mock_geo = GeocodeResult(
         lat=37.9,
@@ -340,11 +340,11 @@ async def test_run_scraper_and_ingest_task(session: Session) -> None:
 
     with patch("asyncio.create_subprocess_exec", return_value=mock_process):
         with patch(
-            "app.services.harvester.cleansing_service.CleansingService.clean_json_ld",
+            "app.services.harvester.cleanser.CleansingService.clean_json_ld",
             return_value=extracted,
         ):
             with patch(
-                "app.services.harvester.geocoder.GeocoderService.get_coordinates",
+                "app.services.harvester.location.geocoder.GeocoderService.get_coordinates",
                 return_value=mock_geo,
             ):
                 with patch("httpx.AsyncClient.post", return_value=mock_response):
@@ -383,7 +383,7 @@ async def test_run_scraper_and_ingest_task_html_fallback(session: Session) -> No
         event_metadata={},
     )
 
-    from app.services.harvester.geocoder import GeocodeResult
+    from app.services.harvester.location.geocoder import GeocodeResult
 
     mock_geo = GeocodeResult(
         lat=37.9,
@@ -396,11 +396,11 @@ async def test_run_scraper_and_ingest_task_html_fallback(session: Session) -> No
 
     with patch("asyncio.create_subprocess_exec", return_value=mock_process):
         with patch(
-            "app.services.harvester.cleansing_service.CleansingService.clean_html_fallback",
+            "app.services.harvester.cleanser.CleansingService.clean_html_fallback",
             return_value=[extracted],
         ):
             with patch(
-                "app.services.harvester.geocoder.GeocoderService.get_coordinates",
+                "app.services.harvester.location.geocoder.GeocoderService.get_coordinates",
                 return_value=mock_geo,
             ):
                 with patch("httpx.AsyncClient.post"):
@@ -450,11 +450,11 @@ async def test_run_scraper_and_ingest_task_db_error(session: Session) -> None:
 
     with patch("asyncio.create_subprocess_exec", return_value=mock_process):
         with patch(
-            "app.services.harvester.cleansing_service.CleansingService.clean_json_ld",
+            "app.services.harvester.cleanser.CleansingService.clean_json_ld",
             return_value=extracted,
         ):
             with patch(
-                "app.services.harvester.ingestion_service.IngestionService.ingest_events",
+                "app.services.harvester.ingestor.IngestionService.ingest_events",
                 side_effect=Exception("DB FAIL"),
             ):
                 await HarvesterOrchestrator.run_pipeline()
@@ -462,7 +462,7 @@ async def test_run_scraper_and_ingest_task_db_error(session: Session) -> None:
 
 @pytest.mark.asyncio
 async def test_internal_ingest_logic_junk_filters(session: Session) -> None:
-    from app.services.harvester.ingestion_service import IngestionService
+    from app.services.harvester.ingestor import IngestionService
 
     from packages.domain.schemas.extracted_event import ExtractedEvent
 
@@ -477,7 +477,7 @@ async def test_internal_ingest_logic_junk_filters(session: Session) -> None:
 
 @pytest.mark.asyncio
 async def test_internal_ingest_logic_venue_match(session: Session) -> None:
-    from app.services.harvester.ingestion_service import IngestionService
+    from app.services.harvester.ingestor import IngestionService
 
     from packages.domain.models import Venue
     from packages.domain.schemas.extracted_event import ExtractedEvent
@@ -505,7 +505,7 @@ async def test_internal_ingest_logic_venue_match(session: Session) -> None:
 
 @pytest.mark.asyncio
 async def test_internal_ingest_logic_auto_approve(session: Session) -> None:
-    from app.services.harvester.ingestion_service import IngestionService
+    from app.services.harvester.ingestor import IngestionService
 
     from packages.domain.schemas.extracted_event import ExtractedEvent
 

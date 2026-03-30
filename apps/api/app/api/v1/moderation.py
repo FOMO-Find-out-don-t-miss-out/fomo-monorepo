@@ -15,7 +15,7 @@ from app.schemas.moderation import (
     VenueMergeRequest,
     VenueUpdate,
 )
-from app.services.harvester.geocoder import GeocodeResult, GeocoderService
+from app.services.harvester.location.geocoder import GeocodeResult, GeocoderService
 from app.services.moderation.moderation_service import ModerationService
 from app.services.moderation.venue_service import VenueModerationService
 from packages.domain.models import Venue

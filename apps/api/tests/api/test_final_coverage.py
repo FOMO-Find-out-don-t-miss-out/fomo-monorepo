@@ -36,7 +36,7 @@ def test_haversine_distance_same_point() -> None:
 async def test_scraper_engine_load_registry_invalid_json() -> None:
     import tempfile
 
-    from app.services.harvester.simple_scraper import ScraperEngine
+    from app.services.harvester.scraper import ScraperEngine
 
     with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
         f.write("invalid json")
@@ -53,7 +53,7 @@ async def test_scraper_engine_load_registry_invalid_json() -> None:
 
 @pytest.mark.asyncio
 async def test_scraper_engine_ensure_string_non_str() -> None:
-    from app.services.harvester.simple_scraper import ScraperEngine
+    from app.services.harvester.scraper import ScraperEngine
 
     engine = ScraperEngine()
     # Test _ensure_string with None via scrape/schema
@@ -88,9 +88,11 @@ async def test_mapbox_client_error() -> None:
 
 
 def test_purge_cache_error() -> None:
-    from app.services.harvester.geocoder import GeocoderService
+    from app.services.harvester.location.geocoder import GeocoderService
 
-    with patch("app.services.harvester.geocoder.Session", side_effect=Exception("DB Error")):
+    with patch(
+        "app.services.harvester.location.geocoder.Session", side_effect=Exception("DB Error")
+    ):
         res = GeocoderService.purge_cache()
         assert res["deleted"] == 0
         assert "error" in res
@@ -112,10 +114,10 @@ def test_datetime_helper_invalid_str() -> None:
 
 @pytest.mark.asyncio
 async def test_clean_json_ld_headline(session: Session) -> None:
-    from app.services.harvester.cleansing_service import CleansingService
+    from app.services.harvester.cleanser import CleansingService
 
     data = {"@type": "MusicEvent", "headline": "Headline Test", "startDate": "2026-01-01"}
-    with patch("app.services.harvester.geocoder.engine", session.get_bind()):
+    with patch("app.services.harvester.location.geocoder.engine", session.get_bind()):
         with patch("app.repositories.venue_repository.Session", return_value=session):
             result = await CleansingService.clean_json_ld(data)
             assert result.title == "Headline Test"
@@ -123,7 +125,7 @@ async def test_clean_json_ld_headline(session: Session) -> None:
 
 @pytest.mark.asyncio
 async def test_scraper_engine_normalize_www_more_com() -> None:
-    from app.services.harvester.simple_scraper import ScraperEngine
+    from app.services.harvester.scraper import ScraperEngine
 
     engine = ScraperEngine()
     registry = {"more.com": {"selectors": {"image": "img"}}}
@@ -148,7 +150,7 @@ async def test_mapbox_client_geocode_v6_error() -> None:
 
 @pytest.mark.asyncio
 async def test_clean_json_ld_list_empty() -> None:
-    from app.services.harvester.cleansing_service import CleansingService
+    from app.services.harvester.cleanser import CleansingService
 
     assert await CleansingService.clean_json_ld([]) is None
 
@@ -176,7 +178,7 @@ async def test_to_pending_event_response_invalid_loc(session: Session, client: A
 
 @pytest.mark.asyncio
 async def test_clean_json_ld_list_fields(session: Session) -> None:
-    from app.services.harvester.cleansing_service import CleansingService
+    from app.services.harvester.cleanser import CleansingService
 
     data = {
         "@type": ["Event"],
@@ -186,7 +188,7 @@ async def test_clean_json_ld_list_fields(session: Session) -> None:
         "endDate": ["2026-01-01T22:00:00Z"],
         "location": {"name": "V"},
     }
-    with patch("app.services.harvester.geocoder.engine", session.get_bind()):
+    with patch("app.services.harvester.location.geocoder.engine", session.get_bind()):
         with patch("app.repositories.venue_repository.Session", return_value=session):
             result = await CleansingService.clean_json_ld(data)
             assert result.title == "N1"
@@ -195,9 +197,11 @@ async def test_clean_json_ld_list_fields(session: Session) -> None:
 
 @pytest.mark.asyncio
 async def test_batch_geocode_db_error() -> None:
-    from app.services.harvester.geocoder import GeocoderService
+    from app.services.harvester.location.geocoder import GeocoderService
 
-    with patch("app.services.harvester.geocoder.Session", side_effect=Exception("DB Error")):
+    with patch(
+        "app.services.harvester.location.geocoder.Session", side_effect=Exception("DB Error")
+    ):
         res = await GeocoderService.batch_geocode_pending_events()
         assert res["updated"] == 0
         assert res["failed"] == 0
@@ -205,7 +209,7 @@ async def test_batch_geocode_db_error() -> None:
 
 @pytest.mark.asyncio
 async def test_clean_json_ld_image_dict(session: Session) -> None:
-    from app.services.harvester.cleansing_service import CleansingService
+    from app.services.harvester.cleanser import CleansingService
 
     data = {
         "@type": "Event",
@@ -213,7 +217,7 @@ async def test_clean_json_ld_image_dict(session: Session) -> None:
         "image": {"url": "https://img.com"},
         "location": {"name": "V"},
     }
-    with patch("app.services.harvester.geocoder.engine", session.get_bind()):
+    with patch("app.services.harvester.location.geocoder.engine", session.get_bind()):
         with patch("app.repositories.venue_repository.Session", return_value=session):
             result = await CleansingService.clean_json_ld(data)
             assert result.event_metadata["image"] == "https://img.com"
@@ -225,7 +229,7 @@ async def test_scraper_engine_load_registry_valid() -> None:
     import tempfile
     from pathlib import Path
 
-    from app.services.harvester.simple_scraper import ScraperEngine
+    from app.services.harvester.scraper import ScraperEngine
 
     data = {"test.com": {"country_code": "GR"}}
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:

@@ -6,7 +6,7 @@ from uuid import uuid4
 import pytest
 from app.main import app
 from app.schemas.moderation import PendingEventResponse
-from app.services.harvester.cleansing_service import CleansingService
+from app.services.harvester.cleanser import CleansingService
 from fastapi.testclient import TestClient
 
 from packages.domain.schemas.extracted_event import ExtractedEvent
@@ -48,10 +48,7 @@ class MockEvent:
                 setattr(self, k, v)
 
     def model_dump(self) -> dict[str, Any]:
-        return {
-            k: v for k, v in vars(self).items() 
-            if not k.startswith("_") and k != "model_dump"
-        }
+        return {k: v for k, v in vars(self).items() if not k.startswith("_") and k != "model_dump"}
 
 
 def test_to_pending_event_response_hex_location():
@@ -76,7 +73,7 @@ def test_to_pending_event_response_invalid_location():
 
     with patch("packages.domain.utils.geo_utils.to_shape", side_effect=Exception("to_shape fail")):
         resp = PendingEventResponse.model_validate(event)
-        # In the new implementation, if it fails all parsing, it returns None 
+        # In the new implementation, if it fails all parsing, it returns None
         # or original if it was not None.
         # Actually parse_wkb_to_geojson returns None if it fails.
         assert resp.location is None
@@ -178,7 +175,7 @@ async def test_clean_html_fallback_geocoding_fail():
     long_text = "Long enough text to trigger extraction " * 5
     with patch("app.services.harvester.cleansing.ai_extractor._client", mock_client):
         with patch(
-            "app.services.harvester.geocoder.GeocoderService.get_coordinates",
+            "app.services.harvester.location.geocoder.GeocoderService.get_coordinates",
             side_effect=Exception("Geo Fail"),
         ):
             res = await CleansingService.clean_html_fallback(long_text)

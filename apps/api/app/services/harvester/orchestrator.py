@@ -12,9 +12,9 @@ from sqlmodel import Session
 from app.core.config import settings
 from app.db.session import engine
 from app.schemas.event import IngestSummary
-from app.services.harvester.cleansing_service import CleansingService
-from app.services.harvester.geocoder import GeocoderService
-from app.services.harvester.ingestion_service import IngestionService
+from app.services.harvester.cleanser import CleansingService
+from app.services.harvester.ingestor import IngestionService
+from app.services.harvester.location.geocoder import GeocoderService
 from packages.domain.schemas.extracted_event import ExtractedEvent
 from packages.domain.utils.url_utils import detect_country_from_url, get_domain_from_url
 
@@ -30,9 +30,9 @@ class HarvesterOrchestrator:
         try:
             # Resolve script path
             # apps/api/app/services/harvester/orchestrator.py
-            # script is at apps/api/app/services/harvester/simple_scraper.py
+            # script is at apps/api/app/services/harvester/scraper.py
             current_file = Path(__file__)
-            script_path = current_file.parent / "simple_scraper.py"
+            script_path = current_file.parent / "scraper.py"
 
             if not script_path.exists():
                 logger.error(f"Scraper script not found at {script_path}")

@@ -27,8 +27,10 @@ async def test_run_scraper_registry_source(session: Session) -> None:
     mock_process.communicate.return_value = (json.dumps(mock_scraped_data).encode(), b"")
 
     with patch("asyncio.create_subprocess_exec", return_value=mock_process):
-        with patch("app.services.harvester.geocoder.GeocoderService.get_coordinates") as mock_c:
-            from app.services.harvester.geocoder import GeocodeResult
+        with patch(
+            "app.services.harvester.location.geocoder.GeocoderService.get_coordinates"
+        ) as mock_c:
+            from app.services.harvester.location.geocoder import GeocodeResult
 
             mock_c.return_value = GeocodeResult(
                 lat=38.0,
@@ -68,7 +70,7 @@ async def test_trigger_batch_geocode_endpoint(client: AsyncClient, session: Sess
 
     # We mock the actual service method to avoid network/Mapbox
     with patch(
-        "app.services.harvester.geocoder.GeocoderService.batch_geocode_pending_events",
+        "app.services.harvester.location.geocoder.GeocoderService.batch_geocode_pending_events",
         new_callable=AsyncMock,
     ) as mock_batch:
         mock_batch.return_value = {"updated": 1, "failed": 0, "skipped": 0}

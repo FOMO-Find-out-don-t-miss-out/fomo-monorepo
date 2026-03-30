@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from app.core.geography_constants import DEFAULT_COUNTRY_CODE, get_country_config
 from app.infrastructure.external.mapbox_client import MapboxClient, MapboxFeature, MapboxResponse
-from app.services.harvester.geocoder import GeocoderService, GeocodingPolicy
+from app.services.harvester.location.geocoder import GeocoderService, GeocodingPolicy
 from sqlmodel import Session, select
 
 from packages.domain.models import PendingEvent, Venue
@@ -138,8 +138,8 @@ async def test_get_coordinates_cached(session: Session) -> None:
     session.add(v)
     session.commit()
 
-    with patch("app.services.harvester.geocoder.engine", session.get_bind()):
-        with patch("app.services.harvester.geocoder.Session", return_value=session):
+    with patch("app.services.harvester.location.geocoder.engine", session.get_bind()):
+        with patch("app.services.harvester.location.geocoder.Session", return_value=session):
             result = await GeocoderService.get_coordinates("Cached Venue", DEFAULT_COUNTRY_CODE)
             assert result is not None
             assert result.lat == 37.9838
@@ -163,10 +163,12 @@ async def test_get_coordinates_mapbox_success(session: Session) -> None:
     # Correct AsyncMock patch for class method that calls instance method
     with patch.object(MapboxClient, "search_box", new_callable=AsyncMock) as mock_sb:
         mock_sb.return_value = mock_resp
-        with patch("app.services.harvester.geocoder.engine", session.get_bind()):
+        with patch("app.services.harvester.location.geocoder.engine", session.get_bind()):
             with patch("app.core.config.settings.MAPBOX_ACCESS_TOKEN", "fake"):
                 # Ensure VenueRepository uses our session
-                with patch("app.services.harvester.geocoder.Session", return_value=session):
+                with patch(
+                    "app.services.harvester.location.geocoder.Session", return_value=session
+                ):
                     result = await GeocoderService.get_coordinates(
                         "Mapbox Venue", DEFAULT_COUNTRY_CODE
                     )
@@ -201,9 +203,11 @@ async def test_get_coordinates_fuzzy_fallback(session: Session) -> None:
 
     with patch.object(MapboxClient, "search_box", side_effect=side_effect):
         with patch.object(MapboxClient, "geocode_v6", side_effect=side_effect):
-            with patch("app.services.harvester.geocoder.engine", session.get_bind()):
+            with patch("app.services.harvester.location.geocoder.engine", session.get_bind()):
                 with patch("app.core.config.settings.MAPBOX_ACCESS_TOKEN", "fake"):
-                    with patch("app.services.harvester.geocoder.Session", return_value=session):
+                    with patch(
+                        "app.services.harvester.location.geocoder.Session", return_value=session
+                    ):
                         result = await GeocoderService.get_coordinates(
                             "Real Venue Live", DEFAULT_COUNTRY_CODE
                         )
@@ -220,9 +224,11 @@ async def test_get_coordinates_failed_all(session: Session) -> None:
         with patch.object(MapboxClient, "geocode_v6", new_callable=AsyncMock) as mock_v6:
             mock_sb.return_value = mock_resp
             mock_v6.return_value = mock_resp
-            with patch("app.services.harvester.geocoder.engine", session.get_bind()):
+            with patch("app.services.harvester.location.geocoder.engine", session.get_bind()):
                 with patch("app.core.config.settings.MAPBOX_ACCESS_TOKEN", "fake"):
-                    with patch("app.services.harvester.geocoder.Session", return_value=session):
+                    with patch(
+                        "app.services.harvester.location.geocoder.Session", return_value=session
+                    ):
                         result = await GeocoderService.get_coordinates(
                             "Unknown Place", DEFAULT_COUNTRY_CODE
                         )
@@ -251,7 +257,7 @@ async def test_batch_geocode_pending_events(session: Session) -> None:
     session.add(ev2)
     session.commit()
 
-    from app.services.harvester.geocoder import GeocodeResult
+    from app.services.harvester.location.geocoder import GeocodeResult
 
     mock_geo = GeocodeResult(
         lat=37.9,
@@ -267,12 +273,12 @@ async def test_batch_geocode_pending_events(session: Session) -> None:
             return mock_geo
         return None
 
-    with patch("app.services.harvester.geocoder.engine", session.get_bind()):
+    with patch("app.services.harvester.location.geocoder.engine", session.get_bind()):
         with patch.object(
             GeocoderService, "get_coordinates", new_callable=AsyncMock, side_effect=side_effect
         ):
             # Also patch Session in batch_geocode_pending_events
-            with patch("app.services.harvester.geocoder.Session", return_value=session):
+            with patch("app.services.harvester.location.geocoder.Session", return_value=session):
                 stats = await GeocoderService.batch_geocode_pending_events(batch_size=10)
                 assert stats["updated"] == 1
                 assert stats["failed"] == 1
@@ -290,7 +296,7 @@ async def test_batch_geocode_skipped(session: Session) -> None:
     session.add(ev)
     session.commit()
 
-    with patch("app.services.harvester.geocoder.Session", return_value=session):
+    with patch("app.services.harvester.location.geocoder.Session", return_value=session):
         stats = await GeocoderService.batch_geocode_pending_events(batch_size=10)
         assert stats["skipped"] == 1
 
@@ -301,15 +307,17 @@ async def test_purge_cache(session: Session) -> None:
     session.add(v)
     session.commit()
 
-    with patch("app.services.harvester.geocoder.engine", session.get_bind()):
-        with patch("app.services.harvester.geocoder.Session", return_value=session):
+    with patch("app.services.harvester.location.geocoder.engine", session.get_bind()):
+        with patch("app.services.harvester.location.geocoder.Session", return_value=session):
             GeocoderService.purge_cache(venue_name="V1")
             assert session.exec(select(Venue).where(Venue.name == "V1")).first() is None
 
 
 @pytest.mark.asyncio
 async def test_purge_cache_db_fail() -> None:
-    with patch("app.services.harvester.geocoder.Session", side_effect=Exception("DB Fail")):
+    with patch(
+        "app.services.harvester.location.geocoder.Session", side_effect=Exception("DB Fail")
+    ):
         res = GeocoderService.purge_cache()
         assert "error" in res
 
@@ -410,11 +418,11 @@ def test_determine_status_rejected_city_match() -> None:
 @pytest.mark.asyncio
 async def test_get_coordinates_failed_all_with_fuzzy(session: Session) -> None:
     config = get_country_config(DEFAULT_COUNTRY_CODE)
-    with patch("app.services.harvester.geocoder.get_country_config", return_value=config):
+    with patch("app.services.harvester.location.geocoder.get_country_config", return_value=config):
         with patch(
             "app.repositories.venue_repository.VenueRepository.get_by_name", return_value=None
         ):
-            with patch("app.services.harvester.geocoder.engine", session.get_bind()):
+            with patch("app.services.harvester.location.geocoder.engine", session.get_bind()):
 
                 async def side_effect(
                     query: str, country_code: str, proximity: str, **kwargs: Any
@@ -528,7 +536,7 @@ def test_determine_status_city_distance_mismatch() -> None:
 
 @pytest.mark.asyncio
 async def test_get_coordinates_no_token() -> None:
-    with patch("app.services.harvester.geocoder.Session"):
+    with patch("app.services.harvester.location.geocoder.Session"):
         with patch(
             "app.repositories.venue_repository.VenueRepository.get_by_name", return_value=None
         ):
@@ -543,8 +551,8 @@ async def test_purge_cache_all(session: Session) -> None:
     session.add(v)
     session.commit()
 
-    with patch("app.services.harvester.geocoder.engine", session.get_bind()):
-        with patch("app.services.harvester.geocoder.Session", return_value=session):
+    with patch("app.services.harvester.location.geocoder.engine", session.get_bind()):
+        with patch("app.services.harvester.location.geocoder.Session", return_value=session):
             # Purge all (no venue_name)
             GeocoderService.purge_cache()
             assert session.exec(select(Venue)).all() == []
@@ -562,7 +570,7 @@ async def test_batch_geocode_no_loc(session: Session) -> None:
     session.add(ev)
     session.commit()
 
-    with patch("app.services.harvester.geocoder.Session", return_value=session):
+    with patch("app.services.harvester.location.geocoder.Session", return_value=session):
         stats = await GeocoderService.batch_geocode_pending_events(batch_size=10)
         assert stats["skipped"] == 1
 

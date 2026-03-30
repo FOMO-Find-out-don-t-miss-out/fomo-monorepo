@@ -65,7 +65,8 @@ async def test_batch_update_location_endpoint(client: AsyncClient) -> None:
 async def test_get_geocode_suggestions_endpoint(client: AsyncClient) -> None:
     # Mock Geocoder
     with patch(
-        "app.services.harvester.geocoder.GeocoderService.get_suggestions", new_callable=AsyncMock
+        "app.services.harvester.location.geocoder.GeocoderService.get_suggestions",
+        new_callable=AsyncMock,
     ) as mock_suggest:
         mock_suggest.return_value = []
         response = await client.get("/api/v1/moderation/geocode/suggestions", params={"q": "test"})

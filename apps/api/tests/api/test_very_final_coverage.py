@@ -44,7 +44,7 @@ async def test_approve_events_batch_success(client: AsyncClient, session: Sessio
 
 @pytest.mark.asyncio
 async def test_clean_json_ld_various_branches(session: Session) -> None:
-    from app.services.harvester.cleansing_service import CleansingService
+    from app.services.harvester.cleanser import CleansingService
 
     # 1. Location as list
     data1 = {
@@ -76,10 +76,10 @@ async def test_clean_json_ld_various_branches(session: Session) -> None:
         "startDate": "2026-01-01",
     }
 
-    with patch("app.services.harvester.geocoder.engine", session.get_bind()):
+    with patch("app.services.harvester.location.geocoder.engine", session.get_bind()):
         with patch("app.repositories.venue_repository.Session", return_value=session):
             with patch(
-                "app.services.harvester.geocoder.GeocoderService.get_coordinates",
+                "app.services.harvester.location.geocoder.GeocoderService.get_coordinates",
                 return_value=None,
             ):
                 r1 = await CleansingService.clean_json_ld(data1)
@@ -97,7 +97,7 @@ async def test_clean_json_ld_various_branches(session: Session) -> None:
 
 @pytest.mark.asyncio
 async def test_scraper_engine_ensure_string_list_non_str() -> None:
-    from app.services.harvester.simple_scraper import ScraperEngine
+    from app.services.harvester.scraper import ScraperEngine
 
     engine = ScraperEngine()
     html = (

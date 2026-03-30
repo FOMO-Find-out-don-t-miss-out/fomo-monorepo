@@ -4,7 +4,7 @@ from typing import Any
 from app.core.geography_constants import DEFAULT_COUNTRY_CODE
 from app.services.harvester.cleansing.ai_extractor import AiExtractor
 from app.services.harvester.cleansing.json_ld_extractor import JsonLdExtractor
-from app.services.harvester.geocoder import GeocoderService
+from app.services.harvester.location.geocoder import GeocoderService
 from packages.domain.schemas.extracted_event import ExtractedEvent
 from packages.domain.services.event_classifier import EventClassifier
 

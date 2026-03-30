@@ -32,7 +32,7 @@ async def test_run_scraper_and_ingest_task_success(
     )
     mock_process.communicate.return_value = (mock_stdout.encode(), b"")
 
-    from app.services.harvester.geocoder import GeocodeResult
+    from app.services.harvester.location.geocoder import GeocodeResult
 
     mock_geo = GeocodeResult(
         lat=37.9,
@@ -46,7 +46,7 @@ async def test_run_scraper_and_ingest_task_success(
     with patch("asyncio.create_subprocess_exec", return_value=mock_process):
         # 2. Mock Geocoder
         with patch(
-            "app.services.harvester.geocoder.GeocoderService.get_coordinates",
+            "app.services.harvester.location.geocoder.GeocoderService.get_coordinates",
             return_value=mock_geo,
         ):
             # 3. Mock CleansingService
@@ -73,11 +73,11 @@ async def test_run_scraper_and_ingest_task_success(
                 return [ev]
 
             with patch(
-                "app.services.harvester.cleansing_service.CleansingService.clean_json_ld",
+                "app.services.harvester.cleanser.CleansingService.clean_json_ld",
                 side_effect=mock_clean_side_effect,
             ):
                 with patch(
-                    "app.services.harvester.cleansing_service.CleansingService.clean_html_fallback",
+                    "app.services.harvester.cleanser.CleansingService.clean_html_fallback",
                     side_effect=mock_html_side_effect,
                 ):
                     # 4. Mock Engine
@@ -161,7 +161,7 @@ async def test_run_scraper_and_ingest_task_db_fail(
 
     with patch("asyncio.create_subprocess_exec", return_value=mock_process):
         with patch(
-            "app.services.harvester.ingestion_service.IngestionService.ingest_events",
+            "app.services.harvester.ingestor.IngestionService.ingest_events",
             side_effect=Exception("DB connection lost"),
         ):
             with patch("app.services.harvester.orchestrator.engine", session.get_bind()):

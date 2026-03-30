@@ -93,7 +93,7 @@ async def test_run_scraper_and_ingest_task_various_items(session: Session) -> No
 
     with patch("asyncio.create_subprocess_exec", return_value=mock_process):
         with patch(
-            "app.services.harvester.cleansing_service.CleansingService.clean_json_ld",
+            "app.services.harvester.cleanser.CleansingService.clean_json_ld",
             return_value=extracted_list,
         ):
             # Trigger exception in detect_country_from_url or similar by using a bad URL

@@ -8,8 +8,8 @@ from sqlmodel import Session, select
 
 from app.db.session import get_db
 from app.schemas.event import EventIngest, IngestSummary
-from app.services.harvester.geocoder import GeocoderService
-from app.services.harvester.ingestion_service import IngestionService
+from app.services.harvester.ingestor import IngestionService
+from app.services.harvester.location.geocoder import GeocoderService
 from app.services.harvester.orchestrator import HarvesterOrchestrator
 from packages.domain.models import Event, PendingEvent
 from packages.domain.schemas.extracted_event import ExtractedEvent

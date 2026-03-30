@@ -1,7 +1,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from app.services.harvester.simple_scraper import (
+from app.services.harvester.scraper import (
     RegistryExtractor,
     SchemaOrgExtractor,
     ScraperEngine,
@@ -159,7 +159,7 @@ async def test_scraper_engine_scrape_llm_fallback() -> None:
 
 @pytest.mark.asyncio
 async def test_base_extractor_not_implemented() -> None:
-    from app.services.harvester.simple_scraper import BaseExtractor
+    from app.services.harvester.scraper import BaseExtractor
 
     extractor = BaseExtractor()
     with pytest.raises(NotImplementedError):
@@ -197,7 +197,7 @@ def test_scraper_engine_load_registry_fail() -> None:
 
 @pytest.mark.asyncio
 async def test_scraper_main_logic() -> None:
-    from app.services.harvester.simple_scraper import main as scraper_main
+    from app.services.harvester.scraper import main as scraper_main
 
     # Mocking httpx.AsyncClient.get for the listing page and individual scrapes
     mock_resp_listing = MagicMock()

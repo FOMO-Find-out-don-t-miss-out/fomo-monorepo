@@ -1,14 +1,14 @@
 import logging
-from datetime import UTC, datetime
 from uuid import uuid4
 
 from geoalchemy2 import WKTElement
 from sqlmodel import Session, select
 
 from app.schemas.event import IngestSummary
-from app.services.harvester.geocoder import GeocoderService
+from app.services.harvester.location.geocoder import GeocoderService
 from packages.domain.models import Event, PendingEvent, Venue
 from packages.domain.schemas.extracted_event import ExtractedEvent
+from packages.domain.services.trust_engine import TrustEngine
 
 logger = logging.getLogger(__name__)
 
@@ -21,26 +21,9 @@ class IngestionService:
         updated_count = 0
 
         for event_data in events:
-            if event_data.category == "Junk":
-                logger.info(f"[INGEST] Skipping junk (AI Category): {event_data.title}")
-                continue
-
-            junk_keywords = [
-                "προσφορές",
-                "προσφορά",
-                "εκδηλώσεις",
-                "εισιτήρια",
-                "tickets",
-                "offers",
-                "newsletter",
-                "τριήμερο",
-                "διήμερο",
-            ]
-            if (
-                any(keyword in event_data.title.lower() for keyword in junk_keywords)
-                and len(event_data.title) < 100
-            ):
-                logger.info(f"[INGEST] Skipping junk (Title Match): {event_data.title}")
+            # Junk Detection logic moved to TrustEngine
+            if TrustEngine.is_junk(event_data):
+                logger.info(f"[INGEST] Skipping junk (TrustEngine): {event_data.title}")
                 continue
 
             # Ensure event_metadata is a dict
@@ -113,12 +96,7 @@ class IngestionService:
                         city=str(final_city) if final_city else None,
                     )
 
-            is_auto_approved = (
-                event_data.ingestion_method == "json_ld"
-                and event_data.geocoding_status == "verified"
-                and (event_data.confidence_score or 0) >= 0.9
-                and event_data.start_time > datetime.now(UTC)
-            )
+            is_auto_approved = TrustEngine.is_trusted_for_autopublish(event_data)
 
             existing_pending = db.exec(
                 select(PendingEvent).where(

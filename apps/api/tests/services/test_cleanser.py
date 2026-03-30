@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
-from app.services.harvester.cleansing_service import CleansingService
+from app.services.harvester.cleanser import CleansingService
 from sqlmodel import Session
 
 from packages.domain.schemas.extracted_event import ExtractedEvent
@@ -17,7 +17,7 @@ async def test_clean_json_ld_basic(session: Session) -> None:
         "location": {"name": "Technopolis", "address": {"addressLocality": "Athens"}},
     }
     # We must patch the engine/session used inside CleansingService/GeocoderService
-    with patch("app.services.harvester.geocoder.engine", session.get_bind()):
+    with patch("app.services.harvester.location.geocoder.engine", session.get_bind()):
         with patch("app.repositories.venue_repository.Session", return_value=session):
             result = await CleansingService.clean_json_ld(data)
             assert result is not None
@@ -35,7 +35,7 @@ async def test_clean_json_ld_list(session: Session) -> None:
             "location": {"name": "Plateia"},
         }
     ]
-    with patch("app.services.harvester.geocoder.engine", session.get_bind()):
+    with patch("app.services.harvester.location.geocoder.engine", session.get_bind()):
         with patch("app.repositories.venue_repository.Session", return_value=session):
             result = await CleansingService.clean_json_ld(data)
             assert result is not None
@@ -47,7 +47,7 @@ async def test_clean_json_ld_exception() -> None:
     data = {"name": "Fail", "location": {"name": "Some Venue"}}
     # The cleanser catches internal exceptions and returns None
     with patch(
-        "app.services.harvester.geocoder.GeocoderService.get_coordinates",
+        "app.services.harvester.location.geocoder.GeocoderService.get_coordinates",
         side_effect=Exception("Geo Error"),
     ):
         result = await CleansingService.clean_json_ld(data)
@@ -69,7 +69,7 @@ async def test_clean_html_fallback_success(session: Session) -> None:
 
     with patch("app.services.harvester.cleansing.ai_extractor._client") as mock_client:
         mock_client.chat.completions.create.return_value = mock_response
-        with patch("app.services.harvester.geocoder.engine", session.get_bind()):
+        with patch("app.services.harvester.location.geocoder.engine", session.get_bind()):
             with patch("app.repositories.venue_repository.Session", return_value=session):
                 result = await CleansingService.clean_html_fallback(html)
                 assert len(result) == 1
@@ -112,7 +112,7 @@ async def test_clean_html_fallback_with_geocoding(session: Session) -> None:
     mock_response = MagicMock()
     mock_response.tasks = [mock_event]
 
-    from app.services.harvester.geocoder import GeocodeResult
+    from app.services.harvester.location.geocoder import GeocodeResult
 
     mock_geo = GeocodeResult(
         lat=37.0,
@@ -125,10 +125,10 @@ async def test_clean_html_fallback_with_geocoding(session: Session) -> None:
 
     with patch("app.services.harvester.cleansing.ai_extractor._client") as mock_client:
         mock_client.chat.completions.create.return_value = mock_response
-        with patch("app.services.harvester.geocoder.engine", session.get_bind()):
+        with patch("app.services.harvester.location.geocoder.engine", session.get_bind()):
             with patch("app.repositories.venue_repository.Session", return_value=session):
                 with patch(
-                    "app.services.harvester.geocoder.GeocoderService.get_coordinates",
+                    "app.services.harvester.location.geocoder.GeocoderService.get_coordinates",
                     return_value=mock_geo,
                 ):
                     result = await CleansingService.clean_html_fallback(
@@ -154,7 +154,8 @@ async def test_clean_html_fallback_geocoding_fail() -> None:
     with patch("app.services.harvester.cleansing.ai_extractor._client") as mock_client:
         mock_client.chat.completions.create.return_value = mock_response
         with patch(
-            "app.services.harvester.geocoder.GeocoderService.get_coordinates", return_value=None
+            "app.services.harvester.location.geocoder.GeocoderService.get_coordinates",
+            return_value=None,
         ):
             result = await CleansingService.clean_html_fallback(
                 "This is a sufficiently long text to pass the 50 character minimum check."
