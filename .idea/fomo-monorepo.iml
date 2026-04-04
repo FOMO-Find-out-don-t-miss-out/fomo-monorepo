@@ -7,6 +7,8 @@
       <sourceFolder url="file://$MODULE_DIR$/apps/api" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/apps/harvester-dashboard" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/apps/mobile" isTestSource="false" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv" />
+      <excludeFolder url="file://$MODULE_DIR$/apps/api/.venv" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.13" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />

@@ -36,15 +36,15 @@ def test_haversine_distance_same_point() -> None:
 async def test_scraper_engine_load_registry_invalid_json() -> None:
     import tempfile
 
-    from app.services.harvester.scraper import ScraperEngine
+    from app.services.harvester.providers.more_com import MoreComProvider
 
     with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
         f.write("invalid json")
         temp_path = f.name
 
     try:
-        engine = ScraperEngine(registry_path=temp_path)
-        assert engine.registry == {}
+        provider = MoreComProvider(registry_path=temp_path)
+        assert provider.registry == {}
     finally:
         from pathlib import Path
 
@@ -53,17 +53,17 @@ async def test_scraper_engine_load_registry_invalid_json() -> None:
 
 @pytest.mark.asyncio
 async def test_scraper_engine_ensure_string_non_str() -> None:
-    from app.services.harvester.scraper import ScraperEngine
+    from app.services.harvester.providers.more_com import MoreComProvider
 
-    engine = ScraperEngine()
-    # Test _ensure_string with None via scrape/schema
+    provider = MoreComProvider()
+    # Test _ensure_string with None via fetch_event/schema
     html = (
         '<html><script type="application/ld+json">{"@type": "Event", "name": null, '
         '"startDate": "2026"}</script></html>'
     )
     mock_resp = MagicMock(status_code=200, text=html)
     with patch("httpx.AsyncClient.get", return_value=mock_resp):
-        result = await engine.scrape("http://test.com")
+        result = await provider.fetch_event("http://test.com")
         assert result.title is None
 
 
@@ -125,15 +125,15 @@ async def test_clean_json_ld_headline(session: Session) -> None:
 
 @pytest.mark.asyncio
 async def test_scraper_engine_normalize_www_more_com() -> None:
-    from app.services.harvester.scraper import ScraperEngine
+    from app.services.harvester.providers.more_com import MoreComProvider
 
-    engine = ScraperEngine()
+    provider = MoreComProvider()
     registry = {"more.com": {"selectors": {"image": "img"}}}
-    engine.registry_extractor.registry = registry
+    provider.registry = registry
     html = '<html><img src="www.more.com/img.jpg"></html>'
     mock_resp = MagicMock(status_code=200, text=html)
     with patch("httpx.AsyncClient.get", return_value=mock_resp):
-        result = await engine.scrape("https://more.com/event")
+        result = await provider.fetch_event("https://more.com/event")
         assert result.photo_url == "https://www.more.com/img.jpg"
 
 
@@ -229,7 +229,7 @@ async def test_scraper_engine_load_registry_valid() -> None:
     import tempfile
     from pathlib import Path
 
-    from app.services.harvester.scraper import ScraperEngine
+    from app.services.harvester.providers.more_com import MoreComProvider
 
     data = {"test.com": {"country_code": "GR"}}
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
@@ -237,7 +237,7 @@ async def test_scraper_engine_load_registry_valid() -> None:
         temp_path = f.name
 
     try:
-        engine = ScraperEngine(registry_path=temp_path)
-        assert engine.registry["test.com"]["country_code"] == "GR"
+        provider = MoreComProvider(registry_path=temp_path)
+        assert provider.registry["test.com"]["country_code"] == "GR"
     finally:
         Path(temp_path).unlink()

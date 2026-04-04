@@ -97,14 +97,14 @@ async def test_clean_json_ld_various_branches(session: Session) -> None:
 
 @pytest.mark.asyncio
 async def test_scraper_engine_ensure_string_list_non_str() -> None:
-    from app.services.harvester.scraper import ScraperEngine
+    from app.services.harvester.providers.more_com import MoreComProvider
 
-    engine = ScraperEngine()
+    provider = MoreComProvider()
     html = (
         '<html><script type="application/ld+json">{"@type": "Event", '
         '"name": [null], "startDate": "2026"}</script></html>'
     )
     mock_resp = MagicMock(status_code=200, text=html)
     with patch("httpx.AsyncClient.get", return_value=mock_resp):
-        result = await engine.scrape("http://test.com")
+        result = await provider.fetch_event("http://test.com")
         assert result.title is None

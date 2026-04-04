@@ -23,14 +23,16 @@ logger = logging.getLogger(__name__)
 
 class HarvesterOrchestrator:
     @staticmethod
-    async def run_pipeline(default_country: str = "GR") -> None:
+    async def run_pipeline(
+        default_country: str = "GR",
+        target_url: str = "https://www.more.com/gr-el/tickets/music/",
+        limit: int = 60,
+    ) -> None:
         """Background task to run scraper, cleanse data using AI fallbacks, and ingest."""
-        logger.info(f"Background Task: Starting pipeline (country={default_country})")
+        logger.info(f"Background Task: Starting pipeline (url={target_url}, limit={limit})")
 
         try:
             # Resolve script path
-            # apps/api/app/services/harvester/orchestrator.py
-            # script is at apps/api/app/services/harvester/scraper.py
             current_file = Path(__file__)
             script_path = current_file.parent / "scraper.py"
 
@@ -41,6 +43,9 @@ class HarvesterOrchestrator:
             process = await asyncio.create_subprocess_exec(
                 sys.executable,
                 str(script_path),
+                target_url,
+                "--limit",
+                str(limit),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -66,20 +71,21 @@ class HarvesterOrchestrator:
 
             cleaned_events: list[ExtractedEvent] = []
             for item in raw_scraped_data:
-                source = item.get("source")
                 original_link = item.get("original_link")
+                source = item.get("source")
+                ingestion_method = item.get("ingestion_method") or source
+                source_provider = item.get("source_provider") or get_domain_from_url(original_link)
+
                 country_hint = (
                     detect_country_from_url(original_link) if original_link else default_country
                 )
 
-                source_domain = get_domain_from_url(original_link)
-
                 try:
-                    if source == "schema_org":
+                    if ingestion_method in ["schema_org", "json_ld"]:
                         extracted = await CleansingService.clean_json_ld(
                             item.get("structured_data", {}),
                             country_hint,
-                            source_domain=source_domain,
+                            source_domain=source_provider,
                         )
                         if isinstance(extracted, list):
                             for ev in extracted:
@@ -90,7 +96,7 @@ class HarvesterOrchestrator:
                             extracted.event_metadata["original_link"] = original_link
                             extracted.country_code = country_hint
                             cleaned_events.append(extracted)
-                    elif source == "registry":
+                    elif ingestion_method == "registry":
                         extracted = ExtractedEvent(
                             title=item.get("title") or "Untitled Event",
                             start_time=item.get("start_time"),
@@ -98,7 +104,7 @@ class HarvesterOrchestrator:
                             location_name=item.get("location_name"),
                             description=item.get("description"),
                             country_code=country_hint,
-                            source_provider=source_domain,
+                            source_provider=source_provider,
                             ingestion_method="registry",
                             event_metadata={"original_link": original_link},
                         )
@@ -116,16 +122,16 @@ class HarvesterOrchestrator:
                                 extracted.geocoding_status = geo_res.geocoding_status
                                 extracted.geocoding_metadata = geo_res.geocoding_metadata
                         cleaned_events.append(extracted)
-                    elif source == "llm_fallback":
+                    elif ingestion_method in ["llm_fallback", "html_fallback"]:
                         extracted_list = await CleansingService.clean_html_fallback(
-                            item.get("raw_text", ""), country_hint, source_domain=source_domain
+                            item.get("raw_text", ""), country_hint, source_domain=source_provider
                         )
                         for extracted in extracted_list:
                             extracted.event_metadata["original_link"] = original_link
                             extracted.country_code = country_hint
                             cleaned_events.append(extracted)
                 except Exception as e:
-                    logger.error(f"Error processing item from {source}: {e}")
+                    logger.error(f"Error processing {source_provider} ({ingestion_method}): {e}")
                     continue
 
             logger.info(f"Cleansing: {len(cleaned_events)}/{len(raw_scraped_data)} valid")
