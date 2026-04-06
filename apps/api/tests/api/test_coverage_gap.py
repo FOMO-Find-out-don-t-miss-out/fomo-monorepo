@@ -141,6 +141,7 @@ async def test_clean_json_ld_image_variations():
     # We STOP collecting images, so it shouldn't be in metadata as 'image' anymore
     assert "image" not in res.event_metadata
 
+
 @pytest.mark.asyncio
 async def test_clean_json_ld_exception():
     # Covers cleanser.py: 254 (except Exception)

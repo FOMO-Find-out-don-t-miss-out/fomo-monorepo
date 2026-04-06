@@ -39,4 +39,3 @@ async def test_clean_json_ld_complex_image(session: Session) -> None:
             result = await CleansingService.clean_json_ld(data)
             # We STOP collecting images
             assert "image" not in result.event_metadata
-

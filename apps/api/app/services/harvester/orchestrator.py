@@ -48,10 +48,12 @@ class HarvesterOrchestrator:
             current_path = Path(__file__).resolve()
             api_dir = str(current_path.parents[3])  # apps/api/
             root_dir = str(current_path.parents[5])  # monorepo root /
-            
+
             existing_pythonpath = env.get("PYTHONPATH", "")
             if existing_pythonpath:
-                env["PYTHONPATH"] = f"{api_dir}{os.pathsep}{root_dir}{os.pathsep}{existing_pythonpath}"
+                env["PYTHONPATH"] = (
+                    f"{api_dir}{os.pathsep}{root_dir}{os.pathsep}{existing_pythonpath}"
+                )
             else:
                 env["PYTHONPATH"] = f"{api_dir}{os.pathsep}{root_dir}"
 

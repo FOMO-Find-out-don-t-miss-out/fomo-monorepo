@@ -10,6 +10,8 @@ from geoalchemy2.shape import to_shape
 from pydantic import computed_field, field_serializer
 from sqlmodel import JSON, Column, Field, SQLModel, UniqueConstraint
 
+from packages.domain.models.base import TimestampMixin
+
 
 class EventCategory(StrEnum):
     Music = "Music"
@@ -29,7 +31,7 @@ class GeocodingStatus(StrEnum):
     failed = "failed"
 
 
-class EventBase(SQLModel):
+class EventBase(TimestampMixin, SQLModel):
     title: str = Field(index=True)
     description: str | None = Field(default=None, nullable=True)
     photo_url: str | None = Field(
