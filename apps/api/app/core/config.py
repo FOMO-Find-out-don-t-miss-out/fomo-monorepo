@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: str | None = None
     MAPBOX_ACCESS_TOKEN: str | None = None
     GEMINI_MODEL: str = "gemini-2.5-flash"
+    SCRAPER_PROXY_URL: str | None = None
 
 
 settings = Settings()

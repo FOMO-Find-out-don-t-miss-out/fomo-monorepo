@@ -1,6 +1,8 @@
+import asyncio
 import json
 import logging
 import re
+import secrets
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -9,30 +11,16 @@ import httpx
 from bs4 import BeautifulSoup
 
 from app.services.harvester.providers.base import BaseProvider, ScrapedEvent
+from app.services.harvester.utils.headers_manager import get_rotated_headers
+from app.services.harvester.utils.proxy_manager import get_proxy_config
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_HEADERS: dict[str, str] = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    ),
-    "Accept": (
-        "text/html,application/xhtml+xml,application/xml;q=0.9,"
-        "image/avif,image/webp,image/apng,*/*;q=0.8,"
-        "application/signed-exchange;v=b3;q=0.7"
-    ),
-    "Accept-Language": "el-GR,el;q=0.9,en-US;q=0.8,en;q=0.7",
-    "Cache-Control": "max-age=0",
-    "Sec-Ch-Ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-    "Sec-Ch-Ua-Mobile": "?0",
-    "Sec-Ch-Ua-Platform": '"Windows"',
-    "Sec-Fetch-Dest": "document",
-    "Sec-Fetch-Mode": "navigate",
-    "Sec-Fetch-Site": "none",
-    "Sec-Fetch-User": "?1",
-    "Upgrade-Insecure-Requests": "1",
-}
+
+class CircuitBreakerError(Exception):
+    """Custom exception to stop the batch when 403/429 is encountered."""
+
+    pass
 
 
 class MoreComProvider(BaseProvider):
@@ -58,13 +46,47 @@ class MoreComProvider(BaseProvider):
             "com": "US",
         }
 
+    def _get_client(self, timeout: float = 30.0) -> httpx.AsyncClient:
+        """Helper to create httpx.AsyncClient with rotated headers and proxy if configured."""
+        proxy_config = get_proxy_config()
+        mounts = None
+        if proxy_config:
+            mounts = {
+                protocol: httpx.AsyncHTTPTransport(proxy=url)
+                for protocol, url in proxy_config.items()
+            }
+
+        return httpx.AsyncClient(
+            headers=get_rotated_headers(),
+            follow_redirects=True,
+            timeout=timeout,
+            mounts=mounts,
+        )
+
+    def _handle_response(self, response: httpx.Response, url: str) -> None:
+        """
+        Check for 403 Forbidden or 429 Too Many Requests.
+        Logs a CRITICAL warning and stops the current batch.
+        """
+        if response.status_code in (403, 429):
+            logger.critical(
+                f"CIRCUIT BREAKER TRIGGERED: Received {response.status_code} for {url}. "
+                "Stopping batch to protect Proxy IP."
+            )
+            raise CircuitBreakerError(f"HTTP {response.status_code}")
+
     async def discover_links(self, target_url: str) -> list[str]:
         """Discovery logic for more.com listing pages."""
         try:
-            async with httpx.AsyncClient(
-                headers=DEFAULT_HEADERS, follow_redirects=True, timeout=60.0
-            ) as client:
+            # Behavioral Randomization: small delay before discovery
+            # Using secrets.SystemRandom for lint compliance if needed,
+            # or just random.uniform is fine for non-crypto, but we use secrets for S311.
+            await asyncio.sleep(secrets.SystemRandom().uniform(1.5, 4.0))
+
+            async with self._get_client(timeout=60.0) as client:
                 response = await client.get(target_url)
+                self._handle_response(response, target_url)
+
                 if response.status_code != 200:
                     logger.error(f"Discovery fetch failed for {target_url}: {response.status_code}")
                     return []
@@ -90,6 +112,8 @@ class MoreComProvider(BaseProvider):
 
                 return list(event_links)
 
+        except CircuitBreakerError:
+            raise
         except Exception as e:
             logger.error(f"Discovery error for {target_url}: {e}")
             return []
@@ -141,10 +165,13 @@ class MoreComProvider(BaseProvider):
 
     async def fetch_event(self, url: str) -> ScrapedEvent | None:
         try:
-            async with httpx.AsyncClient(
-                headers=DEFAULT_HEADERS, follow_redirects=True, timeout=30.0
-            ) as client:
+            # Behavioral Randomization: randomized delay before fetching each event
+            await asyncio.sleep(secrets.SystemRandom().uniform(2.0, 5.0))
+
+            async with self._get_client(timeout=30.0) as client:
                 response = await client.get(url)
+                self._handle_response(response, url)
+
                 if response.status_code != 200:
                     return None
 
@@ -221,6 +248,8 @@ class MoreComProvider(BaseProvider):
                     raw_text=raw_text[:5000],
                 )
 
+        except CircuitBreakerError:
+            raise
         except Exception as e:
             logger.error(f"MoreComProvider error for {url}: {e}")
             return None
