@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from packages.domain.utils.datetime_utils import DateTimeHelper
 
@@ -37,6 +37,9 @@ class ExtractedEvent(BaseModel):
     description: str | None = Field(
         default=None, description="Short summary or description of the event"
     )
+    photo_url: str | None = Field(
+        default=None, description="URL of the event's cover or promotional image"
+    )
     event_metadata: dict[str, Any] = Field(
         default_factory=dict, description="Additional structured data"
     )
@@ -56,6 +59,32 @@ class ExtractedEvent(BaseModel):
     ingestion_method: str = Field(
         default="unknown", description="The method used to ingest (e.g., json_ld, html_fallback)"
     )
+
+    @model_validator(mode="after")
+    def validate_and_normalize_photo_url(self) -> "ExtractedEvent":
+        """Normalizes the photo URL and extracts from metadata if missing."""
+        url = self.photo_url
+
+        if not url and self.event_metadata:
+            url = self.event_metadata.get("photo_url") or self.event_metadata.get("image")
+
+        if url:
+            if isinstance(url, list):
+                url = url[0] if url else None
+
+            if isinstance(url, str):
+                url = url.strip()
+                if url.startswith("//"):
+                    url = f"https:{url}"
+                elif url.startswith("www."):
+                    url = f"https://{url}"
+                elif not url.startswith("http") and not url.startswith("/"):
+                    # Basic heuristic for relative paths or malformed URLs
+                    pass
+
+                self.photo_url = url
+
+        return self
 
     @field_validator("start_time", mode="before")
     @classmethod

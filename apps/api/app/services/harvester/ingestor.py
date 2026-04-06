@@ -125,6 +125,7 @@ class IngestionService:
                 existing_pending.source_provider = event_data.source_provider
                 existing_pending.ingestion_method = event_data.ingestion_method
                 existing_pending.description = event_data.description
+                existing_pending.photo_url = event_data.photo_url
 
                 if event_data.event_metadata.get("original_link"):
                     existing_pending.source_url = event_data.event_metadata["original_link"]
@@ -161,6 +162,7 @@ class IngestionService:
                     source_provider=event_data.source_provider,
                     ingestion_method=event_data.ingestion_method,
                     description=event_data.description,
+                    photo_url=event_data.photo_url,
                 )
                 db.add(new_pending)
                 added_count += 1
@@ -179,6 +181,7 @@ class IngestionService:
                         id=live_id,
                         title=event_data.title,
                         description=event_data.description,
+                        photo_url=event_data.photo_url,
                         location=wkt_point,
                         location_name=event_data.location_name,
                         country_code=event_data.country_code,

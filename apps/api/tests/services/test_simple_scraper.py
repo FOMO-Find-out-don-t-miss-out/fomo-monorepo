@@ -30,7 +30,7 @@ async def test_more_com_provider_schema_org_success() -> None:
 
     assert result is not None
     assert result["source"] == "schema_org"
-    assert result["photo_url"] == "https://example.com/image.jpg"
+    assert result["photo_url"] is None  # Requirement: Stop collecting
     assert result["structured_data"]["name"] == "Test Event"
 
 
@@ -60,6 +60,7 @@ async def test_more_com_provider_registry_success() -> None:
 
 def test_provider_factory_get_provider() -> None:
     from app.services.harvester.factory import ProviderFactory
+
     factory = ProviderFactory()
     # more.com domain
     provider = factory.get_provider("https://www.more.com/event")
@@ -160,7 +161,7 @@ async def test_more_com_provider_discover_links() -> None:
     </html>
     """
     mock_resp = MagicMock(status_code=200, text=html)
-    
+
     with patch("httpx.AsyncClient.get", return_value=mock_resp):
         links = await provider.discover_links("https://www.more.com/gr-el/tickets/music/")
         assert len(links) == 2
@@ -177,16 +178,17 @@ async def test_run_scraper_logic() -> None:
     provider_path = "app.services.harvester.providers.more_com.MoreComProvider"
     with patch(f"{provider_path}.discover_links", new_callable=AsyncMock) as mock_disc:
         mock_disc.return_value = ["https://more.com/tickets/e1"]
-        
+
         with patch(f"{provider_path}.fetch_event", new_callable=AsyncMock) as mock_fetch:
             from app.services.harvester.providers.base import ScrapedEvent
+
             mock_fetch.return_value = ScrapedEvent(
                 title="E1",
                 original_link="https://more.com/tickets/e1",
                 country_code="GR",
-                source="registry"
+                source="registry",
             )
-            
+
             # We need to mock sys.stdout to avoid printing to console
             with patch("sys.stdout", MagicMock()):
                 await run_scraper("https://more.com/list", limit=10)
@@ -197,6 +199,7 @@ async def test_run_scraper_logic() -> None:
 
 def test_scraper_cli_parsing() -> None:
     from app.services.harvester.scraper import main as scraper_main
+
     with patch("sys.argv", ["scraper.py", "https://test.com", "--limit", "5"]):
         with patch("asyncio.run") as mock_run:
             scraper_main()
@@ -209,35 +212,6 @@ async def test_more_com_provider_fetch_event_exception() -> None:
     with patch("httpx.AsyncClient.get", side_effect=Exception("Network Error")):
         result = await provider.fetch_event("https://error.com")
         assert result is None
-
-
-@pytest.mark.asyncio
-async def test_more_com_provider_normalize_url_variations() -> None:
-    provider = MoreComProvider()
-    registry = {"test.com": {"selectors": {"image": "img"}}}
-    provider.registry = registry
-
-    html = '<html><img src="/relative.jpg"></html>'
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.text = html
-
-    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
-        mock_get.return_value = mock_response
-        result = await provider.fetch_event("https://test.com/event")
-        assert result.photo_url == "https://test.com/relative.jpg"
-
-
-@pytest.mark.asyncio
-async def test_more_com_provider_normalize_more_com() -> None:
-    provider = MoreComProvider()
-    registry = {"more.com": {"selectors": {"image": "img"}}}
-    provider.registry = registry
-    html = '<html><img src="more.com/img.jpg"></html>'
-    mock_resp = MagicMock(status_code=200, text=html)
-    with patch("httpx.AsyncClient.get", return_value=mock_resp):
-        result = await provider.fetch_event("https://more.com/event")
-        assert result.photo_url == "https://more.com/img.jpg"
 
 
 @pytest.mark.asyncio

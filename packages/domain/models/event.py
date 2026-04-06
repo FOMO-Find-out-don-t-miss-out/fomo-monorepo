@@ -31,7 +31,12 @@ class GeocodingStatus(StrEnum):
 
 class EventBase(SQLModel):
     title: str = Field(index=True)
-    description: str | None = Field(default=None)
+    description: str | None = Field(default=None, nullable=True)
+    photo_url: str | None = Field(
+        default=None,
+        nullable=True,
+        serialization_alias="photoUrl",
+    )
     start_time: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
         index=True,
@@ -89,33 +94,6 @@ class EventBase(SQLModel):
     )
     geocoding_metadata: dict[str, Any] = Field(default_factory=dict)
 
-    @computed_field(alias="photoUrl")
-    @property
-    def photo_url(self) -> str | None:
-        """Returns the photo URL from metadata, normalized to be absolute."""
-        if not self.event_metadata:
-            return None
-
-        url = self.event_metadata.get("photo_url") or self.event_metadata.get("image")
-        if not url:
-            return None
-
-        if isinstance(url, list):
-            url = url[0] if url else None
-
-        if not isinstance(url, str):
-            return None
-
-        url = url.strip()
-        if url.startswith("http"):
-            return url
-        if url.startswith("//"):
-            return f"https:{url}"
-        if url.startswith("www."):
-            return f"https://{url}"
-
-        return url
-
     @computed_field
     @property
     def lat(self) -> float:
@@ -141,6 +119,36 @@ class EventBase(SQLModel):
             return {"type": "Point", "coordinates": [shape.x, shape.y]}
         except Exception:
             return v
+
+    def __init__(self, **data: Any):
+        # Normalize/extract photo_url if missing but event_metadata exists
+        photo_url = data.get("photo_url")
+        event_metadata = data.get("event_metadata")
+
+        if not photo_url and event_metadata:
+            url = event_metadata.get("photo_url") or event_metadata.get("image")
+            if url:
+                if isinstance(url, list):
+                    url = url[0] if url else None
+
+                if isinstance(url, str):
+                    url = url.strip()
+                    if url.startswith("//"):
+                        url = f"https:{url}"
+                    elif url.startswith("www."):
+                        url = f"https://{url}"
+                    photo_url = url
+
+        if photo_url:
+            if isinstance(photo_url, str):
+                photo_url = photo_url.strip()
+                if photo_url.startswith("//"):
+                    photo_url = f"https:{photo_url}"
+                elif photo_url.startswith("www."):
+                    photo_url = f"https://{photo_url}"
+            data["photo_url"] = photo_url
+
+        super().__init__(**data)
 
 
 class Event(EventBase, table=True):

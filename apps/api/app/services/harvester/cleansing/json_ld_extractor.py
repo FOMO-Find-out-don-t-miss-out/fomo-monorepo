@@ -80,17 +80,6 @@ class JsonLdExtractor:
                     location_name = location
                     street_address = location
 
-                # Extract image
-                photo_url = None
-                image_data = item_data.get("image")
-                if isinstance(image_data, str):
-                    photo_url = image_data
-                elif isinstance(image_data, list) and len(image_data) > 0:
-                    first_img = image_data[0]
-                    photo_url = first_img if isinstance(first_img, str) else first_img.get("url")
-                elif isinstance(image_data, dict):
-                    photo_url = image_data.get("url")
-
                 # Prepare common fields
                 common_fields = {
                     "title": str(title),
@@ -99,7 +88,7 @@ class JsonLdExtractor:
                     "lat": lat,
                     "lng": lng,
                     "ticket_url": str(get_val("url")) if get_val("url") else None,
-                    "description": str(get_val("description")) if get_val("description") else None,
+                    "description": None,
                     "source_provider": source_domain or "unknown",
                     "ingestion_method": "json_ld",
                 }
@@ -114,9 +103,10 @@ class JsonLdExtractor:
                         if isinstance(end_dates, list) and len(end_dates) > i:
                             end_date = end_dates[i]
 
+                        # Prepare metadata without stripped fields
                         event_metadata = {**item_data, "source_domain": source_domain}
-                        if photo_url:
-                            event_metadata["image"] = photo_url
+                        event_metadata.pop("image", None)
+                        event_metadata.pop("description", None)
 
                         extracted_events.append(
                             ExtractedEvent(
@@ -127,9 +117,10 @@ class JsonLdExtractor:
                             )
                         )
                 else:
+                    # Prepare metadata without stripped fields
                     event_metadata = {**item_data, "source_domain": source_domain}
-                    if photo_url:
-                        event_metadata["image"] = photo_url
+                    event_metadata.pop("image", None)
+                    event_metadata.pop("description", None)
 
                     extracted_events.append(
                         ExtractedEvent(

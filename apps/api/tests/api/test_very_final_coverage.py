@@ -86,8 +86,8 @@ async def test_clean_json_ld_various_branches(session: Session) -> None:
                 assert r1.location_name == "V1"
 
                 r2 = await CleansingService.clean_json_ld(data2)
-                assert r2.event_metadata["image"] == "https://img.com/1.jpg"
-
+                # We STOP collecting images
+                assert "image" not in r2.event_metadata
                 r3 = await CleansingService.clean_json_ld(data3)
                 assert r3.lat == 37.5
 

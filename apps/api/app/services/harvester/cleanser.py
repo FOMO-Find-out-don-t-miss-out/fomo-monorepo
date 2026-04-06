@@ -34,6 +34,7 @@ class CleansingService:
 
         for event in events:
             # 1. Enrich Classification using domain service
+            # description is now guaranteed to be None or empty from scraped sources
             category, sub_category, tags = EventClassifier.classify(
                 event.title, event.description, event.event_metadata
             )

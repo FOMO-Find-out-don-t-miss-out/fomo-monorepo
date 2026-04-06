@@ -6,6 +6,19 @@ from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
 
 # Import all models to ensure they are registered with SQLModel.metadata
+try:
+    from packages.domain.models import (
+        Event,  # noqa: F401
+        HypeLedger,  # noqa: F401
+        PendingEvent,  # noqa: F401
+        Profile,  # noqa: F401
+        SocialConnection,  # noqa: F401
+        User,  # noqa: F401
+        Venue,  # noqa: F401
+    )
+except ImportError:
+    # Handle the case where the environment is not set up correctly for imports
+    pass
 
 # this is the Alembic Config object, which provides access to the values within the .ini file
 config = context.config

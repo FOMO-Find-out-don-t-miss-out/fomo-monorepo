@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import os
 import sys
 import traceback
 from datetime import UTC, datetime
@@ -40,6 +41,20 @@ class HarvesterOrchestrator:
                 logger.error(f"Scraper script not found at {script_path}")
                 return
 
+            # Prepare environment for subprocess
+            env = os.environ.copy()
+            # Ensure PYTHONPATH includes monorepo root and apps/api
+            # Path(__file__) is apps/api/app/services/harvester/orchestrator.py
+            current_path = Path(__file__).resolve()
+            api_dir = str(current_path.parents[3])  # apps/api/
+            root_dir = str(current_path.parents[5])  # monorepo root /
+            
+            existing_pythonpath = env.get("PYTHONPATH", "")
+            if existing_pythonpath:
+                env["PYTHONPATH"] = f"{api_dir}{os.pathsep}{root_dir}{os.pathsep}{existing_pythonpath}"
+            else:
+                env["PYTHONPATH"] = f"{api_dir}{os.pathsep}{root_dir}"
+
             process = await asyncio.create_subprocess_exec(
                 sys.executable,
                 str(script_path),
@@ -48,6 +63,7 @@ class HarvesterOrchestrator:
                 str(limit),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                env=env,
             )
 
             try:

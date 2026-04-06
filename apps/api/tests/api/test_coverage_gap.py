@@ -138,8 +138,8 @@ async def test_clean_json_ld_image_variations():
         "startDate": "2026-01-01T00:00:00Z",
     }
     res = await CleansingService.clean_json_ld(data)
-    assert res.event_metadata["image"] == "http://img.com/1.jpg"
-
+    # We STOP collecting images, so it shouldn't be in metadata as 'image' anymore
+    assert "image" not in res.event_metadata
 
 @pytest.mark.asyncio
 async def test_clean_json_ld_exception():

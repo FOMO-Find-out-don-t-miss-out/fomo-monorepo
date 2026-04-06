@@ -89,26 +89,24 @@ class AiExtractor:
                         "content": """You are a professional event data extractor.
 Return ONLY valid JSON. No explanations.
 
-Strict Classification Hierarchy:
-1. Rule 1 (Venue Blindness): Ignore keywords in the location_name when determining category/tags.
-   Example: A pop concert in a 'Jazz Club' is POP, not JAZZ.
-2. Rule 2 (Primary Target): Focus 100% on the title and description for categorization.
-3. Rule 3 (The 'Other' Ban): Forbid 'Other' if the text has musical keywords. Default to 'Music'.
+Extraction Rules:
+1. Extract ONLY: Title, Start Time, End Time, and Venue details.
+2. DO NOT extract descriptions or image URLs under any circumstances.
+3. Strict Classification Hierarchy: Venue blindness, forbid 'Other' if musical keywords are present.
 """,
                     },
                     {
                         "role": "user",
-                        "content": f"""Extract all event details from the following text.
+                        "content": f"""Extract event details from the following text.
 Return a JSON list of events. Context country: {country_hint or "Global"}.
 
-Strict Junk Detection: Exclude Noise. Only specific, single events.
+MANDATORY: Do NOT include 'description' or 'photo_url' in your output.
 
 Details to provide:
-- title: The name of the event (e.g., 'Release Athens Festival')
-- location_name: The specific name of the venue (e.g., 'Plateia Nerou').
-  DO NOT put the event title here.
+- title: The name of the event
+- location_name: The name of the venue
 - search_term: descriptive term for geocoding (venue name + city)
-- city_hint: City/neighborhood (put this in event_metadata['city'])
+- city_hint: City/neighborhood
 - street_address: specific street name and number
 - sub_category: Identify specific genre/vibe
 - tags: Select 2-5 tags from: {", ".join(global_tags)}.

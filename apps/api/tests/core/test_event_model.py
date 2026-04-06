@@ -4,23 +4,25 @@ from packages.domain.models import Event, PendingEvent
 
 
 def test_event_photo_url_normalization():
-    # Test normalization logic
+    # Test normalization logic during initialization
     e = Event(title="T", event_metadata={"image": "www.test.com/img.png"})
     assert e.photo_url == "https://www.test.com/img.png"
 
-    e.event_metadata = {"photo_url": "//cdn.com/test.jpg"}
+    e = Event(title="T", event_metadata={"photo_url": "//cdn.com/test.jpg"})
     assert e.photo_url == "https://cdn.com/test.jpg"
 
-    e.event_metadata = {"photo_url": "http://direct.com/a.png"}
+    e = Event(title="T", event_metadata={"photo_url": "http://direct.com/a.png"})
     assert e.photo_url == "http://direct.com/a.png"
 
-    e.event_metadata = {"image": ["list.com/1.png"]}
-    assert (
-        e.photo_url == "list.com/1.png"
-    )  # No prefix here because it doesn't start with www or // or http
+    e = Event(title="T", event_metadata={"image": ["list.com/1.png"]})
+    assert e.photo_url == "list.com/1.png"
 
-    e.event_metadata = {"image": "  www.trimmed.com/a.png  "}
+    e = Event(title="T", event_metadata={"image": "  www.trimmed.com/a.png  "})
     assert e.photo_url == "https://www.trimmed.com/a.png"
+
+    # Test explicit photo_url
+    e = Event(title="T", photo_url="www.explicit.com/a.png")
+    assert e.photo_url == "https://www.explicit.com/a.png"
 
 
 def test_event_location_serialization():

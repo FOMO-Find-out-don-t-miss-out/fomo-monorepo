@@ -37,4 +37,6 @@ async def test_clean_json_ld_complex_image(session: Session) -> None:
     with patch("app.services.harvester.location.geocoder.engine", session.get_bind()):
         with patch("app.repositories.venue_repository.Session", return_value=session):
             result = await CleansingService.clean_json_ld(data)
-            assert result.event_metadata["image"] == "https://example.com/1.jpg"
+            # We STOP collecting images
+            assert "image" not in result.event_metadata
+

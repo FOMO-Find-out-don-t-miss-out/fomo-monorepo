@@ -150,22 +150,19 @@ class MoreComProvider(BaseProvider):
 
                 soup = BeautifulSoup(response.text, "html.parser")
                 country_code = self._get_country_code(url)
-                parsed_url = urlparse(url)
-                base_origin = f"{parsed_url.scheme}://{parsed_url.netloc}"
+                urlparse(url)
 
                 # 1. Registry Extraction
                 registry_data = await self._extract_registry(soup, url)
                 if registry_data:
                     fields = registry_data["extracted_fields"]
-                    meta_image = self._get_meta_image(soup, base_origin)
                     return ScrapedEvent(
                         title=self._ensure_string(fields.get("title")),
-                        description=self._ensure_string(fields.get("description")),
+                        description=None,
                         location_name=self._ensure_string(fields.get("location")),
                         start_time=self._ensure_string(fields.get("start_time")),
                         end_time=self._ensure_string(fields.get("end_time")),
-                        photo_url=self._normalize_url(fields.get("image"), base_origin)
-                        or meta_image,
+                        photo_url=None,
                         original_link=url,
                         country_code=country_code,
                         source="registry",
@@ -186,15 +183,13 @@ class MoreComProvider(BaseProvider):
                     else:
                         loc_name = loc
 
-                    meta_image = self._get_meta_image(soup, base_origin)
                     return ScrapedEvent(
                         title=self._ensure_string(sd.get("name")),
-                        description=self._ensure_string(sd.get("description")),
+                        description=None,
                         location_name=self._ensure_string(loc_name),
                         start_time=self._ensure_string(sd.get("startDate")),
                         end_time=self._ensure_string(sd.get("endDate")),
-                        photo_url=self._normalize_url(schema_data.get("photo_url"), base_origin)
-                        or meta_image,
+                        photo_url=None,
                         original_link=url,
                         country_code=country_code,
                         source="schema_org",
@@ -204,7 +199,6 @@ class MoreComProvider(BaseProvider):
                     )
 
                 # 3. LLM Fallback (Text extraction)
-                meta_image = self._get_meta_image(soup, base_origin)
                 noise_selectors = ["header", "footer", "nav", "aside", "script", "style"]
                 for element in soup.find_all(noise_selectors):
                     element.decompose()
@@ -217,7 +211,8 @@ class MoreComProvider(BaseProvider):
                     ).strip()
 
                 return ScrapedEvent(
-                    photo_url=meta_image,
+                    description=None,
+                    photo_url=None,
                     original_link=url,
                     country_code=country_code,
                     source="llm_fallback",
@@ -229,18 +224,6 @@ class MoreComProvider(BaseProvider):
         except Exception as e:
             logger.error(f"MoreComProvider error for {url}: {e}")
             return None
-
-    def _get_meta_image(self, soup: BeautifulSoup, base_origin: str) -> str | None:
-        og_image = soup.find("meta", property="og:image") or soup.find(
-            "meta", attrs={"name": "og:image"}
-        )
-        twitter_image = soup.find("meta", attrs={"name": "twitter:image"})
-        meta_image = None
-        if og_image:
-            meta_image = og_image.get("content")
-        elif twitter_image:
-            meta_image = twitter_image.get("content")
-        return self._normalize_url(meta_image, base_origin)
 
     async def _extract_registry(self, soup: BeautifulSoup, url: str) -> dict[str, Any] | None:
         domain = urlparse(url).netloc.replace("www.", "")
@@ -274,21 +257,9 @@ class MoreComProvider(BaseProvider):
                     if not isinstance(item, dict):
                         continue
                     if item.get("@type") == "Event" or "Event" in str(item.get("@type", "")):
-                        photo_url = None
-                        image_data = item.get("image")
-                        if isinstance(image_data, str):
-                            photo_url = image_data
-                        elif isinstance(image_data, list) and len(image_data) > 0:
-                            first_img = image_data[0]
-                            photo_url = (
-                                first_img if isinstance(first_img, str) else first_img.get("url")
-                            )
-                        elif isinstance(image_data, dict):
-                            photo_url = image_data.get("url")
-
                         return {
                             "structured_data": item,
-                            "photo_url": photo_url,
+                            "photo_url": None,
                             "source": "schema_org",
                         }
             except (json.JSONDecodeError, TypeError):

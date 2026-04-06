@@ -52,10 +52,7 @@ class TrustEngine:
             return True
 
         title_lower = event_data.title.lower()
-        if (
-            any(kw in title_lower for kw in self.junk_keywords)
-            and len(event_data.title) < 100
-        ):
+        if any(kw in title_lower for kw in self.junk_keywords) and len(event_data.title) < 100:
             return True
 
         return False
@@ -110,9 +107,7 @@ class TrustEngine:
 
             if city_key and city_key in self.city_centers and event_data.lat and event_data.lng:
                 center_lat, center_lng = self.city_centers[city_key]
-                distance = self._haversine(
-                    center_lat, center_lng, event_data.lat, event_data.lng
-                )
+                distance = self._haversine(center_lat, center_lng, event_data.lat, event_data.lng)
                 if distance > 15:
                     logger.warning(
                         f"[TRUST] Event '{event_data.title}' in {city_hint} is {distance:.2f}km "
@@ -128,8 +123,5 @@ class TrustEngine:
         phi1, phi2 = math.radians(lat1), math.radians(lat2)
         dphi = math.radians(lat2 - lat1)
         dlambda = math.radians(lon2 - lon1)
-        a = (
-            math.sin(dphi / 2) ** 2
-            + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
-        )
+        a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
         return 2 * r * math.atan2(math.sqrt(a), math.sqrt(1 - a))

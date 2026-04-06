@@ -134,7 +134,8 @@ async def test_scraper_engine_normalize_www_more_com() -> None:
     mock_resp = MagicMock(status_code=200, text=html)
     with patch("httpx.AsyncClient.get", return_value=mock_resp):
         result = await provider.fetch_event("https://more.com/event")
-        assert result.photo_url == "https://www.more.com/img.jpg"
+        # We STOP collecting photo_url
+        assert result.photo_url is None
 
 
 @pytest.mark.asyncio
@@ -192,7 +193,8 @@ async def test_clean_json_ld_list_fields(session: Session) -> None:
         with patch("app.repositories.venue_repository.Session", return_value=session):
             result = await CleansingService.clean_json_ld(data)
             assert result.title == "N1"
-            assert result.description == "D1"
+            # We STOP collecting description
+            assert result.description is None
 
 
 @pytest.mark.asyncio
@@ -220,7 +222,8 @@ async def test_clean_json_ld_image_dict(session: Session) -> None:
     with patch("app.services.harvester.location.geocoder.engine", session.get_bind()):
         with patch("app.repositories.venue_repository.Session", return_value=session):
             result = await CleansingService.clean_json_ld(data)
-            assert result.event_metadata["image"] == "https://img.com"
+            # We STOP collecting images
+            assert "image" not in result.event_metadata
 
 
 @pytest.mark.asyncio
