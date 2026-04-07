@@ -5,6 +5,7 @@ from app.core.geography_constants import DEFAULT_COUNTRY_CODE
 from app.services.harvester.cleansing.ai_extractor import AiExtractor
 from app.services.harvester.cleansing.json_ld_extractor import JsonLdExtractor
 from app.services.harvester.location.geocoder import GeocoderService
+from app.services.harvester.utils.text_sanitizer import TextSanitizer
 from packages.domain.schemas.extracted_event import ExtractedEvent
 from packages.domain.services.event_classifier import EventClassifier
 
@@ -15,8 +16,9 @@ class CleansingService:
     """
     Orchestrates the cleansing pipeline:
     1. Extraction (JSON-LD or AI/LLM)
-    2. Classification (Domain-driven tagging and categorization)
-    3. Geocoding (Enriching with coordinates and verified addresses)
+    2. Sanitization (Normalizing titles and text)
+    3. Classification (Domain-driven tagging and categorization)
+    4. Geocoding (Enriching with coordinates and verified addresses)
     """
 
     @staticmethod
@@ -33,7 +35,10 @@ class CleansingService:
             return None
 
         for event in events:
-            # 1. Enrich Classification using domain service
+            # 1. Sanitization
+            CleansingService._sanitize_event(event)
+
+            # 2. Enrich Classification using domain service
             # description is now guaranteed to be None or empty from scraped sources
             category, sub_category, tags = EventClassifier.classify(
                 event.title, event.description, event.event_metadata
@@ -42,7 +47,7 @@ class CleansingService:
             event.sub_category = sub_category
             event.tags = list(set(event.tags + tags))
 
-            # 2. Geocoding
+            # 3. Geocoding
             await CleansingService._enrich_geocoding(event, country_hint)
 
         if isinstance(events, list) and len(events) == 1:
@@ -61,6 +66,9 @@ class CleansingService:
         )
 
         for event in events:
+            # 1. Sanitization
+            CleansingService._sanitize_event(event)
+
             # AI might have already done some classification,
             # but we re-run domain logic for consistency and enrichment
             category, sub_category, tags = EventClassifier.classify(
@@ -82,6 +90,15 @@ class CleansingService:
             await CleansingService._enrich_geocoding(event, country_hint)
 
         return events
+
+    @staticmethod
+    def _sanitize_event(event: ExtractedEvent) -> None:
+        """Applies text sanitization to an ExtractedEvent."""
+        event.title = TextSanitizer.clean_title(event.title)
+        if event.description:
+            event.description = TextSanitizer.normalize_whitespace(event.description)
+        if event.location_name:
+            event.location_name = TextSanitizer.normalize_whitespace(event.location_name)
 
     @staticmethod
     async def _enrich_geocoding(event: ExtractedEvent, country_hint: str | None) -> None:

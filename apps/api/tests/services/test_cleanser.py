@@ -26,6 +26,39 @@ async def test_clean_json_ld_basic(session: Session) -> None:
 
 
 @pytest.mark.asyncio
+async def test_cleansing_sanitization(session: Session) -> None:
+    data = {
+        "@type": "Event",
+        "name": "CONCERT NAME &amp; MORE   | MORE.COM",
+        "startDate": "2026-03-20T21:00:00Z",
+        "location": {"name": "Technopolis   ", "address": {"addressLocality": "Athens"}},
+        "description": "This is a   description\nwith multiple lines and\ttabs.",
+    }
+    with patch("app.services.harvester.location.geocoder.engine", session.get_bind()):
+        with patch("app.repositories.venue_repository.Session", return_value=session):
+            result = await CleansingService.clean_json_ld(data)
+            assert result is not None
+            assert result.title == "Concert Name & More"
+            assert result.location_name == "Technopolis"
+            # description is explicitly stripped by JsonLdExtractor by design
+            assert result.description is None
+
+
+def test_sanitize_event_logic() -> None:
+    """Directly tests the _sanitize_event internal method."""
+    event = ExtractedEvent(
+        title="DIRTY   TITLE | MORE.COM",
+        location_name="  DIRTY   VENUE  ",
+        description="Line 1\nLine 2\tTabbed",
+        start_time=datetime.now(UTC),
+    )
+    CleansingService._sanitize_event(event)
+    assert event.title == "Dirty Title"
+    assert event.location_name == "DIRTY VENUE"
+    assert event.description == "Line 1 Line 2 Tabbed"
+
+
+@pytest.mark.asyncio
 async def test_clean_json_ld_list(session: Session) -> None:
     data = [
         {
