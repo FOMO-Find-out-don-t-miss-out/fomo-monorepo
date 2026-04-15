@@ -1,3 +1,4 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { Bookmark, Calendar, MapPin, Ticket } from 'lucide-react-native';
 import React, { useRef } from 'react';
 import {
@@ -8,7 +9,6 @@ import {
   Text,
   View,
 } from 'react-native';
-
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -52,17 +52,21 @@ const CATEGORY_COLORS: Record<EventCategory, { border: string; text: string }> =
   Festival: { border: 'rgba(34,  211, 238, 0.5)', text: '#22D3EE' },
 };
 
+// ─── CTA gradient colours ─────────────────────────────────────────────────────
+
+const CTA_GRADIENT: [string, string] = ['#BC13FE', '#9333EA'];
+
 // ─── Component ────────────────────────────────────────────────────────────────
 //
 // Two-layer architecture (required on Android):
 //
 //   Animated.View  ← owns dimensions (260×180), shadow/glow, scale transform
 //     └── Pressable  ← owns touch, background colour, overflow:hidden, padding
-//           └── content (bookmark, header, title, venue, date, cta)
+//           └── content
 //
-// Reason: overflow:'hidden' clips elevation shadow on Android. Putting shadow
-// on the outer Animated.View (which has NO overflow:hidden) and clipping on
-// the inner Pressable gives correct behaviour on both platforms.
+// overflow:'hidden' clips elevation shadow on Android. Keeping shadow on the
+// outer Animated.View (no overflow) and clipping on the inner Pressable gives
+// correct behaviour on both platforms.
 
 export function EventCard({ event, isActive = false, onPress }: EventCardProps) {
   const scale = useRef(new Animated.Value(1)).current;
@@ -87,7 +91,7 @@ export function EventCard({ event, isActive = false, onPress }: EventCardProps) 
   }
 
   return (
-    // Outer: scale transform + glow shadow — NO overflow:hidden here
+    // Outer: scale + glow — NO overflow:hidden (would clip shadow on Android)
     <Animated.View
       style={[
         styles.shadow,
@@ -95,14 +99,14 @@ export function EventCard({ event, isActive = false, onPress }: EventCardProps) 
         { transform: [{ scale }] },
       ]}
     >
-      {/* Inner: background, border, clipping, padding, all content */}
+      {/* Inner: background, border, clipping, padding, content */}
       <Pressable
         onPress={onPress}
         onPressIn={pressIn}
         onPressOut={pressOut}
         style={[styles.card, isActive && styles.cardBorderActive]}
       >
-        {/* Cover image — rendered behind content when provided */}
+        {/* Cover image */}
         {event.imageUri ? (
           <ImageBackground
             source={{ uri: event.imageUri }}
@@ -111,13 +115,12 @@ export function EventCard({ event, isActive = false, onPress }: EventCardProps) 
           />
         ) : null}
 
-        {/* Bookmark — absolute top-right (View, not Pressable, so it never
-            intercepts touches meant for the card's main Pressable) */}
+        {/* Bookmark — View (not Pressable) so it never swallows card taps */}
         <View style={styles.bookmark}>
           <Bookmark size={13} color="rgba(255,255,255,0.45)" strokeWidth={1.5} />
         </View>
 
-        {/* ── Header: category badge (left) + price (right) ── */}
+        {/* ── Header: category badge + price ── */}
         <View style={styles.headerRow}>
           <View style={[styles.categoryBadge, { borderColor: catColors.border }]}>
             <Text style={[styles.categoryText, { color: catColors.text }]}>
@@ -151,11 +154,16 @@ export function EventCard({ event, isActive = false, onPress }: EventCardProps) 
           <Text style={styles.dateText}>{event.time}</Text>
         </View>
 
-        {/* ── CTA button ── */}
-        <View style={styles.ctaBtn}>
-          <Ticket size={12} color="#BC13FE" strokeWidth={1.5} />
+        {/* ── CTA — LinearGradient from #BC13FE → #9333EA (purple-600) ── */}
+        <LinearGradient
+          colors={CTA_GRADIENT}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.ctaBtn}
+        >
+          <Ticket size={12} color="#fff" strokeWidth={1.5} />
           <Text style={styles.ctaText}>View Tickets</Text>
-        </View>
+        </LinearGradient>
 
       </Pressable>
     </Animated.View>
@@ -165,8 +173,7 @@ export function EventCard({ event, isActive = false, onPress }: EventCardProps) 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  // Outer wrapper — exact card dimensions, owns the shadow + transform.
-  // Must NOT have overflow:'hidden' so the shadow/elevation aren't clipped.
+  // Outer wrapper — exact dimensions, owns shadow + transform
   shadow: {
     width: 260,
     height: 180,
@@ -180,14 +187,13 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
 
-  // Inner Pressable — fills the shadow wrapper, owns background + clipping
+  // Inner Pressable — fills outer, owns bg + clipping
   card: {
     flex: 1,
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(188, 19, 254, 0.3)',
-    // Glass dark background (v0: glassmorphism ≈ dark semi-transparent)
     backgroundColor: 'rgba(18, 18, 24, 0.85)',
     padding: 14,
   },
@@ -198,7 +204,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
 
-  // ── Bookmark ────────────────────────────────────────────────────────────
+  // ── Bookmark ──────────────────────────────────────────────────────────────
   bookmark: {
     position: 'absolute',
     top: 10,
@@ -209,13 +215,13 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
 
-  // ── Header row ──────────────────────────────────────────────────────────
+  // ── Header row ────────────────────────────────────────────────────────────
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 8,
-    paddingRight: 28,   // clears bookmark button
+    paddingRight: 28,
   },
   categoryBadge: {
     borderWidth: 1,
@@ -224,25 +230,25 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   categoryText: {
+    fontFamily: 'Inter_600SemiBold',
     fontSize: 10,
-    fontWeight: '600',
   },
   price: {
+    fontFamily: 'Inter_700Bold',
     fontSize: 11,
-    fontWeight: '700',
     color: '#22D3EE',
   },
 
-  // ── Title ────────────────────────────────────────────────────────────────
+  // ── Title ─────────────────────────────────────────────────────────────────
   title: {
+    fontFamily: 'Inter_700Bold',
     fontSize: 14,
-    fontWeight: '700',
     color: '#fff',
     lineHeight: 18,
     marginBottom: 5,
   },
 
-  // ── Venue row ────────────────────────────────────────────────────────────
+  // ── Venue row ─────────────────────────────────────────────────────────────
   venueRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -251,16 +257,18 @@ const styles = StyleSheet.create({
   },
   venueText: {
     flex: 1,
+    fontFamily: 'Inter_400Regular',
     fontSize: 11,
     color: 'rgba(255,255,255,0.5)',
   },
   distanceText: {
+    fontFamily: 'Inter_400Regular',
     fontSize: 10,
     color: 'rgba(255,255,255,0.35)',
     flexShrink: 0,
   },
 
-  // ── Date row ─────────────────────────────────────────────────────────────
+  // ── Date row ──────────────────────────────────────────────────────────────
   dateRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -268,16 +276,17 @@ const styles = StyleSheet.create({
     marginBottom: 9,
   },
   dateText: {
+    fontFamily: 'Inter_600SemiBold',
     fontSize: 11,
-    fontWeight: '600',
     color: '#22D3EE',
   },
   atText: {
+    fontFamily: 'Inter_400Regular',
     fontSize: 11,
     color: 'rgba(255,255,255,0.3)',
   },
 
-  // ── CTA button ────────────────────────────────────────────────────────────
+  // ── CTA — LinearGradient fills this style ────────────────────────────────
   ctaBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -285,13 +294,10 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 7,
     borderRadius: 9,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(188, 19, 254, 0.30)',
   },
   ctaText: {
+    fontFamily: 'Inter_600SemiBold',
     fontSize: 11,
-    fontWeight: '600',
-    color: '#BC13FE',
+    color: '#fff',
   },
 });

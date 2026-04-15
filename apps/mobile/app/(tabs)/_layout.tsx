@@ -1,3 +1,4 @@
+import { BlurView } from 'expo-blur';
 import { Tabs } from 'expo-router';
 import { Heart, Map, Search, User } from 'lucide-react-native';
 import React from 'react';
@@ -7,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // ─── Route metadata ───────────────────────────────────────────────────────────
 
 const ROUTE_META = {
-  index:   { label: 'Discover', Icon: Map   },
+  index:   { label: 'Discover', Icon: Map    },
   search:  { label: 'Search',   Icon: Search },
   saved:   { label: 'Saved',    Icon: Heart  },
   profile: { label: 'Profile',  Icon: User   },
@@ -15,19 +16,15 @@ const ROUTE_META = {
 
 // ─── Custom Tab Bar ───────────────────────────────────────────────────────────
 //
-// Matches v0 bottom-nav-bar.tsx exactly:
+// Matches v0 bottom-nav-bar.tsx structure exactly:
 //
-//   <nav class="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-2">     ← navWrapper
-//     <div class="glassmorphism rounded-2xl overflow-hidden">        ← pill
-//       <div class="flex justify-around px-2 py-2">                  ← row
-//         <button class="flex flex-col items-center gap-1 px-4 py-2 rounded-lg">
-//           {isActive && <div class="absolute inset-1 bg-purple-500/20 rounded-lg" />}
-//           <Icon />
-//           <span>{label}</span>
-//         </button>
-//       </div>
-//     </div>
-//   </nav>
+//   nav  [position:fixed, bottom:0, left:0, right:0, px:16, pb:24]   ← navWrapper
+//     ╰── glassmorphism pill  [BlurView, rounded-2xl, border]         ← pill
+//           ╰── row  [justify-around, px:8, py:8]                     ← row
+//                 ╰── button  [flex-col, items-center, px:16, py:8]   ← tabBtn
+//                       ├── active bg  [abs inset:4, purple-500/20]   ← activeBg
+//                       ├── Icon       [size 24 active / 22 inactive]
+//                       ╰── label      [Inter_600SemiBold, 10px]
 
 function CustomTabBar({ state, navigation }: any) {
   const insets = useSafeAreaInsets();
@@ -36,13 +33,18 @@ function CustomTabBar({ state, navigation }: any) {
     <View
       style={[
         styles.navWrapper,
-        // pb-6 base + safe-area (home indicator on iPhone)
         { paddingBottom: Math.max(insets.bottom, 16) + 8 },
       ]}
     >
-      {/* Glass pill — glassmorphism rounded-2xl overflow-hidden */}
+      {/*
+        Blur technique:
+          Outer View owns borderRadius + overflow:hidden  →  clips the blur
+          BlurView fills the outer View absolutely        →  frosted glass bg
+          Row renders on top of the blur layer            →  content
+      */}
       <View style={styles.pill}>
-        {/* Row — justify-around px-2 py-2 */}
+        <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+
         <View style={styles.row}>
           {state.routes.map((route: any, index: number) => {
             const isFocused = state.index === index;
@@ -67,13 +69,18 @@ function CustomTabBar({ state, navigation }: any) {
                 }}
                 style={styles.tabBtn}
               >
-                {/* Active fill — "absolute inset-1 bg-purple-500/20 rounded-lg" */}
+                {/* Active bg — v0: "absolute inset-1 bg-purple-500/20 rounded-lg" */}
                 {isFocused && <View style={styles.activeBg} />}
 
-                {/* Icon — relative z-index so it sits above activeBg */}
-                <Icon size={20} color={color} strokeWidth={1.5} style={styles.icon} />
+                {/* Icon — larger when active to match v0 emphasis */}
+                <Icon
+                  size={isFocused ? 24 : 22}
+                  color={color}
+                  strokeWidth={1.5}
+                  style={styles.icon}
+                />
 
-                {/* Label */}
+                {/* Label — Inter_600SemiBold 10px */}
                 <Text
                   style={[styles.tabLabel, { color }]}
                   numberOfLines={1}
@@ -98,8 +105,6 @@ export default function TabsLayout() {
       tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        // Prevent React Navigation from adding its own safe-area padding
-        // to the tab content — our content handles its own positioning
         sceneStyle: { backgroundColor: 'transparent' },
       }}
     >
@@ -115,74 +120,73 @@ export default function TabsLayout() {
 
 const styles = StyleSheet.create({
 
-  // ── Outer positioning wrapper ──────────────────────────────────────────────
+  // ── Outer wrapper ─────────────────────────────────────────────────────────
   // v0: "fixed bottom-0 left-0 right-0 z-50 px-4 pt-2"
   navWrapper: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: 16,   // px-4
-    paddingTop: 8,           // pt-2
+    paddingHorizontal: 16,
+    paddingTop: 8,
     zIndex: 50,
   },
 
   // ── Glass pill ─────────────────────────────────────────────────────────────
   // v0: "glassmorphism rounded-2xl overflow-hidden"
-  // glassmorphism = rgba(18,18,24,0.75) + border rgba(255,255,255,0.1)
-  // (no backdrop-filter in RN — slightly more opaque to compensate)
+  // overflow:hidden clips the BlurView to the borderRadius shape
   pill: {
-    backgroundColor: 'rgba(18, 18, 24, 0.95)',
-    borderRadius: 16,        // rounded-2xl
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     overflow: 'hidden',
+    // Fallback background for platforms where BlurView renders transparent
+    backgroundColor: 'rgba(12, 12, 18, 0.88)',
   },
 
-  // ── Inner flex row ─────────────────────────────────────────────────────────
+  // ── Row inside pill ────────────────────────────────────────────────────────
   // v0: "flex items-center justify-around px-2 py-2"
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingHorizontal: 8,    // px-2
-    paddingVertical: 8,      // py-2
+    paddingHorizontal: 8,
+    paddingVertical: 8,
   },
 
-  // ── Individual tab button ──────────────────────────────────────────────────
+  // ── Per-tab button ─────────────────────────────────────────────────────────
   // v0: "relative flex flex-col items-center gap-1 px-4 py-2 rounded-lg"
   tabBtn: {
     position: 'relative',
     alignItems: 'center',
-    gap: 4,                  // gap-1
-    paddingHorizontal: 16,   // px-4
-    paddingVertical: 8,      // py-2
-    borderRadius: 8,         // rounded-lg
+    gap: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
     minWidth: 60,
   },
 
-  // ── Active background fill ─────────────────────────────────────────────────
+  // ── Active fill ────────────────────────────────────────────────────────────
   // v0: "absolute inset-1 bg-purple-500/20 rounded-lg"
   activeBg: {
     position: 'absolute',
-    top: 4,      // inset-1 = 4px
+    top: 4,
     left: 4,
     right: 4,
     bottom: 4,
-    backgroundColor: 'rgba(168, 85, 247, 0.20)',  // bg-purple-500/20
+    backgroundColor: 'rgba(168, 85, 247, 0.20)',
     borderRadius: 8,
   },
 
-  // ── Icon — needs zIndex to render above activeBg ───────────────────────────
+  // ── Icon — rendered above activeBg via zIndex ──────────────────────────────
   icon: {
     zIndex: 1,
   },
 
-  // ── Label ──────────────────────────────────────────────────────────────────
-  // v0: "text-[10px] font-medium relative z-10"
+  // ── Label — Inter_600SemiBold, v0: "text-[10px] font-medium z-10" ─────────
   tabLabel: {
+    fontFamily: 'Inter_600SemiBold',
     fontSize: 10,
-    fontWeight: '600',
     letterSpacing: 0.1,
     zIndex: 1,
   },

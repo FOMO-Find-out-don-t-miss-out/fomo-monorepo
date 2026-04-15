@@ -1,3 +1,5 @@
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   Calendar,
   Clock,
@@ -30,6 +32,10 @@ const { height: SCREEN_H } = Dimensions.get('window');
 // v0 default sheet height: 40vh → we use 42% to include safe area buffer
 const SHEET_HEIGHT = SCREEN_H * 0.42;
 
+// ─── Design tokens ────────────────────────────────────────────────────────────
+
+const CTA_GRADIENT: [string, string] = ['#BC13FE', '#9333EA'];
+
 // ─── Category colour map ──────────────────────────────────────────────────────
 
 const CATEGORY_COLORS: Record<EventCategory, { border: string; text: string }> = {
@@ -50,14 +56,10 @@ interface EventDetailsProps {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 //
-// Matches v0 event-bottom-sheet.tsx:
-//   • Backdrop fades in, sheet slides up from bottom
-//   • Fixed 40vh height (42% in RN to account for safe area)
-//   • Header: category badge + High Hype badge
-//   • Venue row with Directions chip
-//   • 3-column pill row: date / time / attendees
-//   • Action row: heart + share + "Swipe up" label
-//   • CTA: solid purple button with gradient approximation
+// Matches v0 event-bottom-sheet.tsx with Premium Glassmorphism:
+//   • BlurView background (intensity: 20, tint: 'dark')
+//   • LinearGradient CTA button (#BC13FE → #9333EA)
+//   • Inter font family integration
 
 export function EventDetails({ event, onClose }: EventDetailsProps) {
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -94,7 +96,10 @@ export function EventDetails({ event, onClose }: EventDetailsProps) {
         </Animated.View>
 
         {/* ── Bottom sheet ───────────────────────────────────────────── */}
+        {/* Outer container handles rounded corners and clipping for BlurView */}
         <View style={styles.sheet}>
+          <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+
           {event && (
             <>
               {/* Handle bar */}
@@ -178,17 +183,26 @@ export function EventDetails({ event, onClose }: EventDetailsProps) {
               </ScrollView>
 
               {/* ── Get Tickets CTA ─────────────────────────────────── */}
-              {/* v0: bg-gradient-to-r from-purple-600 to-purple-500   */}
               <View style={styles.ctaWrapper}>
-                <Pressable style={styles.ctaBtn} onPress={onClose}>
-                  <Ticket size={16} color="#fff" strokeWidth={1.5} />
-                  <Text style={styles.ctaText}>Get Tickets</Text>
-                  {event.price != null && (
-                    <View style={styles.pricePill}>
-                      <Text style={styles.priceText}>{event.price}</Text>
-                    </View>
-                  )}
-                </Pressable>
+                <LinearGradient
+                  colors={CTA_GRADIENT}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.ctaBtn}
+                >
+                  <Pressable 
+                    style={styles.ctaPressable}
+                    onPress={onClose}
+                  >
+                    <Ticket size={16} color="#fff" strokeWidth={1.5} />
+                    <Text style={styles.ctaText}>Get Tickets</Text>
+                    {event.price != null && (
+                      <View style={styles.pricePill}>
+                        <Text style={styles.priceText}>{event.price}</Text>
+                      </View>
+                    )}
+                  </Pressable>
+                </LinearGradient>
               </View>
             </>
           )}
@@ -213,17 +227,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.55)',
   },
 
-  // ── Sheet — matches v0 "glassmorphism rounded-t-3xl h-full flex flex-col"
-  // Fixed height = 40vh (v0 default non-expanded state)
+  // ── Sheet — BlurView inside View with borderRadius + overflow:hidden
   sheet: {
     height: SHEET_HEIGHT,
-    backgroundColor: 'rgba(18, 18, 24, 0.98)',
-    borderTopLeftRadius: 24,     // rounded-t-3xl
+    backgroundColor: 'rgba(12, 12, 18, 0.88)', // Fallback
+    borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     borderTopWidth: 1,
     borderLeftWidth: 1,
     borderRightWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     paddingTop: 12,
     overflow: 'hidden',
   },
@@ -232,7 +245,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.20)',  // v0: bg-white/20
+    backgroundColor: 'rgba(255, 255, 255, 0.20)',
     marginBottom: 12,
   },
   closeBtn: {
@@ -250,7 +263,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,   // px-5
+    paddingHorizontal: 20,
     paddingBottom: 12,
   },
 
@@ -268,8 +281,8 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   categoryText: {
+    fontFamily: 'Inter_600SemiBold',
     fontSize: 10,
-    fontWeight: '600',
   },
   hypeBadge: {
     flexDirection: 'row',
@@ -281,16 +294,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(168, 85, 247, 0.15)',
   },
   hypeText: {
+    fontFamily: 'Inter_600SemiBold',
     fontSize: 10,
-    fontWeight: '600',
     color: '#A855F7',
   },
 
   // ── Title ─────────────────────────────────────────────────────────────────
-  // v0: text-xl font-bold (20px, 800)
   title: {
+    fontFamily: 'Inter_800ExtraBold',
     fontSize: 20,
-    fontWeight: '800',
     color: '#fff',
     lineHeight: 26,
     marginBottom: 10,
@@ -312,12 +324,14 @@ const styles = StyleSheet.create({
   },
   venueText: {
     flex: 1,
+    fontFamily: 'Inter_400Regular',
     fontSize: 13,
-    color: 'rgba(255,255,255,0.6)',   // v0: text-white/60
+    color: 'rgba(255,255,255,0.6)',
   },
   distanceText: {
+    fontFamily: 'Inter_400Regular',
     fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',   // v0: text-white/40
+    color: 'rgba(255,255,255,0.4)',
   },
   directionsChip: {
     flexDirection: 'row',
@@ -326,16 +340,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 8,
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',   // v0: bg-blue-500/15
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
   },
   directionsText: {
+    fontFamily: 'Inter_600SemiBold',
     fontSize: 11,
-    fontWeight: '600',
     color: '#3B82F6',
   },
 
   // ── Info pills ────────────────────────────────────────────────────────────
-  // v0: flex items-center gap-3 mb-4, each pill: px-2.5 py-1.5 rounded-lg bg-white/5
   pillRow: {
     flexDirection: 'row',
     gap: 8,
@@ -353,18 +366,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   pillCyan: {
+    fontFamily: 'Inter_600SemiBold',
     fontSize: 11,
-    fontWeight: '600',
     color: '#22D3EE',
   },
   pillPurple: {
+    fontFamily: 'Inter_600SemiBold',
     fontSize: 11,
-    fontWeight: '600',
     color: '#A855F7',
   },
 
   // ── Action row ────────────────────────────────────────────────────────────
-  // v0: flex items-center gap-2 mb-4
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -378,13 +390,12 @@ const styles = StyleSheet.create({
   },
   swipeHint: {
     marginLeft: 'auto',
+    fontFamily: 'Inter_400Regular',
     fontSize: 11,
     color: 'rgba(255,255,255,0.4)',
   },
 
   // ── CTA ───────────────────────────────────────────────────────────────────
-  // v0: bg-gradient-to-r from-purple-600 to-purple-500
-  //     shadow-[0_0_25px_rgba(168,85,247,0.4)]
   ctaWrapper: {
     paddingHorizontal: 20,
     paddingVertical: 14,
@@ -392,23 +403,24 @@ const styles = StyleSheet.create({
     borderTopColor: 'rgba(255, 255, 255, 0.06)',
   },
   ctaBtn: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#BC13FE',
+    shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 15,
+    shadowOpacity: 0.5,
+    elevation: 8,
+  },
+  ctaPressable: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     paddingVertical: 13,
-    borderRadius: 12,
-    // Approximate gradient from-purple-600 to-purple-500 with a single solid color
-    backgroundColor: '#9333EA',   // purple-600
-    shadowColor: '#A855F7',
-    shadowOffset: { width: 0, height: 0 },
-    shadowRadius: 20,
-    shadowOpacity: 0.5,
-    elevation: 12,
   },
   ctaText: {
+    fontFamily: 'Inter_700Bold',
     fontSize: 15,
-    fontWeight: '700',
     color: '#fff',
     letterSpacing: 0.2,
   },
@@ -419,8 +431,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.18)',
   },
   priceText: {
+    fontFamily: 'Inter_700Bold',
     fontSize: 11,
-    fontWeight: '700',
     color: '#fff',
   },
 
