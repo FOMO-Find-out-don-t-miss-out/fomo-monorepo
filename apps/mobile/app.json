@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "fomo-mobile",
+    "slug": "fomo-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "fomo",
+    "userInterfaceStyle": "automatic",
+    "platforms": ["ios", "android", "web"],
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.fomo.mobile"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#000000"
+      },
+      "package": "com.fomo.mobile"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}

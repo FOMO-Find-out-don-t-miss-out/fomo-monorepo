@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm install:*)",
+      "Bash(pnpm --filter @fomo/mobile add lucide-react-native react-native-svg)",
+      "Bash(node -e \"const {getDefaultConfig} = require\\('expo/metro-config'\\); const c = getDefaultConfig\\(__dirname\\); console.log\\(JSON.stringify\\(Object.keys\\(c.resolver\\), null, 2\\)\\)\")",
+      "Bash(node -e \"const {getDefaultConfig} = require\\('expo/metro-config'\\); const c = getDefaultConfig\\(__dirname\\); const fn = c.resolver.resolveRequest; console.log\\(fn ? fn.toString\\(\\).substring\\(0,300\\) : 'none'\\)\")"
+    ]
+  }
+}
