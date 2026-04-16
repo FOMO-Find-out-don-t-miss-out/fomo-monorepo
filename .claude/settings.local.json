@@ -8,7 +8,8 @@
       "Bash(cat app.json)",
       "Bash(cat app.config.ts)",
       "Bash(npx expo:*)",
-      "Bash(pnpm add:*)"
+      "Bash(pnpm add:*)",
+      "Bash(npx tsc *)"
     ]
   }
 }

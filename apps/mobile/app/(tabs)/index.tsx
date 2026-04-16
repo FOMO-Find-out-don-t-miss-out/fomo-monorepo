@@ -1,9 +1,12 @@
+import { CalendarView } from '../../components/fomo/calendar-view';
 import { EventCard, type Event } from '../../components/fomo/event-card';
 import { EventDetails } from '../../components/fomo/event-details';
+import { FomoMap } from '../../components/fomo/fomo-map';
 import { NeonGrid } from '../../components/fomo/neon-grid';
 import { SearchBar } from '../../components/fomo/search-bar';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
+  Animated,
   Dimensions,
   ScrollView,
   StyleSheet,
@@ -181,49 +184,70 @@ const EVENTS: Event[] = [
 
 export default function DiscoveryScreen() {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [isCalendarView, setIsCalendarView] = useState(false);
 
   const carouselPadding = (SCREEN_WIDTH - CARD_WIDTH) / 2;
+
+  // Fade the map-view carousel in whenever we return to it.
+  const carouselOpacity = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (isCalendarView) return;
+    carouselOpacity.setValue(0);
+    Animated.timing(carouselOpacity, {
+      toValue: 1,
+      duration: 240,
+      useNativeDriver: true,
+    }).start();
+  }, [isCalendarView, carouselOpacity]);
 
   return (
     // Use flex:1 so the screen fills the tab content area
     <View style={styles.screen}>
 
-      {/* Layer 0: background */}
-      <View style={[StyleSheet.absoluteFill, styles.background]} />
+      {/* Layer 0: Mapbox — bottom-most. Renders behind every other layer. */}
+      <FomoMap />
 
-      {/* Layer 1: neon grid — pointerEvents="none" so it never blocks touches */}
+      {/* Layer 1: neon grid overlay — pointerEvents="none" so it never blocks touches */}
       <NeonGrid />
 
       {/* Layer 2: SearchBar — box-none so empty space passes touches through */}
       <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-        <SearchBar />
+        <SearchBar
+          isCalendarView={isCalendarView}
+          onViewToggle={() => setIsCalendarView((v) => !v)}
+        />
       </View>
 
-      {/* Layer 3: carousel
-          Rendered as a plain absolute View OUTSIDE the box-none wrapper so
-          that Pressable gestures on EventCard fire reliably on all platforms. */}
-      <View style={styles.carouselAnchor}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          decelerationRate="fast"
-          snapToInterval={CARD_WIDTH + CARD_GAP}
-          snapToAlignment="center"
-          contentContainerStyle={[
-            styles.carouselContent,
-            { paddingHorizontal: carouselPadding },
-          ]}
-        >
-          {EVENTS.map((event) => (
-            <EventCard
-              key={event.id}
-              event={event}
-              isActive={selectedEvent?.id === event.id}
-              onPress={() => setSelectedEvent(event)}
-            />
-          ))}
-        </ScrollView>
-      </View>
+      {/* Layer 3a: Map-view carousel — hidden in calendar view */}
+      {!isCalendarView && (
+        <Animated.View style={[styles.carouselAnchor, { opacity: carouselOpacity }]}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            decelerationRate="fast"
+            snapToInterval={CARD_WIDTH + CARD_GAP}
+            snapToAlignment="center"
+            contentContainerStyle={[
+              styles.carouselContent,
+              { paddingHorizontal: carouselPadding },
+            ]}
+          >
+            {EVENTS.map((event) => (
+              <EventCard
+                key={event.id}
+                event={event}
+                isActive={selectedEvent?.id === event.id}
+                onPress={() => setSelectedEvent(event)}
+              />
+            ))}
+          </ScrollView>
+        </Animated.View>
+      )}
+
+      {/* Layer 3b: Calendar view — contains the date strip + event list */}
+      {isCalendarView && (
+        <CalendarView events={EVENTS} onEventPress={setSelectedEvent} />
+      )}
 
       {/* Layer 4: details modal — rendered last so it sits on top of everything */}
       <EventDetails
@@ -240,9 +264,6 @@ export default function DiscoveryScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#0B0B0F',
-  },
-  background: {
     backgroundColor: '#0B0B0F',
   },
   carouselAnchor: {
