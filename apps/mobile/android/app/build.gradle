@@ -81,6 +81,13 @@ def enableMinifyInReleaseBuilds = (findProperty('android.enableMinifyInReleaseBu
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
+def workletsDir = ["node", "--print", "require.resolve('react-native-worklets-core/package.json')"].execute(null, rootDir).text.trim()
+def workletsPath = file(workletsDir).getParentFile().getAbsolutePath()
+
+project.ext.reactNativeWorkletsDir = workletsPath
+
+println "🧬 Worklets Core found at: ${workletsPath}"
+
 android {
 // @generated begin @rnmapbox/maps-libcpp - expo prebuild (DO NOT MODIFY) sync-e24830a5a3e854b398227dfe9630aabfaa1cadd1
 packagingOptions {
@@ -104,6 +111,13 @@ packagingOptions {
         versionName "1.0.0"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
+
+        externalNativeBuild {
+            cmake {
+                arguments "-DCMAKE_MAKE_PROGRAM=C:/ninja/ninja.exe",
+                          "-DCMAKE_OBJECT_PATH_MAX=1024"
+            }
+        }
     }
     signingConfigs {
         debug {

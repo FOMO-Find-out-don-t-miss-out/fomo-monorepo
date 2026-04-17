@@ -25,25 +25,6 @@ The project is structured as a modular monorepo:
 
 ---
 
-## 📜 API Contracts
-We use [TypeSpec](https://typespec.io/) to define our API contract as the single source of truth.
-- **Location**: `packages/api-spec/main.tsp`
-- **Build Spec**:
-  ```bash
-  cd packages/api-spec
-  npm install
-  tsp compile main.tsp
-  ```
-- **Goal**: Generate OpenAPI/FastAPI/TypeScript models from this spec to ensure consistency.
-
----
-
-## 🏗 Development Rules
-To ensure consistent quality and maintainability, all contributors must strictly adhere to our project guidelines:
-- [CORE_RULES.md](./CORE_RULES.md) - **Mandatory Architectural and Quality Standards.**
-
----
-
 ## 🛠 Tech Stack 2026
 This monorepo uses a modern, high-performance stack:
 - **Orchestration**: Turborepo (Intelligent Build & Test Acceleration)
@@ -52,70 +33,71 @@ This monorepo uses a modern, high-performance stack:
 - **API Contracts**: TypeSpec (Single source of truth for API definitions)
 - **Backend**: FastAPI, SQLModel, PostGIS
 - **Frontend**: Next.js 16+, Tailwind, Shadcn UI
+- **Mobile**: Expo 55+, React Native 0.81.5+
 
 ---
 
-## ✅ Quality Gates
-We enforce strict industry standards for every contribution:
-- **CACHED VALIDATION**: Local development must use `pnpm check-quality` to ensure only affected parts are tested.
-- **Linting**: No warnings allowed (Ruff for Python, ESLint 9 for JS).
-- **Type Safety**: Mandatory type hints and strict TypeScript.
-- **Coverage**: Minimum **95% code coverage** is enforced.
+## 🚀 Prerequisites
 
-To run the full quality suite locally:
-```bash
-pnpm check-quality
-```
+### Core (All OS)
+- **Node.js 20+** & **pnpm 9+**
+- **Python 3.12+** & **uv**
+- **Docker Desktop**
+- **Android Studio** & **JDK 17** (for mobile development)
+
+### 🪟 Windows 11 Specifics (CRITICAL)
+To support native builds and bypass long-path limits on Windows, you **MUST** have:
+1.  **Ninja 1.13.2+**: Download the binary and place it exactly at `C:/ninja/ninja.exe`. Ensure it is in your System PATH.
+2.  **Long Paths**: Enable via registry (`LongPathsEnabled` = 1 in `HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\FileSystem`).
+3.  **Build Flags**: Do not remove the `CMAKE_OBJECT_PATH_MAX=1024` injection found in `apps/mobile/android/build.gradle`.
 
 ---
 
-## 🚀 Getting Started (First-Time Setup)
+## ✅ Getting Started (First-Time Setup)
 
-Follow these steps exactly to initialize the project after cloning.
-
-### 1. Prerequisites
-Ensure you have the following installed:
-- [uv](https://github.com/astral-sh/uv) (For Python)
-- [pnpm](https://pnpm.io/installation) (For JS/TS)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-
-### 2. Initialization
+### 1. Bootstrap
 Run these commands from the root directory:
 ```bash
-# 1. Install JS/TS dependencies and link workspaces
+# Install JS/TS dependencies and link workspaces
 pnpm install
 
-# 2. Sync Python dependencies
+# Sync Python dependencies
 uv sync
 
-# 3. Verify the stack (runs lint, test, and schema checks)
+# Verify the stack (runs lint, test, and schema checks)
 pnpm check-quality
 ```
 
-### 3. Environment Configuration
-Create a `.env` file in the root directory:
+### 2. Environment Configuration
+Create a `.env` file in the root directory (and copy relevant keys to `apps/api/.env` and `apps/mobile/.env`):
 ```env
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 POSTGRES_DB=fomo
 REDIS_URL=redis://redis:6379/0
 DATABASE_URL=postgresql+psycopg2://postgres:postgres@db:5432/fomo
-MAPBOX_ACCESS_TOKEN=your_mapbox_token
+MAPBOX_ACCESS_TOKEN=your_mapbox_pk_token
 GOOGLE_API_KEY=your_gemini_api_key
 N8N_WEBHOOK_URL=http://fomo_harvester_n8n:5678/webhook/your-id
-```
 
-### 4. Spin up the Infrastructure
+# Mobile Specific (in apps/mobile/.env)
+EXPO_PUBLIC_MAPBOX_TOKEN=pk.your_public_token
+```
+*Note: For Mapbox Gradle downloads, place your secret `sk.*` token in `~/.gradle/gradle.properties`.*
+
+### 3. Spin up the Infrastructure
 ```bash
+# Start containers
 docker compose up -d --build
-```
 
-### 5. Initialize the Database Schema
-```bash
+# Apply database migrations
 docker compose exec api alembic upgrade head
+
+# Hydrate local data
+pnpm db:seed
 ```
 
-### 6. Verify the Installation
+### 4. Verify the Installation
 - **Moderation Dashboard**: [http://localhost:3000](http://localhost:3000)
 - **API Health Check**: [http://localhost:8000/api/v1/health](http://localhost:8000/api/v1/health)
 - **API Documentation (Swagger)**: [http://localhost:8000/docs](http://localhost:8000/docs)
@@ -124,84 +106,71 @@ docker compose exec api alembic upgrade head
 
 ---
 
-## 🛠 Tooling
-
-### MCP Awareness (Infrastructure Bridge)
-To improve AI-driven development, this monorepo supports the **Model Context Protocol (MCP)**.
-- **Config**: `infra/mcp-config.json`
-- **Purpose**: Allows AI agents to connect directly to the live PostgreSQL/PostGIS database to inspect schemas, indexes, and constraints.
-- **Benefit**: Eliminates hallucinations when proposing database migrations or SQLModel changes. Agents can verify the state of the infrastructure in real-time.
-
----
-
 ## 🛠 Development Workflows
 
-### Database Migrations
-When you modify models in `packages/domain/`:
-1. **Generate a migration**:
-   ```bash
-   docker compose exec api alembic revision --autogenerate -m "describe_your_change"
-   ```
-2. **Apply the migration**:
-   ```bash
-   docker compose exec api alembic upgrade head
-   ```
+### Running Workspaces Locally
+- **API**: `pnpm --filter @fomo/api dev`
+- **Dashboard**: `pnpm --filter @fomo/harvester-dashboard dev`
+- **Mobile (Expo)**: `adb reverse tcp:8081 tcp:8081` then `pnpm --filter @fomo/mobile start`
+
+### Database Migrations (Alembic)
+When you modify models in `packages/domain/models/`:
+1. **Generate**: `docker compose exec api alembic revision --autogenerate -m "description"`
+2. **Apply**: `docker compose exec api alembic upgrade head`
 
 ### Database Hydration
-To sync data between devices or restore a known state:
-- **Dump data**: `pnpm db:dump` (Exports `Venues` and `Events` to `infra/seeds/`).
-- **Seed data**: `pnpm db:seed` (Imports JSON files from `infra/seeds/` into the local DB).
-  *Note: Always run migrations (`alembic upgrade head`) before seeding.*
+- **Seed**: `pnpm db:seed` (Imports from `infra/seeds/`)
+- **Dump**: `pnpm db:dump` (Exports live data to `infra/seeds/` for versioning)
 
-#### Resolving "Schema Drift" Errors
-If the quality gates fail with "CRITICAL: Schema Drift Detected", it means your SQLModel definitions do not match the live database schema.
-- **Why it happens**: You modified a model but didn't create/apply a migration, or your local DB is out of sync.
-- **Solution**: 
-  1. Ensure your local database is running: `docker compose up -d db`.
-  2. Generate a new migration: `docker compose exec api alembic revision --autogenerate -m "fix_drift"`.
-  3. Apply it: `docker compose exec api alembic upgrade head`.
-  4. Re-run the quality check: `./tooling/check-quality.sh`.
-
-### Running Scrapers
-You can trigger the internal scraper manually via the API:
+### Data Pipeline (Harvester)
+Trigger internal services via the API:
 ```bash
-# via Curl
+# Trigger Scraper
 curl -X POST http://localhost:8000/api/v1/ingestion/run-scraper
-```
-*Note: This runs in the background and will ingest data into the `pending_events` table.*
 
----
-
-## 🛠 Troubleshooting
-
-### Installing `uv` on Windows
-If `uv` is not found, install it locally via the official PowerShell script:
-```powershell
-powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
-
-### Docker Build Context & Monorepo Integrity
-In this monorepo, **all Docker builds must be executed from the root directory**. This is because services in `apps/` depend on shared packages in `packages/` (e.g., the API depends on the `domain` package).
-
-If you build from inside `apps/api/`, Docker will not be able to "see" the `packages/` directory, and the build will fail. Our `docker-compose.yml` is already configured to handle this correctly.
-
-If building manually:
-```bash
-# CORRECT: Run from monorepo root
-docker build -t fomo-api -f apps/api/Dockerfile .
-
-# INCORRECT: Will fail to find packages/domain
-cd apps/api && docker build -t fomo-api .
+# Trigger Batch Geocoding
+curl -X POST http://localhost:8000/api/v1/ingestion/batch-geocode
 ```
 
 ---
 
-## 🛠 Troubleshooting
-...
-### Build Failures
-**Important**: Ensure your Docker build context is at the **monorepo root**. Shared logic in `packages/` is invisible to Docker if the context is set to a subdirectory.
+## 🤖 AI & Tooling
+
+### MCP Awareness (Infrastructure Bridge)
+This repo supports the **Model Context Protocol (MCP)**. Config: `infra/mcp-config.json`.
+Allows AI agents to connect directly to the live PostgreSQL database to inspect schemas and constraints in real-time.
+
+### Quality Gates
+We enforce strict standards via `pnpm check-quality`:
+- **Linting**: Ruff (Python), ESLint (JS/TS).
+- **Type Safety**: Strict TypeSpec and TypeScript.
+- **Coverage**: Minimum **95% code coverage** is enforced.
 
 ---
 
-## 🔒 Security Note
-Never commit your `.env` file. A `.gitignore` is included to protect your credentials.
+## 🔍 Troubleshooting (The "Golden List")
+
+### Windows Native Build Failures
+- **Manifest 'build.ninja' still dirty**: Ensure you are using Ninja 1.13.2+ located at `C:/ninja/ninja.exe`. Standard CMake-bundled Ninja often fails with Windows path lengths.
+- **Path too long**: Verify `LongPathsEnabled` is 1 and the `subprojects` block in `apps/mobile/android/build.gradle` is applying the `CMAKE_OBJECT_PATH_MAX` flag.
+
+### Mobile & Metro
+- **White/Red screen on phone**: Metro is likely unreachable. Run `adb reverse tcp:8081 tcp:8081`.
+- **Mapbox token errors**: Ensure `EXPO_PUBLIC_MAPBOX_TOKEN` is in `apps/mobile/.env` AND the secret token is in your global `gradle.properties`.
+- **`adb devices` empty**: Check USB drivers, MTP mode, and accept the RSA fingerprint prompt on the device.
+
+### Docker & Python
+- **Build Context Error**: All Docker commands **MUST** be run from the monorepo root. Building from `apps/api/` will fail to find `packages/domain`.
+- **`/dev/null` error**: If `uv sync` fails in Docker, ensure `ENV UV_NO_PROGRESS=1` is set in the Dockerfile.
+- **Schema Drift Detected**: Your SQLModel definitions don't match the DB. Run migrations (`alembic revision --autogenerate`) to sync.
+
+### General
+- **Turbo Cache Poisoning**: If changes aren't reflecting, run `pnpm turbo run <task> --force` or delete the `.turbo` folders.
+- **uv lock conflict**: If dependencies are wonky, run `uv lock --upgrade` or delete `uv.lock` and re-run `uv sync`.
+
+---
+
+## 🔒 Security & Rules
+- Never commit `.env` files.
+- Refer to [CORE_RULES.md](./CORE_RULES.md) for mandatory architectural standards.
+- **TypeSpec** (`packages/api-spec`) is the single source of truth for API definitions.

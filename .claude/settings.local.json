@@ -9,7 +9,13 @@
       "Bash(cat app.config.ts)",
       "Bash(npx expo:*)",
       "Bash(pnpm add:*)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(node --print \"require.resolve\\('react-native-worklets/package.json', {paths: ['C:/fomo-monorepo/apps/mobile']}\\)\")",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('peer:', JSON.stringify\\(p.peerDependencies,null,2\\)\\)\")",
+      "Bash(C:/ninja/ninja.exe *)",
+      "Bash(rm -rf /c/fomo-monorepo/node_modules/.pnpm/react-native-worklets@*/node_modules/react-native-worklets/android/.cxx)",
+      "Bash(rm -rf /c/fomo-monorepo/node_modules/.pnpm/react-native-reanimated@*/node_modules/react-native-reanimated/android/.cxx)",
+      "Bash(./gradlew *)"
     ]
   }
 }

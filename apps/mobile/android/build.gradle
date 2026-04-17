@@ -1,5 +1,31 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 
+// C:\fomo-monorepo\apps\mobile\android\build.gradle
+
+def resolveWorkletsDir() {
+    try {
+        // Χρησιμοποιούμε το node για να βρούμε το πακέτο μέσα στο monorepo
+        def proc = ["node", "--print", "require.resolve('react-native-worklets-core/package.json')"].execute(null, rootDir)
+        proc.waitFor()
+        if (proc.exitValue() == 0) {
+            return file(proc.text.trim()).getParentFile().getAbsolutePath()
+        }
+    } catch (Exception e) {
+        // Fallback αν το node αποτύχει για οποιονδήποτε λόγο
+    }
+    return null
+}
+
+// Ορίζουμε την ιδιότητα στο rootProject ώστε να τη δεί το Reanimated
+allprojects {
+    project.ext.reactNativeWorkletsDir = resolveWorkletsDir()
+
+    // Debug print για να είμαστε σίγουροι στο επόμενο build
+    if (project.name == "app") {
+        println "🧬 Worklets Core Path: ${project.ext.reactNativeWorkletsDir}"
+    }
+}
+
 buildscript {
   repositories {
     google()
@@ -44,3 +70,23 @@ allprojects {
 }
 
 // @generated end @rnmapbox/maps-v2-maven
+
+// Propagate custom Ninja (1.12+) and extended CMAKE_OBJECT_PATH_MAX to EVERY
+// Android subproject (third-party native modules like react-native-worklets,
+// react-native-reanimated). Without this, their CMake invocations fall back to
+// the Android SDK's bundled Ninja 1.10 and the 250-char object-path cap,
+// producing "manifest 'build.ninja' still dirty after 100 tries" on Windows
+// monorepos where pnpm paths are long.
+subprojects { proj ->
+    def applyCmakeFlags = {
+        def cmakeArgs = proj.android.defaultConfig.externalNativeBuild.cmake.arguments
+        if (!cmakeArgs.any { it.toString().startsWith('-DCMAKE_MAKE_PROGRAM=') }) {
+            cmakeArgs.add('-DCMAKE_MAKE_PROGRAM=C:/ninja/ninja.exe')
+        }
+        if (!cmakeArgs.any { it.toString().startsWith('-DCMAKE_OBJECT_PATH_MAX=') }) {
+            cmakeArgs.add('-DCMAKE_OBJECT_PATH_MAX=1024')
+        }
+    }
+    proj.plugins.withId('com.android.library')     { applyCmakeFlags() }
+    proj.plugins.withId('com.android.application') { applyCmakeFlags() }
+}

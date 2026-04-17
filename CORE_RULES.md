@@ -76,6 +76,21 @@ Every coding task performed by an AI agent must follow this iterative cycle:
 - **Geocoding**: Mapbox-based location resolution via `GeocoderService`.
 - **Moderation**: Events flow from `pending_events` (moderation) to `events` (live) via the dashboard.
 
+## 🪟 WINDOWS NATIVE INFRASTRUCTURE (Phase 1 Fixes)
+To prevent "build.ninja is dirty" and long-path errors on Windows 11:
+1.  **NINJA**: Must use custom Ninja 1.13.2 at `C:/ninja/ninja.exe`.
+2.  **LONG PATHS**: `apps/mobile/android/build.gradle` contains a `subprojects` block that injects `CMAKE_OBJECT_PATH_MAX=1024` into all native subprojects. Do not remove this.
+3.  **WORKLETS**: Reanimated v4 worklets-dir is resolved via `node require.resolve` in the root `build.gradle` to bypass pnpm isolation issues.
+
+## 🛠 COMMANDS & WORKFLOWS
+- **Python**: Always use `uv sync`. Never `pip`.
+- **Node**: Always use `pnpm install`. Never `npm` or `yarn`.
+- **API Spec**: `packages/api-spec` is the source of truth. Regenerate via `pnpm --filter @fomo/api-spec build`.
+- **Mobile**:
+  - Run from `apps/mobile/android` using `./gradlew`.
+  - For physical devices: `adb reverse tcp:8081 tcp:8081` is mandatory for Metro connectivity.
+  - Mapbox: `EXPO_PUBLIC_MAPBOX_TOKEN` (pk.*) in `.env` AND `sk.*` token in `~/.gradle/gradle.properties`.
+
 ---
 
 ## 💡 Implementation Notes

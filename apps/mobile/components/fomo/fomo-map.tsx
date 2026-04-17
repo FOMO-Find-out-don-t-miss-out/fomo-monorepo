@@ -7,7 +7,7 @@ import { StyleSheet, Text, View } from 'react-native';
 // native builds belongs in EAS secrets, not here.
 const ACCESS_TOKEN =
   (globalThis as { process?: { env?: Record<string, string | undefined> } })
-    .process?.env?.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN ?? '';
+    .process?.env?.EXPO_PUBLIC_MAPBOX_TOKEN ?? '';
 
 const DARK_STYLE_URL = 'mapbox://styles/mapbox/dark-v11';
 // Placeholder centering — swap for device location once permissions flow lands.
