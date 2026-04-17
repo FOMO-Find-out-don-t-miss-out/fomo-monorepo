@@ -7,6 +7,6 @@
     "test": "cross-env PYTHONPATH=../../ uv run pytest tests --cov=app --cov-fail-under=95",
     "verify-schema": "cross-env PYTHONPATH=../../ uv run python ../../tooling/verify-schema-sync.py",
     "build": "echo 'No build step for Python API'",
-    "check-quality": "pnpm lint && pnpm test"
+    "check-quality": "pnpm lint && pnpm test && pnpm verify-schema"
   }
 }

@@ -145,6 +145,7 @@ We enforce strict standards via `pnpm check-quality`:
 - **Linting**: Ruff (Python), ESLint (JS/TS).
 - **Type Safety**: Strict TypeScript (types generated from FastAPI OpenAPI spec via openapi-typescript).
 - **Coverage**: Minimum **95% code coverage** is enforced.
+- **Generated API Artifact Verification**: `pnpm --filter @fomo/api-spec verify-schema` runs `uv run python tooling/verify-generated-api-artifacts.py`, regenerates `openapi.json` and frontend `api.generated.ts` files, then fails if Git detects drift in those tracked generated artifacts.
 
 ---
 

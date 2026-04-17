@@ -69,6 +69,12 @@ Every coding task performed by an AI agent must follow this iterative cycle:
 
 - **SYNC LOCK**: No PR shall be merged if the `verify-schema-sync` check fails. Any Python model change MUST be followed by a generated Alembic migration in the same commit, and `pnpm --filter @fomo/api-spec build` must be re-run to keep `openapi.json` and generated TypeScript types in sync.
 
+### Schema Sync Workflow
+- Run `python tooling/verify-schema-sync.py` before pushing backend contract changes. This is the manual pre-commit gate until a repo-level pre-commit framework is introduced.
+- `verify-schema-sync.py` checks four things only: ORM metadata vs the live DB, FastAPI path/method and named-schema coverage vs committed `packages/api-spec/openapi.json`, freshness of generated frontend API types, and mobile category alias coherence vs the backend enum.
+- `pnpm --filter @fomo/api-spec build` regenerates `packages/api-spec/openapi.json` plus both frontend `api.generated.ts` files. Do not hand-edit generated artifacts.
+- `pnpm turbo run check-quality --force` is the authoritative CI-equivalent local verification. `@fomo/api` must execute `verify-schema-sync.py` inside its own `check-quality`, and `@fomo/api-spec` must rebuild generated artifacts and fail if Git shows drift afterward.
+
 ### Data Pipeline (Harvester)
 - **Extraction**: Modular extractors (JSON-LD, AI/LLM via Gemini/Instructor) in `apps/api/app/services/harvester/cleansing/`.
 - **Classification**: Business logic for taxonomy and tagging MUST reside in `packages/domain/services/event_classifier.py`.

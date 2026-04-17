@@ -1,7 +1,7 @@
 """add_source_provider_and_ingestion_method
 
 Revision ID: 3a2b1c0d4e5f
-Revises: 10301ff1b1a9
+Revises: 9a1b2c3d4e5f
 Create Date: 2026-03-29 12:00:00.000000
 
 """
@@ -12,6 +12,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "3a2b1c0d4e5f"
+# Intentionally chained after 9a1b2c3d4e5f; the stale header previously implied a branch.
 down_revision = "9a1b2c3d4e5f"
 branch_labels = None
 depends_on = None

@@ -1,0 +1,66 @@
+name: Quality Checks
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "apps/**"
+      - "packages/**"
+      - "tooling/**"
+      - ".github/workflows/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "turbo.json"
+  pull_request:
+    branches: [main, master]
+    paths:
+      - "apps/**"
+      - "packages/**"
+      - "tooling/**"
+      - ".github/workflows/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "turbo.json"
+
+jobs:
+  quality:
+    name: Turbo Quality Gates
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.3.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Sync Python workspace
+        run: uv sync
+
+      - name: Run Turbo quality gates
+        run: pnpm turbo run check-quality --force
