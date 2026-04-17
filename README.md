@@ -113,6 +113,59 @@ pnpm db:seed
 - **Dashboard**: `pnpm --filter @fomo/harvester-dashboard dev`
 - **Mobile (Expo)**: `adb reverse tcp:8081 tcp:8081` then `pnpm --filter @fomo/mobile start`
 
+### Mobile Build, Sync, and Device Run
+Use the monorepo root for dependency sync, then run Expo from the mobile workspace:
+```bash
+# Root: install JS dependencies and sync Python workspace tooling
+pnpm install
+uv sync
+
+# Regenerate API types consumed by mobile
+pnpm --filter @fomo/api-spec build
+```
+
+#### Android
+Preferred workflow when you want to rebuild native changes and choose the target device yourself:
+```bash
+# Root: start Metro only
+pnpm --filter @fomo/mobile start
+```
+
+Then use Android Studio for the native run:
+1. Open `apps/mobile/android` in Android Studio.
+2. Wait for Gradle sync to finish.
+3. Select the emulator or physical device you actually want from the device picker in the Android Studio toolbar.
+4. Click **Run 'app'** to rebuild, install, and launch the app on that selected device.
+
+For a physical Android device, also run:
+```bash
+# Verify the device is connected
+adb devices
+
+# Required for Metro connectivity on physical devices
+adb reverse tcp:8081 tcp:8081
+```
+
+If you prefer the CLI path instead of Android Studio:
+```bash
+# Build and install the native app
+pnpm --filter @fomo/mobile android
+```
+
+`pnpm --filter @fomo/mobile start` should be treated as the Metro/dev server command, not the command that chooses which Android emulator to run.
+
+#### iOS
+iOS native builds require macOS with Xcode installed.
+```bash
+# Build and launch on the iOS simulator or a connected device
+pnpm --filter @fomo/mobile ios
+
+# Start Expo/Metro
+pnpm --filter @fomo/mobile start
+```
+
+For production binaries, the mobile workspace currently uses EAS rather than a local `build` script.
+
 ### Database Migrations (Alembic)
 When you modify models in `packages/domain/models/`:
 1. **Generate**: `docker compose exec api alembic revision --autogenerate -m "description"`
