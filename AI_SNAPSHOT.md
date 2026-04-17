@@ -1,43 +1,186 @@
 # AI Context Snapshot (2026 standards)
 
-## 🎯 CURRENT PHASE: 2 (Data & Schema Sync)
-- **Phase 1 (Native Infra) COMPLETE**: Windows 11 build loop stable with Ninja 1.13.2 @ `C:/ninja/ninja.exe` and `CMAKE_OBJECT_PATH_MAX=1024` fix in `apps/mobile/android/build.gradle`.
-- **Phase 2 Objective**: Verify end-to-end schema sync: `TypeSpec` (Source) -> `packages/domain` (Models) -> `PostgreSQL` (Alembic).
-
-## 📁 Key Workspaces
-- `apps/api`: FastAPI, SQLModel, Geocoder, Harvester Orchestrator.
-- `apps/mobile`: Expo 55, RN 0.81.5, Mapbox integration.
-- `packages/api-spec`: TypeSpec definitions (Source of Truth).
-- `packages/domain`: Shared Pydantic/SQLModel logic.
-
-## 🛣 API Routes (v1 Summary)
-- `/health`: System health.
-- `/ingestion/run-scraper`: Manual harvester trigger.
-- `/moderation/pending-events`: Moderation queue management.
-- `/moderation/venues`: Venue management & merging.
-- `/moderation/geocode/suggestions`: Mapbox suggestions.
-
-## 🏗 Infrastructure State
-- **Docker**: `api`, `db` (PostGIS), `redis`, `dashboard`, `n8n` active.
-- **Database**: Migrations applied up to `head`. Seeding functional via `pnpm db:seed`.
-- **Mobile**: Metro reachable via `adb reverse tcp:8081 tcp:8081`. Mapbox tokens required in `.env` (pk.*) and `gradle.properties` (sk.*).
-
-## 🧪 Quality Gates
-- **Lint**: Ruff (Strict), ESLint.
-- **Coverage**: 95% minimum enforced.
-- **Sync**: `verify-schema-sync.py` checks TypeSpec vs live DB.
-
-## 📁 Directory Tree (Max Depth: 2)
+## 📁 Directory Tree (Max Depth: 3)
 ```text
 fomo-monorepo/
-├── apps/
-│   ├── api/                   # Backend
-│   ├── harvester-dashboard/   # Admin UI
-│   └── mobile/                # Expo App
-├── packages/
-│   ├── api-spec/              # TypeSpec (Truth)
-│   └── domain/                # Shared Logic
-├── infra/                     # DB & MCP Config
-├── tooling/                   # Quality Scripts
-└── CORE_RULES.md              # Mandatory Guidelines
+├───.claude/
+│   └───settings.local.json
+├───.github/
+│   └───workflows/
+│   │   └───main.yml
+├───.idea/
+│   ├───dataSources/
+│   │   ├───3d7fad17-632b-4e76-86f7-7a92f1d6664b/
+│   │   ├───3d7fad17-632b-4e76-86f7-7a92f1d6664b.xml
+│   │   └───data_sources_history.xml
+│   ├───inspectionProfiles/
+│   │   └───profiles_settings.xml
+│   ├───.gitignore
+│   ├───dataSources.local.xml
+│   ├───dataSources.xml
+│   ├───fomo-monorepo.iml
+│   ├───misc.xml
+│   ├───modules.xml
+│   ├───vcs.xml
+│   └───workspace.xml
+├───apps/
+│   ├───api/
+│   │   ├───app/
+│   │   ├───migrations/
+│   │   ├───tests/
+│   │   ├───.coverage
+│   │   ├───.coveragerc
+│   │   ├───.env
+│   │   ├───alembic.ini
+│   │   ├───Dockerfile
+│   │   ├───package.json
+│   │   ├───pyproject.toml
+│   │   └───requirements.txt
+│   ├───harvester-dashboard/
+│   │   ├───app/
+│   │   ├───components/
+│   │   ├───hooks/
+│   │   ├───lib/
+│   │   ├───public/
+│   │   ├───styles/
+│   │   ├───types/
+│   │   ├───.dockerignore
+│   │   ├───.gitignore
+│   │   ├───components.json
+│   │   ├───Dockerfile
+│   │   ├───eslint.config.mjs
+│   │   ├───next-env.d.ts
+│   │   ├───next.config.mjs
+│   │   ├───package.json
+│   │   ├───pnpm-lock.yaml
+│   │   ├───postcss.config.mjs
+│   │   ├───tsconfig.json
+│   │   └───tsconfig.tsbuildinfo
+│   └───mobile/
+│   │   ├───.expo/
+│   │   ├───android/
+│   │   ├───app/
+│   │   ├───components/
+│   │   ├───types/
+│   │   ├───.env
+│   │   ├───.gitignore
+│   │   ├───app.json
+│   │   ├───babel.config.js
+│   │   ├───eslint.config.js
+│   │   ├───global.css
+│   │   ├───metro.config.js
+│   │   ├───nativewind-env.d.ts
+│   │   ├───package.json
+│   │   ├───tailwind.config.js
+│   │   ├───tsconfig.json
+│   │   └───tsconfig.json.lRPRMCiDQwoFK9sZh0mFMYTY3UVAxw_O4GRZCs7yYqE
+├───docs/
+│   └───infrastructure/
+│   │   └───mcp-setup.md
+├───infra/
+│   ├───postgres/
+│   │   └───init-db.sh
+│   ├───seeds/
+│   │   ├───events.json
+│   │   ├───pending_events.json
+│   │   └───venues.json
+│   └───mcp-config.json
+├───packages/
+│   ├───api-spec/
+│   │   ├───openapi.json
+│   │   └───package.json
+│   ├───domain/
+│   │   ├───domain.egg-info/
+│   │   ├───models/
+│   │   ├───resources/
+│   │   ├───schemas/
+│   │   ├───services/
+│   │   ├───tests/
+│   │   ├───utils/
+│   │   ├───__init__.py
+│   │   ├───package.json
+│   │   └───pyproject.toml
+│   └───__init__.py
+├───tooling/
+│   ├───check-quality.ps1
+│   ├───check-quality.sh
+│   ├───db-hydrate.py
+│   ├───debug_geocoder.py
+│   ├───generate-context.py
+│   ├───generate-frontend-types.mjs
+│   └───verify-schema-sync.py
+├───.coverage
+├───.dockerignore
+├───.env
+├───.gitignore
+├───AGENTS.md
+├───AI_SNAPSHOT.md
+├───CLAUDE.md
+├───CORE_RULES.md
+├───docker-compose.yml
+├───GEMINI.md
+├───opencode.json
+├───package.json
+├───pnpm-lock.yaml
+├───pnpm-workspace.yaml
+├───pyproject.toml
+├───README.md
+├───ruff.toml
+├───turbo.json
+└───uv.lock
 ```
+
+## 🛣 API Routes (v1)
+### events.py
+- GET `/discovery` -> `get_events_discovery`
+### health.py
+- GET `/health` -> `health_check`
+### ingestion.py
+- POST `/ingest` -> `ingest_events`
+- POST `/approve/{pending_id}` -> `approve_event`
+- DELETE `/cleanup-pending` -> `cleanup_pending_events`
+- DELETE `/reject/{pending_id}` -> `reject_event`
+- POST `/run-scraper` -> `trigger_scraper`
+- POST `/batch-geocode` -> `trigger_batch_geocode`
+### moderation.py
+- GET `/pending-events` -> `get_pending_events`
+- GET `/events` -> `get_published_events`
+- POST `/events/{event_id}/unpublish` -> `unpublish_event`
+- PATCH `/events/{event_id}` -> `update_published_event`
+- PATCH `/pending-events/{event_id}` -> `update_pending_event`
+- POST `/pending-events/{event_id}/approve` -> `approve_event`
+- POST `/pending-events/{event_id}/reject` -> `reject_event`
+- POST `/pending-events/approve-batch` -> `approve_events_batch`
+- POST `/pending-events/reject-batch` -> `reject_events_batch`
+- POST `/pending-events/{event_id}/occurrences` -> `add_occurrence`
+- GET `/venues` -> `get_venues`
+- PATCH `/venues/{venue_id}` -> `update_venue`
+- DELETE `/venues/{venue_id}` -> `delete_venue`
+- POST `/venues/merge` -> `merge_venues`
+- POST `/batch-update-location` -> `batch_update_location`
+- GET `/geocode/suggestions` -> `get_geocode_suggestions`
+
+## 🏗 OpenAPI Schemas (packages/api-spec/openapi.json)
+- `BatchApproveRequest`
+- `BatchRejectRequest`
+- `EventBase`
+- `EventDiscoveryResponse`
+- `EventIngest`
+- `GeocodeResult`
+- `HTTPValidationError`
+- `IngestSummary`
+- `LocationBatchUpdate`
+- `OccurrenceCreate`
+- `PendingEventResponse`
+- `PendingEventUpdate`
+- `ValidationError`
+- `Venue`
+- `VenueMergeRequest`
+- `VenueUpdate`
+
+Total endpoints: 24
+
+## 🧪 Quality & Coverage Status
+- `.coverage` file present (95% target enforced).
+- Linting: Ruff (Python), ESLint (TS/JS).
+- Validation: FastAPI → openapi.json → openapi-typescript pipeline.

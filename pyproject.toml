@@ -15,6 +15,11 @@ members = [
     "packages/domain",
 ]
 
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["apps/api/tests"]
+asyncio_mode = "auto"
+
 [dependency-groups]
 dev = [
     "ruff>=0.6.9",

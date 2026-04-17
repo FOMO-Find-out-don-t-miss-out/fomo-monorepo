@@ -22,7 +22,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
-import type { PendingEvent, GeocodeSuggestion } from '@/types/moderation'
+import type { PendingEvent, GeocodeSuggestion } from '@/types/api'
 import { moderationApi } from '@/lib/api'
 import {
   ExternalLink,
@@ -191,21 +191,16 @@ export function EventInspector({ event, open, onOpenChange, onApprove, onReject 
   if (!event || !editedEvent) return null
 
   // Extract occurrences from metadata
-  const occurrences = editedEvent.event_metadata?.occurrences || []
+  const occurrences = (editedEvent.event_metadata?.occurrences as Array<{ start_time: string }> | undefined) ?? []
 
   // Extract coordinates for Mapbox iframe
   let lat = 37.9838, lng = 23.7275 // Default Athens
   
-  if (editedEvent.location) {
-    if (typeof editedEvent.location === 'string' && editedEvent.location.startsWith('POINT')) {
-      const coords = editedEvent.location.match(/POINT\((.+) (.+)\)/)
-      if (coords) {
-        lng = parseFloat(coords[1])
-        lat = parseFloat(coords[2])
-      }
-    } else if (typeof editedEvent.location === 'object' && editedEvent.location.type === 'Point' && Array.isArray(editedEvent.location.coordinates)) {
-      lng = editedEvent.location.coordinates[0]
-      lat = editedEvent.location.coordinates[1]
+  if (editedEvent.location && typeof editedEvent.location === 'object') {
+    const loc = editedEvent.location as { type?: unknown; coordinates?: unknown[] }
+    if (loc.type === 'Point' && Array.isArray(loc.coordinates)) {
+      lng = loc.coordinates[0] as number
+      lat = loc.coordinates[1] as number
     }
   }
 

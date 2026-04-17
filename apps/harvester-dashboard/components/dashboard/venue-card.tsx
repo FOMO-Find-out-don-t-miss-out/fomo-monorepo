@@ -2,7 +2,7 @@
 
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import type { Venue } from '@/types/moderation'
+import type { Venue } from '@/types/api'
 import { MapPin, CheckCircle2, Building2 } from 'lucide-react'
 
 interface VenueCardProps {

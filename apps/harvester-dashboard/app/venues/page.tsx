@@ -5,7 +5,7 @@ import { DashboardLayout } from '@/components/dashboard/dashboard-layout'
 import { VenueList } from '@/components/dashboard/venue-list'
 import { VenueInspector } from '@/components/dashboard/venue-inspector'
 import { moderationApi } from '@/lib/api'
-import type { Venue } from '@/types/moderation'
+import type { Venue } from '@/types/api'
 import { useQuery } from '@tanstack/react-query'
 
 export default function VenuesPage() {

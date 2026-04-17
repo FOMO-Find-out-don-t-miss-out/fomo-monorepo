@@ -29,7 +29,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
-import type { Venue, GeocodeSuggestion } from '@/types/moderation'
+import type { Venue, GeocodeSuggestion } from '@/types/api'
 import { moderationApi } from '@/lib/api'
 import {
   GitMerge,

@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { CheckCircle2, AlertCircle, XCircle, Filter, Search, MapPin, Database } from 'lucide-react'
 import { moderationApi } from '@/lib/api'
-import type { GeocodeSuggestion } from '@/types/moderation'
+import type { GeocodeSuggestion } from '@/types/api'
 import { cn } from '@/lib/utils'
 
 interface FilterSidebarProps {

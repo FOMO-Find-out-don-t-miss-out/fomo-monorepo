@@ -13,7 +13,7 @@ The project is structured as a modular monorepo:
 │   ├── harvester-dashboard/   # Next.js moderation dashboard
 │   └── mobile/                # Expo/React Native mobile application
 ├── packages/
-│   ├── api-spec/              # TypeSpec API Definitions (Source of Truth)
+│   ├── api-spec/              # OpenAPI contract (generated from FastAPI, source of truth for TS types)
 │   └── domain/                # Shared Logic (SQLModel, Services, Schemas, Utils)
 ├── infra/                     # Docker & Database Provisioning
 ├── tooling/                   # Quality & Build Scripts
@@ -30,7 +30,7 @@ This monorepo uses a modern, high-performance stack:
 - **Orchestration**: Turborepo (Intelligent Build & Test Acceleration)
 - **JS/TS Management**: pnpm (Fast, disk space efficient package manager)
 - **Python Management**: uv (Extremely fast Python package installer and resolver)
-- **API Contracts**: TypeSpec (Single source of truth for API definitions)
+- **API Contracts**: FastAPI → OpenAPI → openapi-typescript (Python models are source of truth)
 - **Backend**: FastAPI, SQLModel, PostGIS
 - **Frontend**: Next.js 16+, Tailwind, Shadcn UI
 - **Mobile**: Expo 55+, React Native 0.81.5+
@@ -143,7 +143,7 @@ Allows AI agents to connect directly to the live PostgreSQL database to inspect 
 ### Quality Gates
 We enforce strict standards via `pnpm check-quality`:
 - **Linting**: Ruff (Python), ESLint (JS/TS).
-- **Type Safety**: Strict TypeSpec and TypeScript.
+- **Type Safety**: Strict TypeScript (types generated from FastAPI OpenAPI spec via openapi-typescript).
 - **Coverage**: Minimum **95% code coverage** is enforced.
 
 ---
@@ -173,4 +173,4 @@ We enforce strict standards via `pnpm check-quality`:
 ## 🔒 Security & Rules
 - Never commit `.env` files.
 - Refer to [CORE_RULES.md](./CORE_RULES.md) for mandatory architectural standards.
-- **TypeSpec** (`packages/api-spec`) is the single source of truth for API definitions.
+- **FastAPI Python models** are the source of truth for API definitions. `packages/api-spec/openapi.json` is generated from them and must not be hand-edited.

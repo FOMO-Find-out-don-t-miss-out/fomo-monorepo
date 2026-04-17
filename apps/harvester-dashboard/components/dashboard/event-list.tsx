@@ -7,7 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { EventCard } from './event-card'
-import type { PendingEvent } from '@/types/moderation'
+import type { PendingEvent } from '@/types/api'
 import { Search, Check, X, Sparkles, Activity } from 'lucide-react'
 
 interface EventListProps {

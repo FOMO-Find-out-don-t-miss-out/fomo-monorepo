@@ -83,21 +83,19 @@ def get_api_route_signatures(api_dir):
     return "\n".join(signatures)
 
 
-def get_typespec_models(tsp_file):
-    """Extracts model and enum definitions from TypeSpec file."""
-    tsp_path = Path(tsp_file)
-    if not tsp_path.exists():
-        return "TypeSpec file not found."
-
-    with open(tsp_path, encoding="utf-8") as f:
-        content = f.read()
-
-    # Simple regex to extract models, enums and interfaces
-    models = re.findall(r"(model|enum|interface)\s+(\w+)", content)
-    output = []
-    for type_kind, name in models:
-        output.append(f"- {type_kind} `{name}`")
-    return "\n".join(output)
+def get_openapi_schemas(openapi_file):
+    """Lists named schemas from the generated OpenAPI spec."""
+    import json
+    spec_path = Path(openapi_file)
+    if not spec_path.exists():
+        return "openapi.json not found — run `pnpm --filter @fomo/api-spec build`."
+    with open(spec_path, encoding="utf-8") as f:
+        spec = json.load(f)
+    schemas = spec.get("components", {}).get("schemas", {})
+    lines = [f"- `{name}`" for name in sorted(schemas)]
+    paths = spec.get("paths", {})
+    lines.append(f"\nTotal endpoints: {sum(len(v) for v in paths.values())}")
+    return "\n".join(lines)
 
 
 def get_quality_status():
@@ -109,7 +107,7 @@ def get_quality_status():
         status.append("- No `.coverage` found (run tests to generate).")
 
     status.append("- Linting: Ruff (Python), ESLint (TS/JS).")
-    status.append("- Validation: TypeSpec for API Sync.")
+    status.append("- Validation: FastAPI → openapi.json → openapi-typescript pipeline.")
     return "\n".join(status)
 
 
@@ -125,8 +123,8 @@ def generate_snapshot():
 ## 🛣 API Routes (v1)
 {get_api_route_signatures("apps/api/app/api/v1")}
 
-## 🏗 TypeSpec Models (packages/api-spec)
-{get_typespec_models("packages/api-spec/main.tsp")}
+## 🏗 OpenAPI Schemas (packages/api-spec/openapi.json)
+{get_openapi_schemas("packages/api-spec/openapi.json")}
 
 ## 🧪 Quality & Coverage Status
 {get_quality_status()}

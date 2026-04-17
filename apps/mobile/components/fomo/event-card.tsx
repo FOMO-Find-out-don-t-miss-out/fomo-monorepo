@@ -10,30 +10,9 @@ import {
   View,
 } from 'react-native';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export type EventCategory =
-  | 'Music'
-  | 'Arts'
-  | 'Theater'
-  | 'Sports'
-  | 'Comedy'
-  | 'Festival';
-
-export interface Event {
-  id: string;
-  title: string;
-  venue: string;
-  date: string;
-  time: string;
-  category: EventCategory;
-  hypeLevel: 'high' | 'medium' | 'low';
-  price?: string;
-  distance?: string;
-  imageUri?: string;
-  attendeesCount?: string;
-  hypeScore?: number;
-}
+// ─── Types (canonical definitions live in types/ui) ──────────────────────────
+import type { Event, EventCategory } from '../../types/ui';
+export type { Event, EventCategory } from '../../types/ui';
 
 interface EventCardProps {
   event: Event;

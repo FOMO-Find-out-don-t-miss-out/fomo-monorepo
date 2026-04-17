@@ -11,7 +11,11 @@
     },
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "dist/**", "out/**", "tsp-output/**"]
+      "outputs": [".next/**", "dist/**", "out/**"]
+    },
+    "generate:types": {
+      "cache": false,
+      "outputs": ["packages/api-spec/openapi.json", "types/api.generated.ts"]
     },
     "verify-schema": {
       "cache": true,

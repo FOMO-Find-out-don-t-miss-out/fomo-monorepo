@@ -7,7 +7,7 @@ import { FilterSidebar } from '@/components/dashboard/filter-sidebar'
 import { EventList } from '@/components/dashboard/event-list'
 import { EventInspector } from '@/components/dashboard/event-inspector'
 import { moderationApi } from '@/lib/api'
-import type { PendingEvent, GeocodeSuggestion } from '@/types/moderation'
+import type { PendingEvent, GeocodeSuggestion } from '@/types/api'
 import { toast } from 'sonner'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
@@ -78,7 +78,7 @@ function EventsDashboard() {
   })
 
   const bulkApproveMutation = useMutation({
-    mutationFn: (ids: string[]) => moderationApi.bulkApproveEvents(ids),
+    mutationFn: (ids: string[]) => moderationApi.approveBatch(ids),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['pending-events'] })
       queryClient.invalidateQueries({ queryKey: ['published-events'] })
@@ -88,7 +88,7 @@ function EventsDashboard() {
   })
 
   const bulkRejectMutation = useMutation({
-    mutationFn: (ids: string[]) => moderationApi.bulkRejectEvents(ids),
+    mutationFn: (ids: string[]) => moderationApi.rejectBatch(ids),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['pending-events'] })
       toast.success(`Successfully rejected ${data.rejected_count} events`)

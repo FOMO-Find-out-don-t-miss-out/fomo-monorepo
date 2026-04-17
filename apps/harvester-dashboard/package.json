@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "echo 'No tests yet'",
+    "generate:types": "node ../../tooling/generate-frontend-types.mjs",
     "verify-schema": "echo 'No schema to verify'",
     "check-quality": "pnpm lint && pnpm test"
   },

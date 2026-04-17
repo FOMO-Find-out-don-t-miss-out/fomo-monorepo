@@ -23,7 +23,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import type { Event, EventCategory } from './event-card';
+import type { Event, EventCategory } from '../../types/ui';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

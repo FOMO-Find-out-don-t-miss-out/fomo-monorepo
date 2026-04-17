@@ -7,7 +7,7 @@ import { FilterSidebar } from '@/components/dashboard/filter-sidebar'
 import { EventList } from '@/components/dashboard/event-list'
 import { EventInspector } from '@/components/dashboard/event-inspector'
 import { moderationApi } from '@/lib/api'
-import type { PendingEvent } from '@/types/moderation'
+import type { PendingEvent } from '@/types/api'
 import { toast } from 'sonner'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 

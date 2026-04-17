@@ -67,7 +67,7 @@ Every coding task performed by an AI agent must follow this iterative cycle:
 - **DATABASE MANAGEMENT**:
   - **DATA CONSISTENCY**: When switching machines, always run 'pnpm db:seed' after migrations to ensure local environment parity. Do not commit large production datasets to the seeds folder.
 
-- **SYNC LOCK**: No PR shall be merged if the `verify-schema-sync` check fails. Any change to TypeSpec MUST be followed by a generated Alembic migration in the same commit.
+- **SYNC LOCK**: No PR shall be merged if the `verify-schema-sync` check fails. Any Python model change MUST be followed by a generated Alembic migration in the same commit, and `pnpm --filter @fomo/api-spec build` must be re-run to keep `openapi.json` and generated TypeScript types in sync.
 
 ### Data Pipeline (Harvester)
 - **Extraction**: Modular extractors (JSON-LD, AI/LLM via Gemini/Instructor) in `apps/api/app/services/harvester/cleansing/`.

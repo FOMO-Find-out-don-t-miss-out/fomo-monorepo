@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { VenueCard } from './venue-card'
-import type { Venue } from '@/types/moderation'
+import type { Venue } from '@/types/api'
 import { Search, Building2, ShieldCheck, ShieldAlert, Filter } from 'lucide-react'
 
 interface VenueListProps {

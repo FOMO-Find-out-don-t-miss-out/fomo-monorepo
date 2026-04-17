@@ -4,7 +4,7 @@ import Image from 'next/image'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import type { PendingEvent } from '@/types/moderation'
+import type { PendingEvent } from '@/types/api'
 import { MapPin, Calendar, CheckCircle2, AlertCircle, XCircle, ImageOff, Code, Sparkles, Database } from 'lucide-react'
 import { format } from 'date-fns'
 

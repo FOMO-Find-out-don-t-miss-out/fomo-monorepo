@@ -1,5 +1,6 @@
 import { CalendarView } from '../../components/fomo/calendar-view';
-import { EventCard, type Event } from '../../components/fomo/event-card';
+import { EventCard } from '../../components/fomo/event-card';
+import type { Event } from '../../types/ui';
 import { EventDetails } from '../../components/fomo/event-details';
 import { FomoMap } from '../../components/fomo/fomo-map';
 import { NeonGrid } from '../../components/fomo/neon-grid';
