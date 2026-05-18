@@ -11,6 +11,12 @@ from packages.domain.models.event import (
 )
 from packages.domain.models.event_relation import EventRelation, EventRelationType
 from packages.domain.models.event_relationship import EventRelationship, RelationshipType
+from packages.domain.models.event_report import (
+    EventReport,
+    GpsValidationStatus,
+    ReportResolution,
+    ReportStatus,
+)
 from packages.domain.models.hype import HypeLedger
 from packages.domain.models.organizer import Organizer, OrganizerVerificationStatus
 from packages.domain.models.pending_event import DedupeStatus, PendingEvent, SubmissionType
@@ -27,10 +33,12 @@ __all__ = [
     "EventRelation",
     "EventRelationType",
     "EventRelationship",
+    "EventReport",
     "EventStatus",
     "EventTrustLevel",
     "EventVisibility",
     "GeocodingStatus",
+    "GpsValidationStatus",
     "HypeLedger",
     "Organizer",
     "OrganizerVerificationStatus",
@@ -40,6 +48,8 @@ __all__ = [
     "PlaceVerificationStatus",
     "Profile",
     "RelationshipType",
+    "ReportResolution",
+    "ReportStatus",
     "SocialConnection",
     "SubmissionType",
     "TimestampMixin",
