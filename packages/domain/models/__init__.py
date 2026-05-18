@@ -1,5 +1,14 @@
 from packages.domain.models.base import TimestampMixin
-from packages.domain.models.event import Event, EventBase, EventCategory, GeocodingStatus
+from packages.domain.models.event import (
+    Event,
+    EventBase,
+    EventCategory,
+    EventProvenance,
+    EventStatus,
+    EventTrustLevel,
+    EventVisibility,
+    GeocodingStatus,
+)
 from packages.domain.models.hype import HypeLedger
 from packages.domain.models.organizer import Organizer, OrganizerVerificationStatus
 from packages.domain.models.pending_event import PendingEvent
@@ -11,6 +20,10 @@ __all__ = [
     "Event",
     "EventBase",
     "EventCategory",
+    "EventProvenance",
+    "EventStatus",
+    "EventTrustLevel",
+    "EventVisibility",
     "GeocodingStatus",
     "HypeLedger",
     "Organizer",

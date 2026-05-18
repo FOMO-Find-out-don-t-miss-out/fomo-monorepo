@@ -8,7 +8,8 @@ from uuid import UUID, uuid4
 from geoalchemy2 import Geography
 from geoalchemy2.shape import to_shape
 from pydantic import computed_field, field_serializer
-from sqlmodel import JSON, Column, Field, SQLModel, UniqueConstraint
+from sqlalchemy.dialects import postgresql
+from sqlmodel import JSON, Column, DateTime, Field, Index, SQLModel, UniqueConstraint
 
 from packages.domain.models.base import TimestampMixin
 
@@ -29,6 +30,36 @@ class GeocodingStatus(StrEnum):
     verified = "verified"
     ambiguous = "ambiguous"
     failed = "failed"
+
+
+class EventStatus(StrEnum):
+    approved = "approved"
+    live = "live"
+    expired = "expired"
+    archived = "archived"
+    under_investigation = "under_investigation"
+    removed = "removed"
+
+
+class EventProvenance(StrEnum):
+    aggregated = "aggregated"
+    community_submitted = "community_submitted"
+    claimed_official = "claimed_official"
+    verified_organizer = "verified_organizer"
+
+
+class EventTrustLevel(StrEnum):
+    unverified = "unverified"
+    community_validated = "community_validated"
+    trusted_source = "trusted_source"
+    official = "official"
+
+
+class EventVisibility(StrEnum):
+    public = "public"
+    hidden = "hidden"
+    shadow_hidden = "shadow_hidden"
+    restricted = "restricted"
 
 
 class EventBase(TimestampMixin, SQLModel):
@@ -157,6 +188,44 @@ class Event(EventBase, table=True):
     __tablename__ = "events"
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
+    place_id: UUID | None = Field(default=None, foreign_key="places.id", index=True)
+    organizer_id: UUID | None = Field(default=None, foreign_key="organizers.id", index=True)
+    status: EventStatus = Field(
+        default=EventStatus.live,
+        sa_column=Column(
+            postgresql.ENUM(EventStatus, name="event_status", create_type=False),
+            nullable=False,
+            server_default=EventStatus.live.value,
+        ),
+    )
+    provenance: EventProvenance = Field(
+        default=EventProvenance.aggregated,
+        sa_column=Column(
+            postgresql.ENUM(EventProvenance, name="event_provenance", create_type=False),
+            nullable=False,
+            server_default=EventProvenance.aggregated.value,
+        ),
+    )
+    trust_level: EventTrustLevel = Field(
+        default=EventTrustLevel.unverified,
+        sa_column=Column(
+            postgresql.ENUM(EventTrustLevel, name="event_trust_level", create_type=False),
+            nullable=False,
+            server_default=EventTrustLevel.unverified.value,
+        ),
+    )
+    visibility: EventVisibility = Field(
+        default=EventVisibility.public,
+        sa_column=Column(
+            postgresql.ENUM(EventVisibility, name="event_visibility", create_type=False),
+            nullable=False,
+            server_default=EventVisibility.public.value,
+        ),
+    )
+    approved_at: datetime | None = Field(default=None, sa_type=DateTime(timezone=True))
+    published_at: datetime | None = Field(default=None, sa_type=DateTime(timezone=True))
+    expired_at: datetime | None = Field(default=None, sa_type=DateTime(timezone=True))
+    removed_at: datetime | None = Field(default=None, sa_type=DateTime(timezone=True))
 
     location: Any = Field(sa_column=Column(Geography(geometry_type="POINT", srid=4326)))
     event_metadata: dict[str, Any] = Field(
@@ -174,4 +243,9 @@ class Event(EventBase, table=True):
 
     __table_args__ = (
         UniqueConstraint("title", "start_time", "location_name", name="unique_event_occurrence"),
+        Index("ix_events_status", "status"),
+        Index("ix_events_provenance", "provenance"),
+        Index("ix_events_trust_level", "trust_level"),
+        Index("ix_events_visibility", "visibility"),
+        Index("ix_events_status_visibility_start_time", "status", "visibility", "start_time"),
     )
