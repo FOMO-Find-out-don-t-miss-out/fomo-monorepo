@@ -9,6 +9,7 @@ from packages.domain.models.event import (
     EventVisibility,
     GeocodingStatus,
 )
+from packages.domain.models.event_relation import EventRelation, EventRelationType
 from packages.domain.models.hype import HypeLedger
 from packages.domain.models.organizer import Organizer, OrganizerVerificationStatus
 from packages.domain.models.pending_event import DedupeStatus, PendingEvent, SubmissionType
@@ -22,6 +23,8 @@ __all__ = [
     "EventBase",
     "EventCategory",
     "EventProvenance",
+    "EventRelation",
+    "EventRelationType",
     "EventStatus",
     "EventTrustLevel",
     "EventVisibility",
