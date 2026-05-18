@@ -5,7 +5,7 @@ from uuid import UUID
 from geoalchemy2.elements import WKTElement
 from sqlmodel import Session, and_, select
 
-from packages.domain.models import Event, PendingEvent, Venue
+from packages.domain.models import Event, PendingEvent, Place, PlaceVerificationStatus
 
 logger = logging.getLogger(__name__)
 
@@ -14,9 +14,9 @@ class VenueModerationService:
     def __init__(self, session: Session) -> None:
         self.session = session
 
-    def update_venue_record(self, venue_id: UUID, **kwargs: Any) -> Venue | None:
+    def update_venue_record(self, venue_id: UUID, **kwargs: Any) -> Place | None:
         """Updates a venue and syncs linked events if critical fields change."""
-        venue = self.session.get(Venue, venue_id)
+        venue = self.session.get(Place, venue_id)
         if not venue:
             return None
 
@@ -28,12 +28,12 @@ class VenueModerationService:
         # Check for collisions: Can't have same name in same city
         if new_name != old_name or city != venue.city:
             existing = self.session.exec(
-                select(Venue).where(
+                select(Place).where(
                     and_(
-                        Venue.name == new_name,
-                        Venue.city == city,
-                        Venue.country_code == country_code,
-                        Venue.id != venue_id,
+                        Place.name == new_name,
+                        Place.city == city,
+                        Place.country_code == country_code,
+                        Place.id != venue_id,
                     )
                 )
             ).first()
@@ -42,6 +42,14 @@ class VenueModerationService:
 
         for k, v in kwargs.items():
             setattr(venue, k, v)
+        if "name" in kwargs:
+            venue.normalized_name = new_name.lower()
+        if "is_manually_verified" in kwargs:
+            venue.verification_status = (
+                PlaceVerificationStatus.manually_verified
+                if kwargs["is_manually_verified"]
+                else PlaceVerificationStatus.unverified
+            )
 
         self.session.add(venue)
 
@@ -55,6 +63,7 @@ class VenueModerationService:
                 else "ambiguous"
             )
             wkt_str = f"POINT({lng} {lat})"
+            venue.location = WKTElement(wkt_str, srid=4326)
 
             # Sync PendingEvent
             statement_pending = select(PendingEvent).where(PendingEvent.location_name == old_name)
@@ -86,19 +95,19 @@ class VenueModerationService:
         self,
         search_query: str | None = None,
         only_unverified: bool = False,
-    ) -> list[Venue]:
+    ) -> list[Place]:
         """Fetches venues with filtering."""
-        statement = select(Venue).order_by(Venue.name)
+        statement = select(Place).order_by(Place.name)
         if search_query:
-            statement = statement.where(Venue.name.ilike(f"%{search_query}%"))
+            statement = statement.where(Place.name.ilike(f"%{search_query}%"))
         if only_unverified:
-            statement = statement.where(not Venue.is_manually_verified)
+            statement = statement.where(not Place.is_manually_verified)
         return list(self.session.exec(statement).all())
 
     def merge_venues(self, source_venue_id: UUID, target_venue_id: UUID) -> bool:
         """Merges source venue into target venue, updating all linked events."""
-        source = self.session.get(Venue, source_venue_id)
-        target = self.session.get(Venue, target_venue_id)
+        source = self.session.get(Place, source_venue_id)
+        target = self.session.get(Place, target_venue_id)
 
         if not source or not target:
             return False
@@ -128,7 +137,7 @@ class VenueModerationService:
 
     def delete_venue_and_unlink_events(self, venue_id: UUID) -> bool:
         """Deletes venue and unlinks (sets location to NULL) all related events."""
-        venue = self.session.get(Venue, venue_id)
+        venue = self.session.get(Place, venue_id)
         if not venue:
             return False
 

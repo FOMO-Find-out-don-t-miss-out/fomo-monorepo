@@ -2,9 +2,10 @@ import difflib
 import logging
 
 from app.core.geography_constants import COUNTRY_DEFAULTS
+from geoalchemy2.elements import WKTElement
 from sqlmodel import Session, select
 
-from packages.domain.models import Venue
+from packages.domain.models import Place
 
 logger = logging.getLogger(__name__)
 
@@ -15,12 +16,12 @@ class VenueRepository:
 
     def get_by_name(
         self, name: str, country_code: str, city_hint: str | None = None
-    ) -> Venue | None:
+    ) -> Place | None:
         """Looks up a venue in the local database with exact/fuzzy matching and city validation."""
         country_code = country_code.upper()
 
         # 1. Try exact match first
-        statement = select(Venue).where(Venue.name == name, Venue.country_code == country_code)
+        statement = select(Place).where(Place.name == name, Place.country_code == country_code)
         venue = self.session.exec(statement).first()
 
         if venue:
@@ -32,7 +33,7 @@ class VenueRepository:
             )
 
         # 2. Try fuzzy matching
-        statement = select(Venue).where(Venue.country_code == country_code)
+        statement = select(Place).where(Place.country_code == country_code)
         all_venues = self.session.exec(statement).all()
 
         best_match = None
@@ -68,11 +69,11 @@ class VenueRepository:
         full_address: str,
         relevance: float,
         city: str | None = None,
-    ) -> Venue:
+    ) -> Place:
         """Saves a new venue or updates an existing one if not manually verified."""
         country_code = country_code.upper()
 
-        statement = select(Venue).where(Venue.name == name, Venue.country_code == country_code)
+        statement = select(Place).where(Place.name == name, Place.country_code == country_code)
         existing = self.session.exec(statement).first()
 
         if existing:
@@ -85,13 +86,15 @@ class VenueRepository:
             existing.lng = lng
             existing.full_address = full_address
             existing.relevance = relevance
+            existing.normalized_name = name.lower()
+            existing.location = WKTElement(f"POINT({lng} {lat})", srid=4326)
             existing.city = city
             self.session.add(existing)
             self.session.commit()
             self.session.refresh(existing)
             return existing
         else:
-            new_venue = Venue(
+            new_venue = Place(
                 name=name,
                 country_code=country_code,
                 city=city,
@@ -99,6 +102,7 @@ class VenueRepository:
                 lng=lng,
                 full_address=full_address,
                 relevance=relevance,
+                location=WKTElement(f"POINT({lng} {lat})", srid=4326),
             )
             self.session.add(new_venue)
             self.session.commit()
@@ -107,9 +111,9 @@ class VenueRepository:
 
     def delete_venues(self, name: str | None = None) -> int:
         """Deletes venues by name or all venues if name is None."""
-        statement = select(Venue)
+        statement = select(Place)
         if name:
-            statement = statement.where(Venue.name == name)
+            statement = statement.where(Place.name == name)
 
         venues = self.session.exec(statement).all()
         count = len(venues)
@@ -118,7 +122,7 @@ class VenueRepository:
         self.session.commit()
         return count
 
-    def _is_city_match(self, venue: Venue, city_hint: str | None) -> bool:
+    def _is_city_match(self, venue: Place, city_hint: str | None) -> bool:
         """Helper to validate if venue city matches the provided hint."""
         if not city_hint or not venue.city:
             return True

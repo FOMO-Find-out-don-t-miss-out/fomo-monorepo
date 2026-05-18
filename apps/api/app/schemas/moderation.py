@@ -27,6 +27,22 @@ class VenueUpdate(BaseModel):
     is_manually_verified: bool | None = None
 
 
+class Venue(BaseModel):
+    created_at: datetime = None
+    updated_at: datetime = None
+    id: UUID = None
+    name: str
+    country_code: str
+    city: str | None = None
+    lat: float
+    lng: float
+    full_address: str
+    relevance: float
+    is_manually_verified: bool = False
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class BatchApproveRequest(BaseModel):
     event_ids: list[UUID]
 

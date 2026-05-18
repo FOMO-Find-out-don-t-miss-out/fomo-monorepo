@@ -3,9 +3,9 @@ from packages.domain.models.event import Event, EventBase, EventCategory, Geocod
 from packages.domain.models.hype import HypeLedger
 from packages.domain.models.organizer import Organizer, OrganizerVerificationStatus
 from packages.domain.models.pending_event import PendingEvent
+from packages.domain.models.place import Place, PlaceType, PlaceVerificationStatus, Venue
 from packages.domain.models.social import SocialConnection
 from packages.domain.models.user import Profile, User
-from packages.domain.models.venue import Venue
 
 __all__ = [
     "Event",
@@ -16,6 +16,9 @@ __all__ = [
     "Organizer",
     "OrganizerVerificationStatus",
     "PendingEvent",
+    "Place",
+    "PlaceType",
+    "PlaceVerificationStatus",
     "Profile",
     "SocialConnection",
     "TimestampMixin",

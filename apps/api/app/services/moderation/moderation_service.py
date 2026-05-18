@@ -7,7 +7,7 @@ from geoalchemy2.elements import WKTElement
 from geoalchemy2.shape import to_shape
 from sqlmodel import Session, and_, select
 
-from packages.domain.models import Event, PendingEvent, Venue
+from packages.domain.models import Event, PendingEvent, Place
 
 logger = logging.getLogger(__name__)
 
@@ -56,17 +56,17 @@ class ModerationService:
                     shape = to_shape(pending.location)
                     city = pending.geocoding_metadata.get("city")
                     venue = self.session.exec(
-                        select(Venue).where(
+                        select(Place).where(
                             and_(
-                                Venue.name == pending.location_name.strip(),
-                                Venue.city == city,
-                                Venue.country_code == pending.country_code,
+                                Place.name == pending.location_name.strip(),
+                                Place.city == city,
+                                Place.country_code == pending.country_code,
                             )
                         )
                     ).first()
 
                     if not venue:
-                        new_venue = Venue(
+                        new_venue = Place(
                             name=pending.location_name.strip(),
                             country_code=pending.country_code or "GR",
                             city=city,
@@ -75,6 +75,7 @@ class ModerationService:
                             full_address=pending.geocoding_metadata.get("full_address")
                             or pending.location_name,
                             relevance=pending.confidence_score or 1.0,
+                            location=pending.location,
                         )
                         self.session.add(new_venue)
 
@@ -118,12 +119,13 @@ class ModerationService:
 
             # Update Venue table if a venue with old_name exists
             venue = self.session.exec(
-                select(Venue).where(
-                    and_(Venue.name == old_name_clean, Venue.country_code == pending.country_code)
+                select(Place).where(
+                    and_(Place.name == old_name_clean, Place.country_code == pending.country_code)
                 )
             ).first()
             if venue:
                 venue.name = new_name
+                venue.normalized_name = new_name.lower()
                 self.session.add(venue)
 
             # Update all other pending events that had the exact same old location name

@@ -12,10 +12,10 @@ try:
         HypeLedger,  # noqa: F401
         Organizer,  # noqa: F401
         PendingEvent,  # noqa: F401
+        Place,  # noqa: F401
         Profile,  # noqa: F401
         SocialConnection,  # noqa: F401
         User,  # noqa: F401
-        Venue,  # noqa: F401
     )
 except ImportError:
     # Handle the case where the environment is not set up correctly for imports

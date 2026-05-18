@@ -6,7 +6,7 @@ from sqlmodel import Session, select
 
 from app.schemas.event import IngestSummary
 from app.services.harvester.location.geocoder import GeocoderService
-from packages.domain.models import Event, PendingEvent, Venue
+from packages.domain.models import Event, PendingEvent, Place
 from packages.domain.schemas.extracted_event import ExtractedEvent
 from packages.domain.services.trust_engine import TrustEngine
 
@@ -33,7 +33,7 @@ class IngestionService:
                 event_data.event_metadata = {}
 
             if event_data.location_name:
-                venue = db.exec(select(Venue).where(Venue.name == event_data.location_name)).first()
+                venue = db.exec(select(Place).where(Place.name == event_data.location_name)).first()
                 if venue:
                     logger.info(f"[INGEST] Venue Match Found: '{event_data.location_name}'")
                     event_data.lat = venue.lat

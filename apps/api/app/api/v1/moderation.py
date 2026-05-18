@@ -12,13 +12,13 @@ from app.schemas.moderation import (
     OccurrenceCreate,
     PendingEventResponse,
     PendingEventUpdate,
+    Venue,
     VenueMergeRequest,
     VenueUpdate,
 )
 from app.services.harvester.location.geocoder import GeocodeResult, GeocoderService
 from app.services.moderation.moderation_service import ModerationService
 from app.services.moderation.venue_service import VenueModerationService
-from packages.domain.models import Venue
 
 router = APIRouter()
 
