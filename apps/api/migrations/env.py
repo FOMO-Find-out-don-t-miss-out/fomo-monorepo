@@ -16,6 +16,8 @@ try:
         Profile,  # noqa: F401
         SocialConnection,  # noqa: F401
         User,  # noqa: F401
+        WalletAccount,  # noqa: F401
+        WalletTransaction,  # noqa: F401
     )
 except ImportError:
     # Handle the case where the environment is not set up correctly for imports

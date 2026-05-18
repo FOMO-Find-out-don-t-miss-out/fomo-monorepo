@@ -8,6 +8,8 @@ from packages.domain.models import (
     SocialConnection,
     User,
     Venue,
+    WalletAccount,
+    WalletTransaction,
 )
 
 # To ensure all models are registered with SQLModel.metadata
@@ -21,4 +23,6 @@ __all__ = [
     "SocialConnection",
     "User",
     "Venue",
+    "WalletAccount",
+    "WalletTransaction",
 ]

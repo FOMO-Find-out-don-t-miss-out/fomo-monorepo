@@ -18,5 +18,4 @@ class Profile(TimestampMixin, SQLModel, table=True):
     user_id: UUID = Field(foreign_key="users.id", primary_key=True)
     username: str = Field(unique=True, index=True)
     avatar_url: str | None = None
-    fomo_coins: int = Field(default=100)
     settings: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))

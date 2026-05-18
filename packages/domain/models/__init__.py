@@ -23,6 +23,7 @@ from packages.domain.models.pending_event import DedupeStatus, PendingEvent, Sub
 from packages.domain.models.place import Place, PlaceType, PlaceVerificationStatus, Venue
 from packages.domain.models.social import SocialConnection
 from packages.domain.models.user import Profile, User
+from packages.domain.models.wallet import WalletAccount, WalletTransaction, WalletTransactionType
 
 __all__ = [
     "DedupeStatus",
@@ -55,4 +56,7 @@ __all__ = [
     "TimestampMixin",
     "User",
     "Venue",
+    "WalletAccount",
+    "WalletTransaction",
+    "WalletTransactionType",
 ]
