@@ -1,6 +1,7 @@
 from packages.domain.models import (
     Event,
     HypeLedger,
+    Organizer,
     PendingEvent,
     Profile,
     SocialConnection,
@@ -9,4 +10,13 @@ from packages.domain.models import (
 )
 
 # To ensure all models are registered with SQLModel.metadata
-__all__ = ["Event", "HypeLedger", "PendingEvent", "Profile", "SocialConnection", "User", "Venue"]
+__all__ = [
+    "Event",
+    "HypeLedger",
+    "Organizer",
+    "PendingEvent",
+    "Profile",
+    "SocialConnection",
+    "User",
+    "Venue",
+]

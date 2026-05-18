@@ -10,6 +10,7 @@ try:
     from packages.domain.models import (
         Event,  # noqa: F401
         HypeLedger,  # noqa: F401
+        Organizer,  # noqa: F401
         PendingEvent,  # noqa: F401
         Profile,  # noqa: F401
         SocialConnection,  # noqa: F401
