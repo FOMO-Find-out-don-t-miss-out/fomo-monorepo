@@ -275,9 +275,7 @@ def test_resolve_report_sets_all_fields(session: Session) -> None:
     event = create_event(session, "Resolve Event")
     service = EventReportService(session)
 
-    report = service.submit_report(
-        reporter_user_id=reporter.id, event_id=event.id, reason="spam"
-    )
+    report = service.submit_report(reporter_user_id=reporter.id, event_id=event.id, reason="spam")
     assert report is not None
 
     resolved = service.resolve_report(
@@ -298,9 +296,7 @@ def test_resolve_report_with_custom_review_status(session: Session) -> None:
     event = create_event(session, "Under Review Event")
     service = EventReportService(session)
 
-    report = service.submit_report(
-        reporter_user_id=reporter.id, event_id=event.id, reason="spam"
-    )
+    report = service.submit_report(reporter_user_id=reporter.id, event_id=event.id, reason="spam")
     assert report is not None
 
     updated = service.resolve_report(
@@ -331,9 +327,7 @@ def test_dismiss_report_sets_dismissed_status_and_rejected_resolution(session: S
     event = create_event(session, "Dismiss Event")
     service = EventReportService(session)
 
-    report = service.submit_report(
-        reporter_user_id=reporter.id, event_id=event.id, reason="spam"
-    )
+    report = service.submit_report(reporter_user_id=reporter.id, event_id=event.id, reason="spam")
     assert report is not None
 
     dismissed = service.dismiss_report(report_id=report.id, reviewed_by=reviewer.id)

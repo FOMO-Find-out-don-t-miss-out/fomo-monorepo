@@ -10,6 +10,7 @@ class EventDiscoveryResponse(BaseModel):
     """
     Schema for atomic event facts returned by the discovery endpoint.
     """
+
     id: UUID
     title: str
     start_time: datetime = Field(..., serialization_alias="startTime")

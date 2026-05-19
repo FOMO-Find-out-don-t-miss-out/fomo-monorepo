@@ -1,4 +1,5 @@
 {
+  "includeCoAuthoredBy": false,
   "permissions": {
     "allow": [
       "Bash(pnpm install:*)",
@@ -61,8 +62,8 @@
       "Bash(pnpm --filter @fomo/harvester-dashboard exec tsc --noEmit)",
       "Bash(pnpm --filter @fomo/api-spec check-quality)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(grep -rn \"venue\\\\|Venue\\\\|VenueRepository\\\\|VenueModerationService\" --include=\"*.py\" --exclude-path=\"*/migrations/versions/*\" --exclude-path=\"*/.venv/*\" .)"
     ]
-  },
-    "includeCoAuthoredBy": false
+  }
 }

@@ -73,9 +73,7 @@ class EventReportService:
 
     def list_reports_by_status(self, status: ReportStatus) -> list[EventReport]:
         statement = (
-            select(EventReport)
-            .where(EventReport.status == status)
-            .order_by(EventReport.created_at)
+            select(EventReport).where(EventReport.status == status).order_by(EventReport.created_at)
         )
         return list(self.session.exec(statement).all())
 

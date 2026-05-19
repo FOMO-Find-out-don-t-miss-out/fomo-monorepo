@@ -25,9 +25,7 @@ class SocialService:
     def _get_organizer(self, organizer_id: UUID) -> Organizer | None:
         return self.session.get(Organizer, organizer_id)
 
-    def _get_follower_row(
-        self, user_id: UUID, organizer_id: UUID
-    ) -> OrganizerFollower | None:
+    def _get_follower_row(self, user_id: UUID, organizer_id: UUID) -> OrganizerFollower | None:
         return self.session.exec(
             select(OrganizerFollower)
             .where(OrganizerFollower.user_id == user_id)
