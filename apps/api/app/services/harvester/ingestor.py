@@ -6,7 +6,14 @@ from sqlmodel import Session, select
 
 from app.schemas.event import IngestSummary
 from app.services.harvester.location.geocoder import GeocoderService
-from packages.domain.models import Event, PendingEvent, Place
+from packages.domain.models import (
+    DedupeStatus,
+    Event,
+    EventProvenance,
+    PendingEvent,
+    Place,
+    SubmissionType,
+)
 from packages.domain.schemas.extracted_event import ExtractedEvent
 from packages.domain.services.trust_engine import TrustEngine
 
@@ -32,6 +39,7 @@ class IngestionService:
                 logger.warning(f"event_metadata for '{event_data.title}' is not a dict, fixing.")
                 event_data.event_metadata = {}
 
+            place_candidate_id = None
             if event_data.location_name:
                 venue = db.exec(select(Place).where(Place.name == event_data.location_name)).first()
                 if venue:
@@ -40,6 +48,7 @@ class IngestionService:
                     event_data.lng = venue.lng
                     event_data.geocoding_status = "verified"
                     event_data.confidence_score = 1.0
+                    place_candidate_id = venue.id
                 elif event_data.lat is None or event_data.lng is None:
                     logger.info(
                         f"[INGEST] No Venue Cache Match for '{event_data.location_name}'. "
@@ -87,7 +96,7 @@ class IngestionService:
                         or loc_city
                     )
 
-                    VenueRepository(db).save_venue(
+                    resolved_place = VenueRepository(db).save_venue(
                         name=event_data.location_name,
                         country_code=event_data.country_code or "GR",
                         lat=event_data.lat,
@@ -96,6 +105,7 @@ class IngestionService:
                         relevance=event_data.confidence_score or 0.9,
                         city=str(final_city) if final_city else None,
                     )
+                    place_candidate_id = resolved_place.id
 
             is_auto_approved = trust_engine.is_trusted_for_autopublish(event_data)
 
@@ -126,6 +136,13 @@ class IngestionService:
                 existing_pending.ingestion_method = event_data.ingestion_method
                 existing_pending.description = event_data.description
                 existing_pending.photo_url = event_data.photo_url
+                existing_pending.submission_type = SubmissionType.harvested
+                existing_pending.dedupe_status = DedupeStatus.not_checked
+                existing_pending.candidate_event_id = None
+                existing_pending.place_candidate_id = place_candidate_id
+                existing_pending.reviewed_by = None
+                existing_pending.reviewed_at = None
+                existing_pending.review_notes = None
 
                 if event_data.event_metadata.get("original_link"):
                     existing_pending.source_url = event_data.event_metadata["original_link"]
@@ -163,6 +180,13 @@ class IngestionService:
                     ingestion_method=event_data.ingestion_method,
                     description=event_data.description,
                     photo_url=event_data.photo_url,
+                    submission_type=SubmissionType.harvested,
+                    dedupe_status=DedupeStatus.not_checked,
+                    candidate_event_id=None,
+                    place_candidate_id=place_candidate_id,
+                    reviewed_by=None,
+                    reviewed_at=None,
+                    review_notes=None,
                 )
                 db.add(new_pending)
                 added_count += 1
@@ -198,6 +222,8 @@ class IngestionService:
                         event_metadata=event_data.event_metadata,
                         geocoding_status=event_data.geocoding_status,
                         geocoding_metadata=event_data.geocoding_metadata,
+                        provenance=EventProvenance.aggregated,
+                        place_id=place_candidate_id,
                     )
                     db.add(live_event)
 

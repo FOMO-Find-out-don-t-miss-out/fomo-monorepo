@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -7,7 +7,16 @@ from geoalchemy2.elements import WKTElement
 from geoalchemy2.shape import to_shape
 from sqlmodel import Session, and_, select
 
-from packages.domain.models import Event, PendingEvent, Place
+from packages.domain.models import (
+    Event,
+    EventProvenance,
+    EventStatus,
+    EventTrustLevel,
+    EventVisibility,
+    PendingEvent,
+    Place,
+    SubmissionType,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -16,12 +25,64 @@ class ModerationService:
     def __init__(self, session: Session) -> None:
         self.session = session
 
-    def approve_events(self, event_ids: list[UUID]) -> int:
+    def _provenance_for_pending(self, pending: PendingEvent) -> EventProvenance:
+        if pending.submission_type == SubmissionType.community_submission:
+            return EventProvenance.community_submitted
+        if pending.submission_type in {
+            SubmissionType.organizer_submission,
+            SubmissionType.claim_conversion,
+        }:
+            return EventProvenance.claimed_official
+        return EventProvenance.aggregated
+
+    def approve_events(
+        self,
+        event_ids: list[UUID],
+        *,
+        reviewed_by: UUID | None = None,
+        review_notes: str | None = None,
+    ) -> int:
         """Approves a list of pending events, publishing them and syncing venues."""
         count = 0
         for eid in event_ids:
             pending = self.session.get(PendingEvent, eid)
             if pending and pending.status == "pending":
+                place_id = pending.place_candidate_id
+                if (
+                    not place_id
+                    and pending.location_name
+                    and pending.geocoding_status == "verified"
+                    and pending.location
+                ):
+                    shape = to_shape(pending.location)
+                    city = pending.geocoding_metadata.get("city")
+                    venue = self.session.exec(
+                        select(Place).where(
+                            and_(
+                                Place.name == pending.location_name.strip(),
+                                Place.city == city,
+                                Place.country_code == pending.country_code,
+                            )
+                        )
+                    ).first()
+
+                    if not venue:
+                        venue = Place(
+                            name=pending.location_name.strip(),
+                            country_code=pending.country_code or "GR",
+                            city=city,
+                            lat=shape.y,
+                            lng=shape.x,
+                            full_address=pending.geocoding_metadata.get("full_address")
+                            or pending.location_name,
+                            relevance=pending.confidence_score or 1.0,
+                            location=pending.location,
+                        )
+                        self.session.add(venue)
+
+                    place_id = venue.id
+                    pending.place_candidate_id = place_id
+
                 # 1. Create the primary live event
                 primary_id = uuid4()
                 live_event = Event(
@@ -43,55 +104,46 @@ class ModerationService:
                     tags=pending.tags,
                     geocoding_status=pending.geocoding_status,
                     geocoding_metadata=pending.geocoding_metadata,
+                    place_id=place_id,
+                    status=EventStatus.live,
+                    provenance=self._provenance_for_pending(pending),
+                    trust_level=EventTrustLevel.unverified,
+                    visibility=EventVisibility.public,
+                    approved_at=datetime.now(UTC),
+                    published_at=datetime.now(UTC),
                 )
                 self.session.add(live_event)
 
-                # 2. Handle Venue sync on approval if geocoded
-                if (
-                    pending.location_name
-                    and pending.geocoding_status == "verified"
-                    and pending.location
-                ):
-                    shape = to_shape(pending.location)
-                    city = pending.geocoding_metadata.get("city")
-                    venue = self.session.exec(
-                        select(Place).where(
-                            and_(
-                                Place.name == pending.location_name.strip(),
-                                Place.city == city,
-                                Place.country_code == pending.country_code,
-                            )
-                        )
-                    ).first()
-
-                    if not venue:
-                        new_venue = Place(
-                            name=pending.location_name.strip(),
-                            country_code=pending.country_code or "GR",
-                            city=city,
-                            lat=shape.y,
-                            lng=shape.x,
-                            full_address=pending.geocoding_metadata.get("full_address")
-                            or pending.location_name,
-                            relevance=pending.confidence_score or 1.0,
-                            location=pending.location,
-                        )
-                        self.session.add(new_venue)
-
                 pending.status = "published"
+                pending.reviewed_by = reviewed_by
+                pending.reviewed_at = datetime.now(UTC)
+                pending.review_notes = review_notes
                 self.session.add(pending)
                 count += 1
 
         self.session.commit()
         return count
 
-    def reject_events(self, event_ids: list[UUID]) -> int:
-        """Rejects a list of pending events by deleting them."""
+    def reject_events(
+        self,
+        event_ids: list[UUID],
+        *,
+        reviewed_by: UUID | None = None,
+        review_notes: str | None = None,
+        rejection_reason: str | None = None,
+    ) -> int:
+        """Rejects a list of pending events while retaining review metadata."""
         count = 0
         for eid in event_ids:
             pending = self.session.get(PendingEvent, eid)
-            if pending:
-                self.session.delete(pending)
+            if pending and pending.status == "pending":
+                pending.status = "rejected"
+                pending.reviewed_by = reviewed_by
+                pending.reviewed_at = datetime.now(UTC)
+                pending.review_notes = review_notes
+                if rejection_reason is not None:
+                    pending.rejection_reason = rejection_reason
+                self.session.add(pending)
                 count += 1
         self.session.commit()
         return count

@@ -11,7 +11,14 @@ from app.schemas.event import EventIngest, IngestSummary
 from app.services.harvester.ingestor import IngestionService
 from app.services.harvester.location.geocoder import GeocoderService
 from app.services.harvester.orchestrator import HarvesterOrchestrator
-from packages.domain.models import Event, PendingEvent
+from packages.domain.models import (
+    Event,
+    EventProvenance,
+    EventStatus,
+    EventTrustLevel,
+    EventVisibility,
+    PendingEvent,
+)
 from packages.domain.schemas.extracted_event import ExtractedEvent
 from packages.domain.utils.url_utils import get_domain_from_url
 
@@ -76,6 +83,13 @@ async def approve_event(
         event_metadata=pending.event_metadata,
         geocoding_status=pending.geocoding_status,
         geocoding_metadata=pending.geocoding_metadata,
+        place_id=pending.place_candidate_id,
+        status=EventStatus.live,
+        provenance=EventProvenance.aggregated,
+        trust_level=EventTrustLevel.unverified,
+        visibility=EventVisibility.public,
+        approved_at=datetime.now(UTC),
+        published_at=datetime.now(UTC),
     )
     db.add(live_event)
 
@@ -101,10 +115,18 @@ async def approve_event(
             event_metadata=pending.event_metadata,
             geocoding_status=pending.geocoding_status,
             geocoding_metadata=pending.geocoding_metadata,
+            place_id=pending.place_candidate_id,
+            status=EventStatus.live,
+            provenance=EventProvenance.aggregated,
+            trust_level=EventTrustLevel.unverified,
+            visibility=EventVisibility.public,
+            approved_at=datetime.now(UTC),
+            published_at=datetime.now(UTC),
         )
         db.add(occ_event)
 
     pending.status = "published"
+    pending.reviewed_at = datetime.now(UTC)
     db.add(pending)
     db.commit()
     return {

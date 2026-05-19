@@ -7,7 +7,7 @@ import pytest
 from httpx import AsyncClient
 from sqlmodel import Session, select
 
-from packages.domain.models import Event, PendingEvent
+from packages.domain.models import DedupeStatus, Event, PendingEvent, SubmissionType
 
 
 @pytest.mark.asyncio
@@ -39,6 +39,12 @@ async def test_ingest_events_new(client: AsyncClient, session: Session) -> None:
     pending = session.exec(select(PendingEvent).where(PendingEvent.title == "Test Event 1")).first()
     assert pending is not None
     assert pending.status == "pending"
+    assert pending.submission_type == SubmissionType.harvested
+    assert pending.dedupe_status == DedupeStatus.not_checked
+    assert pending.candidate_event_id is None
+    assert pending.reviewed_by is None
+    assert pending.reviewed_at is None
+    assert pending.review_notes is None
 
 
 @pytest.mark.asyncio
@@ -498,6 +504,7 @@ async def test_internal_ingest_logic_venue_match(session: Session) -> None:
     assert pending is not None
     assert pending.location_name == "MatchMe"
     assert pending.geocoding_status == "verified"
+    assert pending.place_candidate_id == venue.id
 
 
 @pytest.mark.asyncio

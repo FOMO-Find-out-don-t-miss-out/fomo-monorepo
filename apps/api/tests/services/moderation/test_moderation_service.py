@@ -41,15 +41,18 @@ def test_approve_events(session: Session):
     live_event = session.exec(select(Event).where(Event.title == "Test Event")).first()
     assert live_event is not None
     assert live_event.location_name == "Test Venue"
+    assert live_event.place_id is not None
 
     # Check if venue was created
     venue = session.exec(select(Venue).where(Venue.name == "Test Venue")).first()
     assert venue is not None
     assert venue.city == "Athens"
+    assert live_event.place_id == venue.id
 
     # Check if pending event status updated
     session.refresh(pending)
     assert pending.status == "published"
+    assert pending.reviewed_at is not None
 
 
 def test_reject_events(session: Session):
@@ -61,7 +64,28 @@ def test_reject_events(session: Session):
     count = service.reject_events([pending.id])
 
     assert count == 1
-    assert session.get(PendingEvent, pending.id) is None
+    session.refresh(pending)
+    assert pending.status == "rejected"
+    assert pending.reviewed_at is not None
+
+
+def test_reject_events_sets_review_notes(session: Session):
+    pending = PendingEvent(title="To be rejected", status="pending")
+    session.add(pending)
+    session.commit()
+
+    service = ModerationService(session)
+    count = service.reject_events(
+        [pending.id],
+        review_notes="Wrong city",
+        rejection_reason="Location mismatch",
+    )
+
+    assert count == 1
+    session.refresh(pending)
+    assert pending.status == "rejected"
+    assert pending.review_notes == "Wrong city"
+    assert pending.rejection_reason == "Location mismatch"
 
 
 def test_update_pending_event_rename_venue(session: Session):

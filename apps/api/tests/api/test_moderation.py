@@ -75,7 +75,9 @@ async def test_reject_events_batch(client: AsyncClient, session: Session) -> Non
     assert response.json()["rejected_count"] == 1
 
     # Verify DB
-    assert session.get(PendingEvent, ev.id) is None
+    session.refresh(ev)
+    assert ev.status == "rejected"
+    assert ev.reviewed_at is not None
 
 
 @pytest.mark.asyncio
