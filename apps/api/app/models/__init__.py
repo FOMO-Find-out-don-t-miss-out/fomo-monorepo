@@ -1,5 +1,8 @@
 from packages.domain.models import (
     Event,
+    EventRelation,
+    EventRelationship,
+    EventReport,
     HypeLedger,
     Organizer,
     OrganizerFollower,
@@ -16,6 +19,9 @@ from packages.domain.models import (
 # To ensure all models are registered with SQLModel.metadata
 __all__ = [
     "Event",
+    "EventRelation",
+    "EventRelationship",
+    "EventReport",
     "HypeLedger",
     "Organizer",
     "OrganizerFollower",

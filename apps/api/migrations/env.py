@@ -9,6 +9,9 @@ from sqlmodel import SQLModel
 try:
     from packages.domain.models import (
         Event,  # noqa: F401
+        EventRelation,  # noqa: F401
+        EventRelationship,  # noqa: F401
+        EventReport,  # noqa: F401
         HypeLedger,  # noqa: F401
         Organizer,  # noqa: F401
         OrganizerFollower,  # noqa: F401
