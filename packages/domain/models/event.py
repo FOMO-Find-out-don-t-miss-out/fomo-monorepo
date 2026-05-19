@@ -112,11 +112,6 @@ class EventBase(TimestampMixin, SQLModel):
         default=None,
         index=True,
     )
-    parent_id: UUID | None = Field(
-        default=None,
-        index=True,
-    )
-
     # Infrastructure fields
     location: Any = Field(default=None)
     event_metadata: dict[str, Any] = Field(default_factory=dict)

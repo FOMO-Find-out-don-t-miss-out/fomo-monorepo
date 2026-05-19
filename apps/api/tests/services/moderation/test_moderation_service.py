@@ -127,10 +127,9 @@ def test_add_occurrence(session: Session):
     assert new_occ is not None
     assert new_occ.title == "Original"
     assert new_occ.start_time.replace(tzinfo=None) == new_start
-    assert new_occ.parent_id == p.id
 
     session.refresh(p)
-    assert p.parent_id == p.id
+    assert p.status == "pending"
 
 
 def test_add_occurrence_not_found(session: Session):

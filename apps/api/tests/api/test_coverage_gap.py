@@ -32,7 +32,6 @@ class MockEvent:
             "ingestion_method": "unknown",
             "location_name": None,
             "country_code": None,
-            "parent_id": None,
             "photo_url": None,
             "event_metadata": {},
             "tags": [],

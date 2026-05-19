@@ -94,7 +94,6 @@ class EventBaseResponse(BaseModel):
     ingestion_method: str = "unknown"
     location_name: str | None = None
     country_code: str | None = None
-    parent_id: UUID | None = None
     location: Any | None = None
     photo_url: str | None = None
     event_metadata: dict[str, Any] = {}

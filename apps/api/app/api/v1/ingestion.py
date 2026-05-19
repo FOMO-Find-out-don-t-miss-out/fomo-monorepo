@@ -76,7 +76,6 @@ async def approve_event(
         event_metadata=pending.event_metadata,
         geocoding_status=pending.geocoding_status,
         geocoding_metadata=pending.geocoding_metadata,
-        parent_id=primary_id,
     )
     db.add(live_event)
 
@@ -102,7 +101,6 @@ async def approve_event(
             event_metadata=pending.event_metadata,
             geocoding_status=pending.geocoding_status,
             geocoding_metadata=pending.geocoding_metadata,
-            parent_id=primary_id,
         )
         db.add(occ_event)
 

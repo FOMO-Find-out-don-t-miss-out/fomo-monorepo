@@ -198,7 +198,6 @@ class IngestionService:
                         event_metadata=event_data.event_metadata,
                         geocoding_status=event_data.geocoding_status,
                         geocoding_metadata=event_data.geocoding_metadata,
-                        parent_id=live_id,
                     )
                     db.add(live_event)
 

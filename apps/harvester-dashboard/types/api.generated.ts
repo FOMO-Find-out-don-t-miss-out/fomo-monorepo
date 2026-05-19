@@ -630,8 +630,6 @@ export interface components {
             location_name?: string | null;
             /** Country Code */
             country_code?: string | null;
-            /** Parent Id */
-            parent_id?: string | null;
             /** Location */
             location?: {
                 [key: string]: unknown;

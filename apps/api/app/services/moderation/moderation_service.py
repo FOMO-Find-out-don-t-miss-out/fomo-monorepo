@@ -40,7 +40,6 @@ class ModerationService:
                     event_metadata=pending.event_metadata,
                     location_name=pending.location_name,
                     country_code=pending.country_code,
-                    parent_id=pending.parent_id or primary_id,
                     tags=pending.tags,
                     geocoding_status=pending.geocoding_status,
                     geocoding_metadata=pending.geocoding_metadata,
@@ -178,13 +177,6 @@ class ModerationService:
         if not curr:
             return None
 
-        parent_id = curr.parent_id or curr.id
-
-        # Ensure parent has its parent_id set
-        if not curr.parent_id:
-            curr.parent_id = parent_id
-            self.session.add(curr)
-
         new_pending = PendingEvent(
             title=curr.title,
             location=curr.location,
@@ -200,7 +192,6 @@ class ModerationService:
             geocoding_status=curr.geocoding_status,
             geocoding_metadata=curr.geocoding_metadata,
             status="pending",
-            parent_id=parent_id,
             tags=curr.tags,
         )
         self.session.add(new_pending)
