@@ -1,6 +1,8 @@
 from app.repositories.venue_repository import VenueRepository
 from sqlmodel import Session
 
+from packages.domain.models import PlaceVerificationStatus
+
 
 def test_save_new_venue(session: Session):
     repo = VenueRepository(session)
@@ -59,7 +61,7 @@ def test_update_not_verified(session: Session):
 def test_do_not_update_manually_verified(session: Session):
     repo = VenueRepository(session)
     v = repo.save_venue("Verified Venue", "GR", 1.0, 1.0, "Original", 1.0)
-    v.is_manually_verified = True
+    v.verification_status = PlaceVerificationStatus.manually_verified
     session.add(v)
     session.commit()
 

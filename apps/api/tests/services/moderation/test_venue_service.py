@@ -3,7 +3,7 @@ from uuid import uuid4
 
 from sqlmodel import Session
 
-from packages.domain.models import Event, PendingEvent, Venue
+from packages.domain.models import Event, PendingEvent, PlaceVerificationStatus, Venue
 
 # Mock WKTElement globally for this test file
 with patch("app.services.moderation.venue_service.WKTElement", side_effect=lambda x, srid: x):
@@ -28,7 +28,7 @@ def test_update_venue_record_and_sync(session: Session):
     # Check sync
     session.refresh(p)
     assert p.location_name == "New V"
-    assert p.geocoding_status == "ambiguous"  # Since is_manually_verified defaults to False
+    assert p.geocoding_status == "ambiguous"  # verification_status defaults to unverified
 
     session.refresh(e)
     assert e.location_name == "New V"
@@ -69,7 +69,7 @@ def test_merge_venues(session: Session):
         lng=2.0,
         full_address="A2",
         relevance=1.0,
-        is_manually_verified=True,
+        verification_status=PlaceVerificationStatus.manually_verified,
     )
     p = PendingEvent(title="E", location_name="Source", status="pending")
     session.add_all([v1, v2, p])

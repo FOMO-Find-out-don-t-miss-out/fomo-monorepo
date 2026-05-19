@@ -10,7 +10,7 @@ from packages.domain.models import Event, PendingEvent, Place, PlaceVerification
 logger = logging.getLogger(__name__)
 
 
-class VenueModerationService:
+class PlaceModerationService:
     def __init__(self, session: Session) -> None:
         self.session = session
 
@@ -44,22 +44,16 @@ class VenueModerationService:
             setattr(venue, k, v)
         if "name" in kwargs:
             venue.normalized_name = new_name.lower()
-        if "is_manually_verified" in kwargs:
-            venue.verification_status = (
-                PlaceVerificationStatus.manually_verified
-                if kwargs["is_manually_verified"]
-                else PlaceVerificationStatus.unverified
-            )
 
         self.session.add(venue)
 
         # Sync to events if location or name changed
-        if any(k in kwargs for k in ["lat", "lng", "name", "full_address", "is_manually_verified"]):
+        if any(k in kwargs for k in ["lat", "lng", "name", "full_address", "verification_status"]):
             lat = kwargs.get("lat", venue.lat)
             lng = kwargs.get("lng", venue.lng)
             status = (
                 "verified"
-                if kwargs.get("is_manually_verified", venue.is_manually_verified)
+                if venue.verification_status == PlaceVerificationStatus.manually_verified
                 else "ambiguous"
             )
             wkt_str = f"POINT({lng} {lat})"
@@ -101,7 +95,9 @@ class VenueModerationService:
         if search_query:
             statement = statement.where(Place.name.ilike(f"%{search_query}%"))
         if only_unverified:
-            statement = statement.where(not Place.is_manually_verified)
+            statement = statement.where(
+                Place.verification_status != PlaceVerificationStatus.manually_verified
+            )
         return list(self.session.exec(statement).all())
 
     def merge_venues(self, source_venue_id: UUID, target_venue_id: UUID) -> bool:
@@ -121,7 +117,11 @@ class VenueModerationService:
         for ev in linked_pending:
             ev.location_name = target_name
             ev.location = WKTElement(target_wkt, srid=4326)
-            ev.geocoding_status = "verified" if target.is_manually_verified else "ambiguous"
+            ev.geocoding_status = (
+                "verified"
+                if target.verification_status == PlaceVerificationStatus.manually_verified
+                else "ambiguous"
+            )
             self.session.add(ev)
 
         statement_events = select(Event).where(Event.location_name == source_name)
@@ -161,3 +161,6 @@ class VenueModerationService:
         self.session.delete(venue)
         self.session.commit()
         return True
+
+
+VenueModerationService = PlaceModerationService

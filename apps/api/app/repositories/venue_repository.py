@@ -5,12 +5,12 @@ from app.core.geography_constants import COUNTRY_DEFAULTS
 from geoalchemy2.elements import WKTElement
 from sqlmodel import Session, select
 
-from packages.domain.models import Place
+from packages.domain.models import Place, PlaceVerificationStatus
 
 logger = logging.getLogger(__name__)
 
 
-class VenueRepository:
+class PlaceRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
@@ -78,7 +78,7 @@ class VenueRepository:
 
         if existing:
             # Respect manual verification
-            if existing.is_manually_verified:
+            if existing.verification_status == PlaceVerificationStatus.manually_verified:
                 logger.debug(f"[REPOSITORY] Skipping update for manually verified venue: {name}")
                 return existing
 
@@ -142,3 +142,6 @@ class VenueRepository:
 
         # Fallback to fuzzy match for city names
         return difflib.SequenceMatcher(None, hint_clean, v_city_clean).ratio() > 0.8
+
+
+VenueRepository = PlaceRepository

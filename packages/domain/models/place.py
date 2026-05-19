@@ -64,7 +64,6 @@ class Place(TimestampMixin, SQLModel, table=True):
     )
     source_provider: str | None = Field(default=None, index=True)
     external_place_id: str | None = Field(default=None, index=True)
-    is_manually_verified: bool = Field(default=False)
 
     __table_args__ = (
         Index("ix_places_name_country", "name", "country_code"),
@@ -77,10 +76,6 @@ class Place(TimestampMixin, SQLModel, table=True):
             data["match_confidence"] = relevance
         if "normalized_name" not in data and isinstance(data.get("name"), str):
             data["normalized_name"] = data["name"].lower()
-
-        is_manually_verified = data.get("is_manually_verified")
-        if is_manually_verified is True and "verification_status" not in data:
-            data["verification_status"] = PlaceVerificationStatus.manually_verified
 
         super().__init__(**data)
 

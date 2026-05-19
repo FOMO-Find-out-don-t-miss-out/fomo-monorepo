@@ -712,6 +712,11 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
+        /**
+         * PlaceVerificationStatus
+         * @enum {string}
+         */
+        PlaceVerificationStatus: "unverified" | "system_matched" | "manually_verified";
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -756,11 +761,8 @@ export interface components {
             full_address: string;
             /** Relevance */
             relevance: number;
-            /**
-             * Is Manually Verified
-             * @default false
-             */
-            is_manually_verified: boolean;
+            /** @default unverified */
+            verification_status: components["schemas"]["PlaceVerificationStatus"];
         };
         /** VenueMergeRequest */
         VenueMergeRequest: {
@@ -787,8 +789,7 @@ export interface components {
             lat?: number | null;
             /** Lng */
             lng?: number | null;
-            /** Is Manually Verified */
-            is_manually_verified?: boolean | null;
+            verification_status?: components["schemas"]["PlaceVerificationStatus"] | null;
         };
     };
     responses: never;

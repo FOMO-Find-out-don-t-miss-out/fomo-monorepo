@@ -4,6 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, field_serializer, model_validator
 
+from packages.domain.models.place import PlaceVerificationStatus
 from packages.domain.utils.geo_utils import parse_wkb_to_geojson
 
 
@@ -24,7 +25,7 @@ class VenueUpdate(BaseModel):
     full_address: str | None = None
     lat: float | None = None
     lng: float | None = None
-    is_manually_verified: bool | None = None
+    verification_status: PlaceVerificationStatus | None = None
 
 
 class Venue(BaseModel):
@@ -38,7 +39,7 @@ class Venue(BaseModel):
     lng: float
     full_address: str
     relevance: float
-    is_manually_verified: bool = False
+    verification_status: PlaceVerificationStatus = PlaceVerificationStatus.unverified
 
     model_config = ConfigDict(from_attributes=True)
 
