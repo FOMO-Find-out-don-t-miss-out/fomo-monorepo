@@ -186,19 +186,15 @@ class Event(EventBase, table=True):
     place_id: UUID | None = Field(default=None, foreign_key="places.id", index=True)
     organizer_id: UUID | None = Field(default=None, foreign_key="organizers.id", index=True)
     status: EventStatus = Field(
-        default=EventStatus.live,
         sa_column=Column(
             postgresql.ENUM(EventStatus, name="event_status", create_type=False),
             nullable=False,
-            server_default=EventStatus.live.value,
         ),
     )
     provenance: EventProvenance = Field(
-        default=EventProvenance.aggregated,
         sa_column=Column(
             postgresql.ENUM(EventProvenance, name="event_provenance", create_type=False),
             nullable=False,
-            server_default=EventProvenance.aggregated.value,
         ),
     )
     trust_level: EventTrustLevel = Field(

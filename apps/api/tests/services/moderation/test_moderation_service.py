@@ -4,7 +4,15 @@ from uuid import uuid4
 
 from sqlmodel import Session, select
 
-from packages.domain.models import Event, PendingEvent, Venue
+from packages.domain.models import (
+    Event,
+    EventProvenance,
+    EventStatus,
+    EventTrustLevel,
+    EventVisibility,
+    PendingEvent,
+    Venue,
+)
 
 # Mock WKTElement globally for this test file
 with patch("app.services.moderation.moderation_service.WKTElement", side_effect=lambda x, srid: x):
@@ -42,6 +50,10 @@ def test_approve_events(session: Session):
     assert live_event is not None
     assert live_event.location_name == "Test Venue"
     assert live_event.place_id is not None
+    assert live_event.status == EventStatus.live
+    assert live_event.provenance == EventProvenance.aggregated
+    assert live_event.trust_level == EventTrustLevel.unverified
+    assert live_event.visibility == EventVisibility.public
 
     # Check if venue was created
     venue = session.exec(select(Venue).where(Venue.name == "Test Venue")).first()
@@ -119,7 +131,12 @@ def test_update_pending_event_rename_venue(session: Session):
 
 def test_batch_update_location_by_name(session: Session):
     p = PendingEvent(title="E", location_name="V", status="pending")
-    e = Event(title="E", location_name="V")
+    e = Event(
+        title="E",
+        location_name="V",
+        status=EventStatus.live,
+        provenance=EventProvenance.aggregated,
+    )
     session.add_all([p, e])
     session.commit()
 

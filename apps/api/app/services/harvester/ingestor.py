@@ -10,6 +10,9 @@ from packages.domain.models import (
     DedupeStatus,
     Event,
     EventProvenance,
+    EventStatus,
+    EventTrustLevel,
+    EventVisibility,
     PendingEvent,
     Place,
     SubmissionType,
@@ -222,7 +225,10 @@ class IngestionService:
                         event_metadata=event_data.event_metadata,
                         geocoding_status=event_data.geocoding_status,
                         geocoding_metadata=event_data.geocoding_metadata,
+                        status=EventStatus.live,
                         provenance=EventProvenance.aggregated,
+                        trust_level=EventTrustLevel.unverified,
+                        visibility=EventVisibility.public,
                         place_id=place_candidate_id,
                     )
                     db.add(live_event)

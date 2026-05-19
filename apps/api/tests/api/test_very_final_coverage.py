@@ -5,7 +5,7 @@ import pytest
 from httpx import AsyncClient
 from sqlmodel import Session
 
-from packages.domain.models import Event, PendingEvent
+from packages.domain.models import Event, EventProvenance, EventStatus, PendingEvent
 
 
 @pytest.mark.asyncio
@@ -16,6 +16,8 @@ async def test_update_published_event_success(client: AsyncClient, session: Sess
         start_time=datetime(2026, 1, 1, tzinfo=UTC),
         location_name="V",
         country_code="GR",
+        status=EventStatus.live,
+        provenance=EventProvenance.aggregated,
     )
     session.add(event)
     session.commit()

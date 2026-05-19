@@ -4,7 +4,7 @@ import pytest
 from httpx import AsyncClient
 from sqlmodel import Session
 
-from packages.domain.models import Event, PendingEvent
+from packages.domain.models import Event, EventProvenance, EventStatus, PendingEvent
 
 
 @pytest.mark.asyncio
@@ -35,6 +35,8 @@ async def test_get_published_events(client: AsyncClient, session: Session) -> No
         category="Music",
         location_name="Venue B",
         location="POINT(0 0)",
+        status=EventStatus.live,
+        provenance=EventProvenance.aggregated,
     )
     session.add(ev)
     session.commit()
@@ -84,7 +86,14 @@ async def test_reject_events_batch(client: AsyncClient, session: Session) -> Non
 async def test_unpublish_event(client: AsyncClient, session: Session) -> None:
     # Create Event and matching PendingEvent
     start = datetime.now(UTC)
-    live = Event(title="Live", start_time=start, category="T", location="POINT(0 0)")
+    live = Event(
+        title="Live",
+        start_time=start,
+        category="T",
+        location="POINT(0 0)",
+        status=EventStatus.live,
+        provenance=EventProvenance.aggregated,
+    )
     pending = PendingEvent(title="Live", start_time=start, category="T", status="published")
     session.add(live)
     session.add(pending)

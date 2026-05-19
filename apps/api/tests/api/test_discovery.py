@@ -6,7 +6,14 @@ import pytest
 from httpx import AsyncClient
 from sqlmodel import Session
 
-from packages.domain.models import Event, EventStatus, EventVisibility, Organizer, Place
+from packages.domain.models import (
+    Event,
+    EventProvenance,
+    EventStatus,
+    EventVisibility,
+    Organizer,
+    Place,
+)
 
 
 # Simple spatial distance function for SQLite
@@ -78,6 +85,8 @@ async def test_events_discovery_spatial(client: AsyncClient, session: Session) -
         category="Music",
         location_name="Athens Center",
         source_url="http://athens.com",
+        status=EventStatus.live,
+        provenance=EventProvenance.aggregated,
     )
     e2 = Event(
         title="Piraeus Event",
@@ -86,6 +95,8 @@ async def test_events_discovery_spatial(client: AsyncClient, session: Session) -
         category="Art",
         location_name="Piraeus Port",
         source_url="http://piraeus.com",
+        status=EventStatus.live,
+        provenance=EventProvenance.aggregated,
     )
     e3 = Event(
         title="Thessaloniki Event",
@@ -94,12 +105,16 @@ async def test_events_discovery_spatial(client: AsyncClient, session: Session) -
         category="Tech",
         location_name="White Tower",
         source_url="http://thessaloniki.com",
+        status=EventStatus.live,
+        provenance=EventProvenance.aggregated,
     )
     hidden = Event(
         title="Hidden Event",
         location="POINT(23.7275 37.9838)",
         start_time=datetime(2026, 4, 1, 23, 0, tzinfo=UTC),
         category="Music",
+        status=EventStatus.live,
+        provenance=EventProvenance.aggregated,
         visibility=EventVisibility.hidden,
     )
     restricted = Event(
@@ -107,6 +122,8 @@ async def test_events_discovery_spatial(client: AsyncClient, session: Session) -
         location="POINT(23.7275 37.9838)",
         start_time=datetime(2026, 4, 2, 20, 0, tzinfo=UTC),
         category="Music",
+        status=EventStatus.live,
+        provenance=EventProvenance.aggregated,
         visibility=EventVisibility.restricted,
     )
     shadow_hidden = Event(
@@ -114,6 +131,8 @@ async def test_events_discovery_spatial(client: AsyncClient, session: Session) -
         location="POINT(23.7275 37.9838)",
         start_time=datetime(2026, 4, 2, 21, 0, tzinfo=UTC),
         category="Music",
+        status=EventStatus.live,
+        provenance=EventProvenance.aggregated,
         visibility=EventVisibility.shadow_hidden,
     )
     removed = Event(
@@ -122,6 +141,7 @@ async def test_events_discovery_spatial(client: AsyncClient, session: Session) -
         start_time=datetime(2026, 4, 2, 22, 0, tzinfo=UTC),
         category="Music",
         status=EventStatus.removed,
+        provenance=EventProvenance.aggregated,
     )
     under_investigation = Event(
         title="Investigated Event",
@@ -129,6 +149,7 @@ async def test_events_discovery_spatial(client: AsyncClient, session: Session) -
         start_time=datetime(2026, 4, 2, 23, 0, tzinfo=UTC),
         category="Music",
         status=EventStatus.under_investigation,
+        provenance=EventProvenance.aggregated,
     )
 
     session.add_all([e1, e2, e3, hidden, restricted, shadow_hidden, removed, under_investigation])
@@ -187,12 +208,16 @@ async def test_event_detail_filters_non_public_events(
         location="POINT(23.7275 37.9838)",
         start_time=datetime(2026, 4, 1, 20, 0, tzinfo=UTC),
         category="Music",
+        status=EventStatus.live,
+        provenance=EventProvenance.aggregated,
     )
     hidden = Event(
         title="Hidden Detail",
         location="POINT(23.7275 37.9838)",
         start_time=datetime(2026, 4, 1, 21, 0, tzinfo=UTC),
         category="Music",
+        status=EventStatus.live,
+        provenance=EventProvenance.aggregated,
         visibility=EventVisibility.hidden,
     )
     removed = Event(
@@ -201,6 +226,7 @@ async def test_event_detail_filters_non_public_events(
         start_time=datetime(2026, 4, 1, 22, 0, tzinfo=UTC),
         category="Music",
         status=EventStatus.removed,
+        provenance=EventProvenance.aggregated,
     )
     session.add_all([public, hidden, removed])
     session.commit()
@@ -238,6 +264,8 @@ async def test_public_event_response_includes_place_and_organizer_ids(
         location="POINT(23.7275 37.9838)",
         start_time=datetime(2026, 4, 1, 20, 0, tzinfo=UTC),
         category="Music",
+        status=EventStatus.live,
+        provenance=EventProvenance.aggregated,
         place_id=place.id,
         organizer_id=organizer.id,
     )

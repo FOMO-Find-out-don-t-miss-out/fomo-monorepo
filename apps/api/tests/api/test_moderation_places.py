@@ -57,9 +57,7 @@ async def test_update_place(client: AsyncClient, session: Session) -> None:
 
 @pytest.mark.asyncio
 async def test_update_place_not_found(client: AsyncClient) -> None:
-    response = await client.patch(
-        f"/api/v1/moderation/places/{uuid4()}", json={"name": "X"}
-    )
+    response = await client.patch(f"/api/v1/moderation/places/{uuid4()}", json={"name": "X"})
     assert response.status_code == 404
 
 
@@ -130,9 +128,7 @@ async def test_deprecated_venues_delete_still_works(client: AsyncClient, session
 
 
 @pytest.mark.asyncio
-async def test_deprecated_venues_merge_still_works(
-    client: AsyncClient, session: Session
-) -> None:
+async def test_deprecated_venues_merge_still_works(client: AsyncClient, session: Session) -> None:
     src = make_place(name="Compat Src")
     tgt = make_place(name="Compat Tgt")
     session.add_all([src, tgt])

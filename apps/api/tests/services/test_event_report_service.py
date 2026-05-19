@@ -4,7 +4,14 @@ from uuid import uuid4
 from app.services.event_report_service import EventReportService
 from sqlmodel import Session, select
 
-from packages.domain.models import Event, EventReport, EventStatus, EventVisibility, User
+from packages.domain.models import (
+    Event,
+    EventProvenance,
+    EventReport,
+    EventStatus,
+    EventVisibility,
+    User,
+)
 from packages.domain.models.event_report import GpsValidationStatus, ReportResolution, ReportStatus
 
 
@@ -21,6 +28,7 @@ def create_event(
     title: str,
     *,
     status: EventStatus = EventStatus.live,
+    provenance: EventProvenance = EventProvenance.aggregated,
     visibility: EventVisibility = EventVisibility.public,
 ) -> Event:
     event = Event(
@@ -29,6 +37,7 @@ def create_event(
         start_time=datetime(2026, 6, 1, 20, 0, tzinfo=UTC),
         category="Music",
         status=status,
+        provenance=provenance,
         visibility=visibility,
     )
     session.add(event)

@@ -6,6 +6,7 @@ from sqlmodel import Session, select
 
 from packages.domain.models import (
     Event,
+    EventProvenance,
     EventRelationship,
     EventStatus,
     EventVisibility,
@@ -27,6 +28,7 @@ def create_event(
     title: str,
     *,
     status: EventStatus = EventStatus.live,
+    provenance: EventProvenance = EventProvenance.aggregated,
     visibility: EventVisibility = EventVisibility.public,
 ) -> Event:
     event = Event(
@@ -35,6 +37,7 @@ def create_event(
         start_time=datetime(2026, 4, 1, 20, 0, tzinfo=UTC),
         category="Music",
         status=status,
+        provenance=provenance,
         visibility=visibility,
     )
     session.add(event)

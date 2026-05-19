@@ -119,9 +119,7 @@ class PlaceModerationService:
             ev.geocoding_status = geocoding_status
             self.session.add(ev)
 
-        for ev in self.session.exec(
-            select(Event).where(Event.location_name == source_name)
-        ).all():
+        for ev in self.session.exec(select(Event).where(Event.location_name == source_name)).all():
             ev.location_name = target_name
             ev.location = WKTElement(target_wkt, srid=4326)
             self.session.add(ev)
@@ -147,9 +145,7 @@ class PlaceModerationService:
             ev.geocoding_metadata = {}
             self.session.add(ev)
 
-        for ev in self.session.exec(
-            select(Event).where(Event.location_name == place_name)
-        ).all():
+        for ev in self.session.exec(select(Event).where(Event.location_name == place_name)).all():
             ev.location = None
             self.session.add(ev)
 

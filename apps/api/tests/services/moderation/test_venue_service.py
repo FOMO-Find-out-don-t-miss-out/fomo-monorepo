@@ -3,7 +3,14 @@ from uuid import uuid4
 
 from sqlmodel import Session
 
-from packages.domain.models import Event, PendingEvent, PlaceVerificationStatus, Venue
+from packages.domain.models import (
+    Event,
+    EventProvenance,
+    EventStatus,
+    PendingEvent,
+    PlaceVerificationStatus,
+    Venue,
+)
 
 # Mock WKTElement globally for this test file
 with patch("app.services.moderation.place_service.WKTElement", side_effect=lambda x, srid: x):
@@ -15,7 +22,12 @@ def test_update_place_and_sync(session: Session):
         name="V", city="C", country_code="GR", lat=1.0, lng=1.0, full_address="A", relevance=1.0
     )
     p = PendingEvent(title="E", location_name="V", status="pending")
-    e = Event(title="E", location_name="V")
+    e = Event(
+        title="E",
+        location_name="V",
+        status=EventStatus.live,
+        provenance=EventProvenance.aggregated,
+    )
     session.add_all([v, p, e])
     session.commit()
 

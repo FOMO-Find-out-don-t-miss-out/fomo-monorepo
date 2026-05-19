@@ -1,34 +1,36 @@
 from unittest.mock import MagicMock, patch
 
-from packages.domain.models import Event, PendingEvent
+from packages.domain.models import Event, EventProvenance, EventStatus, PendingEvent
+
+_LIFECYCLE = {"status": EventStatus.live, "provenance": EventProvenance.aggregated}
 
 
 def test_event_photo_url_normalization():
     # Test normalization logic during initialization
-    e = Event(title="T", event_metadata={"image": "www.test.com/img.png"})
+    e = Event(title="T", event_metadata={"image": "www.test.com/img.png"}, **_LIFECYCLE)
     assert e.photo_url == "https://www.test.com/img.png"
 
-    e = Event(title="T", event_metadata={"photo_url": "//cdn.com/test.jpg"})
+    e = Event(title="T", event_metadata={"photo_url": "//cdn.com/test.jpg"}, **_LIFECYCLE)
     assert e.photo_url == "https://cdn.com/test.jpg"
 
-    e = Event(title="T", event_metadata={"photo_url": "http://direct.com/a.png"})
+    e = Event(title="T", event_metadata={"photo_url": "http://direct.com/a.png"}, **_LIFECYCLE)
     assert e.photo_url == "http://direct.com/a.png"
 
-    e = Event(title="T", event_metadata={"image": ["list.com/1.png"]})
+    e = Event(title="T", event_metadata={"image": ["list.com/1.png"]}, **_LIFECYCLE)
     assert e.photo_url == "list.com/1.png"
 
-    e = Event(title="T", event_metadata={"image": "  www.trimmed.com/a.png  "})
+    e = Event(title="T", event_metadata={"image": "  www.trimmed.com/a.png  "}, **_LIFECYCLE)
     assert e.photo_url == "https://www.trimmed.com/a.png"
 
     # Test explicit photo_url
-    e = Event(title="T", photo_url="www.explicit.com/a.png")
+    e = Event(title="T", photo_url="www.explicit.com/a.png", **_LIFECYCLE)
     assert e.photo_url == "https://www.explicit.com/a.png"
 
 
 def test_event_location_serialization():
     from unittest.mock import MagicMock
 
-    e = Event(title="T")
+    e = Event(title="T", **_LIFECYCLE)
     # Test serializer directly
     assert e.serialize_location(None) is None
 
@@ -89,3 +91,11 @@ def test_response_schema_location_serialization():
 def test_pending_event_computed_fields():
     p = PendingEvent(title="P", event_metadata={"image": "www.more.com/img.png"})
     assert p.photo_url == "https://www.more.com/img.png"
+
+
+def test_event_status_and_provenance_have_no_silent_defaults():
+    # No Python-level default: fields are None until explicitly set.
+    # Constraint enforcement happens at the DB level.
+    e = Event(title="No lifecycle fields")  # type: ignore[call-arg]
+    assert e.status is None
+    assert e.provenance is None

@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from sqlmodel import Session
 
-from packages.domain.models import Event, PendingEvent
+from packages.domain.models import Event, EventProvenance, EventStatus, PendingEvent
 
 # Mock WKTElement globally
 with patch("app.services.moderation.moderation_service.WKTElement", side_effect=lambda x, srid: x):
@@ -12,8 +12,20 @@ with patch("app.services.moderation.moderation_service.WKTElement", side_effect=
 
 
 def test_get_published_events(session: Session):
-    e1 = Event(title="Published 1", start_time=datetime.now(UTC), location_name="V1")
-    e2 = Event(title="Published 2", start_time=datetime.now(UTC), location_name="V2")
+    e1 = Event(
+        title="Published 1",
+        start_time=datetime.now(UTC),
+        location_name="V1",
+        status=EventStatus.live,
+        provenance=EventProvenance.aggregated,
+    )
+    e2 = Event(
+        title="Published 2",
+        start_time=datetime.now(UTC),
+        location_name="V2",
+        status=EventStatus.live,
+        provenance=EventProvenance.aggregated,
+    )
     session.add_all([e1, e2])
     session.commit()
 
@@ -29,7 +41,13 @@ def test_get_published_events(session: Session):
 def test_unpublish_event(session: Session):
     # Setup: Live event and its pending counterpart
     start = datetime(2026, 1, 1, tzinfo=UTC)
-    e = Event(title="To Unpublish", start_time=start, location_name="V")
+    e = Event(
+        title="To Unpublish",
+        start_time=start,
+        location_name="V",
+        status=EventStatus.live,
+        provenance=EventProvenance.aggregated,
+    )
     p = PendingEvent(title="To Unpublish", start_time=start, status="published")
     session.add_all([e, p])
     session.commit()
@@ -52,7 +70,14 @@ def test_unpublish_event_not_found(session: Session):
 
 def test_update_published_event(session: Session):
     start = datetime(2026, 1, 1, tzinfo=UTC)
-    e = Event(title="Old Title", start_time=start, location_name="V", hype_score=10)
+    e = Event(
+        title="Old Title",
+        start_time=start,
+        location_name="V",
+        hype_score=10,
+        status=EventStatus.live,
+        provenance=EventProvenance.aggregated,
+    )
     p = PendingEvent(title="Old Title", start_time=start, status="published", hype_score=10)
     session.add_all([e, p])
     session.commit()
