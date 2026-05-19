@@ -18,6 +18,10 @@ class EventDiscoveryResponse(BaseModel):
     lat: float
     lng: float
     source_url: str | None = Field(None, serialization_alias="sourceUrl")
+    provenance: str
+    trust_level: str
+    place_id: UUID | None = None
+    organizer_id: UUID | None = None
 
     class Config:
         from_attributes = True

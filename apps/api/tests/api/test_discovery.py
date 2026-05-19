@@ -6,7 +6,7 @@ import pytest
 from httpx import AsyncClient
 from sqlmodel import Session
 
-from packages.domain.models import Event
+from packages.domain.models import Event, EventStatus, EventVisibility, Organizer, Place
 
 
 # Simple spatial distance function for SQLite
@@ -95,10 +95,43 @@ async def test_events_discovery_spatial(client: AsyncClient, session: Session) -
         location_name="White Tower",
         source_url="http://thessaloniki.com",
     )
+    hidden = Event(
+        title="Hidden Event",
+        location="POINT(23.7275 37.9838)",
+        start_time=datetime(2026, 4, 1, 23, 0, tzinfo=UTC),
+        category="Music",
+        visibility=EventVisibility.hidden,
+    )
+    restricted = Event(
+        title="Restricted Event",
+        location="POINT(23.7275 37.9838)",
+        start_time=datetime(2026, 4, 2, 20, 0, tzinfo=UTC),
+        category="Music",
+        visibility=EventVisibility.restricted,
+    )
+    shadow_hidden = Event(
+        title="Shadow Hidden Event",
+        location="POINT(23.7275 37.9838)",
+        start_time=datetime(2026, 4, 2, 21, 0, tzinfo=UTC),
+        category="Music",
+        visibility=EventVisibility.shadow_hidden,
+    )
+    removed = Event(
+        title="Removed Event",
+        location="POINT(23.7275 37.9838)",
+        start_time=datetime(2026, 4, 2, 22, 0, tzinfo=UTC),
+        category="Music",
+        status=EventStatus.removed,
+    )
+    under_investigation = Event(
+        title="Investigated Event",
+        location="POINT(23.7275 37.9838)",
+        start_time=datetime(2026, 4, 2, 23, 0, tzinfo=UTC),
+        category="Music",
+        status=EventStatus.under_investigation,
+    )
 
-    session.add(e1)
-    session.add(e2)
-    session.add(e3)
+    session.add_all([e1, e2, e3, hidden, restricted, shadow_hidden, removed, under_investigation])
     session.commit()
 
     # Discovery from Athens with 10km radius
@@ -114,6 +147,11 @@ async def test_events_discovery_spatial(client: AsyncClient, session: Session) -
     assert "Athens Event" in titles
     assert "Piraeus Event" in titles
     assert "Thessaloniki Event" not in titles
+    assert "Hidden Event" not in titles
+    assert "Restricted Event" not in titles
+    assert "Shadow Hidden Event" not in titles
+    assert "Removed Event" not in titles
+    assert "Investigated Event" not in titles
 
     # Verify order (Athens Event should be first as distance is 0)
     assert data[0]["title"] == "Athens Event"
@@ -128,12 +166,91 @@ async def test_events_discovery_spatial(client: AsyncClient, session: Session) -
     assert "lat" in first_event
     assert "lng" in first_event
     assert "sourceUrl" in first_event
+    assert "provenance" in first_event
+    assert "trust_level" in first_event
+    assert "place_id" in first_event
+    assert "organizer_id" in first_event
 
     # Test with larger radius
     params_large: dict[str, Any] = {"lat": 37.9838, "lng": 23.7275, "radius_km": 500.0}
     response_large = await client.get("/api/v1/events/discovery", params=params_large)
     assert response_large.status_code == 200
     assert len(response_large.json()) == 3
+
+
+@pytest.mark.asyncio
+async def test_event_detail_filters_non_public_events(
+    client: AsyncClient, session: Session
+) -> None:
+    public = Event(
+        title="Public Detail",
+        location="POINT(23.7275 37.9838)",
+        start_time=datetime(2026, 4, 1, 20, 0, tzinfo=UTC),
+        category="Music",
+    )
+    hidden = Event(
+        title="Hidden Detail",
+        location="POINT(23.7275 37.9838)",
+        start_time=datetime(2026, 4, 1, 21, 0, tzinfo=UTC),
+        category="Music",
+        visibility=EventVisibility.hidden,
+    )
+    removed = Event(
+        title="Removed Detail",
+        location="POINT(23.7275 37.9838)",
+        start_time=datetime(2026, 4, 1, 22, 0, tzinfo=UTC),
+        category="Music",
+        status=EventStatus.removed,
+    )
+    session.add_all([public, hidden, removed])
+    session.commit()
+
+    public_response = await client.get(f"/api/v1/events/{public.id}")
+    assert public_response.status_code == 200
+    assert public_response.json()["title"] == "Public Detail"
+
+    hidden_response = await client.get(f"/api/v1/events/{hidden.id}")
+    assert hidden_response.status_code == 404
+
+    removed_response = await client.get(f"/api/v1/events/{removed.id}")
+    assert removed_response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_public_event_response_includes_place_and_organizer_ids(
+    client: AsyncClient, session: Session
+) -> None:
+    place = Place(
+        name="Canonical Place",
+        country_code="GR",
+        lat=37.9838,
+        lng=23.7275,
+        full_address="Athens",
+        relevance=1.0,
+        location="POINT(23.7275 37.9838)",
+    )
+    organizer = Organizer(display_name="Organizer")
+    session.add_all([place, organizer])
+    session.commit()
+
+    event = Event(
+        title="Linked Event",
+        location="POINT(23.7275 37.9838)",
+        start_time=datetime(2026, 4, 1, 20, 0, tzinfo=UTC),
+        category="Music",
+        place_id=place.id,
+        organizer_id=organizer.id,
+    )
+    session.add(event)
+    session.commit()
+
+    response = await client.get(f"/api/v1/events/{event.id}")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["provenance"] == "aggregated"
+    assert data["trust_level"] == "unverified"
+    assert data["place_id"] == str(place.id)
+    assert data["organizer_id"] == str(organizer.id)
 
 
 @pytest.mark.asyncio
