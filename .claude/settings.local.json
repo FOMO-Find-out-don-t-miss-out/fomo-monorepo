@@ -58,7 +58,11 @@
       "Read(//tmp/**)",
       "Bash(kill %1)",
       "Bash(echo \"verify-schema grep exit: $?\")",
-      "Bash(pnpm --filter @fomo/harvester-dashboard exec tsc --noEmit)"
+      "Bash(pnpm --filter @fomo/harvester-dashboard exec tsc --noEmit)",
+      "Bash(pnpm --filter @fomo/api-spec check-quality)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
-  }
+  },
+    "includeCoAuthoredBy": false
 }
