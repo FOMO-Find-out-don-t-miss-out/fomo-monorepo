@@ -12,7 +12,7 @@ from app.core.config import settings
 from app.core.geography_constants import DEFAULT_COUNTRY_CODE, CountryConfig, get_country_config
 from app.db.session import engine
 from app.infrastructure.external.mapbox_client import MapboxClient, MapboxFeature
-from app.repositories.venue_repository import VenueRepository
+from app.repositories.place_repository import PlaceRepository
 from app.utils.geo_utils import haversine_distance, normalize_string
 from packages.domain.models import PendingEvent
 
@@ -210,7 +210,7 @@ class GeocoderService:
         config = get_country_config(country_hint)
 
         with Session(engine) as session:
-            cached = VenueRepository(session).get_by_name(location_name, config.code, city_hint)
+            cached = PlaceRepository(session).get_by_name(location_name, config.code, city_hint)
             if cached:
                 return GeocodeResult(
                     lat=cached.lat,
@@ -335,7 +335,7 @@ class GeocoderService:
         if status in ["verified", "ambiguous"]:
             if status == "verified" or res.relevance >= 0.6:
                 with Session(engine) as session:
-                    VenueRepository(session).save_venue(
+                    PlaceRepository(session).save_place(
                         original,
                         config.code,
                         res.lat,
@@ -358,10 +358,10 @@ class GeocoderService:
         return None
 
     @classmethod
-    def purge_cache(cls, venue_name: str | None = None) -> dict[str, Any]:
+    def purge_cache(cls, place_name: str | None = None) -> dict[str, Any]:
         try:
             with Session(engine) as session:
-                count = VenueRepository(session).delete_venues(venue_name)
+                count = PlaceRepository(session).delete_places(place_name)
                 return {"deleted": count}
         except Exception as e:
             logger.error(f"[GEOCODER] Cache purge failed: {e}")

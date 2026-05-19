@@ -308,15 +308,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/moderation/venues": {
+    "/api/v1/moderation/places": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Get Venues */
-        get: operations["get_venues_api_v1_moderation_venues_get"];
+        /** List Places */
+        get: operations["list_places_api_v1_moderation_places_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -325,7 +325,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/moderation/venues/{venue_id}": {
+    "/api/v1/moderation/places/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Merge Places */
+        post: operations["merge_places_api_v1_moderation_places_merge_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/moderation/places/{place_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -335,29 +352,12 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Delete Venue */
-        delete: operations["delete_venue_api_v1_moderation_venues__venue_id__delete"];
+        /** Delete Place */
+        delete: operations["delete_place_api_v1_moderation_places__place_id__delete"];
         options?: never;
         head?: never;
-        /** Update Venue */
-        patch: operations["update_venue_api_v1_moderation_venues__venue_id__patch"];
-        trace?: never;
-    };
-    "/api/v1/moderation/venues/merge": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Merge Venues */
-        post: operations["merge_venues_api_v1_moderation_venues_merge_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
+        /** Update Place */
+        patch: operations["update_place_api_v1_moderation_places__place_id__patch"];
         trace?: never;
     };
     "/api/v1/moderation/batch-update-location": {
@@ -712,26 +712,21 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
-        /**
-         * PlaceVerificationStatus
-         * @enum {string}
-         */
-        PlaceVerificationStatus: "unverified" | "system_matched" | "manually_verified";
-        /** ValidationError */
-        ValidationError: {
-            /** Location */
-            loc: (string | number)[];
-            /** Message */
-            msg: string;
-            /** Error Type */
-            type: string;
-            /** Input */
-            input?: unknown;
-            /** Context */
-            ctx?: Record<string, never>;
+        /** PlaceMergeRequest */
+        PlaceMergeRequest: {
+            /**
+             * Source Place Id
+             * Format: uuid
+             */
+            source_place_id: string;
+            /**
+             * Target Place Id
+             * Format: uuid
+             */
+            target_place_id: string;
         };
-        /** Venue */
-        Venue: {
+        /** PlaceResponse */
+        PlaceResponse: {
             /**
              * Created At
              * Format: date-time
@@ -764,21 +759,8 @@ export interface components {
             /** @default unverified */
             verification_status: components["schemas"]["PlaceVerificationStatus"];
         };
-        /** VenueMergeRequest */
-        VenueMergeRequest: {
-            /**
-             * Source Venue Id
-             * Format: uuid
-             */
-            source_venue_id: string;
-            /**
-             * Target Venue Id
-             * Format: uuid
-             */
-            target_venue_id: string;
-        };
-        /** VenueUpdate */
-        VenueUpdate: {
+        /** PlaceUpdate */
+        PlaceUpdate: {
             /** Name */
             name?: string | null;
             /** City */
@@ -790,6 +772,24 @@ export interface components {
             /** Lng */
             lng?: number | null;
             verification_status?: components["schemas"]["PlaceVerificationStatus"] | null;
+        };
+        /**
+         * PlaceVerificationStatus
+         * @enum {string}
+         */
+        PlaceVerificationStatus: "unverified" | "system_matched" | "manually_verified";
+        /** ValidationError */
+        ValidationError: {
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
+            /** Input */
+            input?: unknown;
+            /** Context */
+            ctx?: Record<string, never>;
         };
     };
     responses: never;
@@ -1357,7 +1357,7 @@ export interface operations {
             };
         };
     };
-    get_venues_api_v1_moderation_venues_get: {
+    list_places_api_v1_moderation_places_get: {
         parameters: {
             query?: {
                 search_query?: string | null;
@@ -1375,7 +1375,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Venue"][];
+                    "application/json": components["schemas"]["PlaceResponse"][];
                 };
             };
             /** @description Validation Error */
@@ -1389,12 +1389,47 @@ export interface operations {
             };
         };
     };
-    delete_venue_api_v1_moderation_venues__venue_id__delete: {
+    merge_places_api_v1_moderation_places_merge_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaceMergeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_place_api_v1_moderation_places__place_id__delete: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                venue_id: string;
+                place_id: string;
             };
             cookie?: never;
         };
@@ -1422,18 +1457,18 @@ export interface operations {
             };
         };
     };
-    update_venue_api_v1_moderation_venues__venue_id__patch: {
+    update_place_api_v1_moderation_places__place_id__patch: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                venue_id: string;
+                place_id: string;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["VenueUpdate"];
+                "application/json": components["schemas"]["PlaceUpdate"];
             };
         };
         responses: {
@@ -1443,42 +1478,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Venue"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    merge_venues_api_v1_moderation_venues_merge_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["VenueMergeRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
+                    "application/json": components["schemas"]["PlaceResponse"];
                 };
             };
             /** @description Validation Error */

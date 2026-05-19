@@ -40,10 +40,10 @@ async def debug_geocoder():
         },
     ]
 
-    # Patch Session and VenueRepository to bypass DB
+    # Patch Session and PlaceRepository to bypass DB
     with (
         patch("app.services.harvester.location.geocoder.Session"),
-        patch("app.services.harvester.location.geocoder.VenueRepository") as mock_repo_class,
+        patch("app.services.harvester.location.geocoder.PlaceRepository") as mock_repo_class,
     ):
         # Make get_by_name return None to force Mapbox call
         mock_repo_class.return_value.get_by_name.return_value = None

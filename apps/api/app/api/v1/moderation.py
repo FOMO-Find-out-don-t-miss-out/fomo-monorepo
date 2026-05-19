@@ -12,13 +12,14 @@ from app.schemas.moderation import (
     OccurrenceCreate,
     PendingEventResponse,
     PendingEventUpdate,
-    Venue,
+    PlaceMergeRequest,
+    PlaceResponse,
+    PlaceUpdate,
     VenueMergeRequest,
-    VenueUpdate,
 )
 from app.services.harvester.location.geocoder import GeocodeResult, GeocoderService
 from app.services.moderation.moderation_service import ModerationService
-from app.services.moderation.venue_service import VenueModerationService
+from app.services.moderation.place_service import PlaceModerationService
 
 router = APIRouter()
 
@@ -134,49 +135,91 @@ def add_occurrence(
     return PendingEventResponse.model_validate(new_occ)
 
 
-@router.get("/venues", response_model=list[Venue])
+# --- Canonical /places routes ---
+
+
+@router.get("/places", response_model=list[PlaceResponse])
+def list_places(
+    session: Annotated[Session, Depends(get_db)],
+    search_query: str | None = None,
+    only_unverified: bool = False,
+) -> list[PlaceResponse]:
+    service = PlaceModerationService(session)
+    return service.get_places(search_query, only_unverified)
+
+
+@router.post("/places/merge")
+def merge_places(
+    request: PlaceMergeRequest, session: Annotated[Session, Depends(get_db)]
+) -> dict[str, str]:
+    service = PlaceModerationService(session)
+    success = service.merge_places(request.source_place_id, request.target_place_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="One or both places not found")
+    return {"status": "success"}
+
+
+@router.patch("/places/{place_id}", response_model=PlaceResponse)
+def update_place(
+    place_id: Annotated[UUID, Any],
+    update: PlaceUpdate,
+    session: Annotated[Session, Depends(get_db)],
+) -> PlaceResponse:
+    service = PlaceModerationService(session)
+    updated = service.update_place(place_id, **update.model_dump(exclude_unset=True))
+    if not updated:
+        raise HTTPException(status_code=404, detail="Place not found")
+    return updated
+
+
+@router.delete("/places/{place_id}")
+def delete_place(
+    place_id: Annotated[UUID, Any], session: Annotated[Session, Depends(get_db)]
+) -> dict[str, str]:
+    service = PlaceModerationService(session)
+    success = service.delete_place_and_unlink_events(place_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Place not found")
+    return {"status": "success"}
+
+
+# --- Deprecated /venues routes — kept as backward-compatible aliases ---
+
+
+@router.get("/venues", response_model=list[PlaceResponse], include_in_schema=False)
 def get_venues(
     session: Annotated[Session, Depends(get_db)],
     search_query: str | None = None,
     only_unverified: bool = False,
-) -> list[Venue]:
-    service = VenueModerationService(session)
-    return service.get_venues(search_query, only_unverified)
+) -> list[PlaceResponse]:
+    return list_places(session, search_query, only_unverified)
 
 
-@router.patch("/venues/{venue_id}", response_model=Venue)
-def update_venue(
-    venue_id: Annotated[UUID, Any],
-    update: VenueUpdate,
-    session: Annotated[Session, Depends(get_db)],
-) -> Venue:
-    service = VenueModerationService(session)
-    updated = service.update_venue_record(venue_id, **update.model_dump(exclude_unset=True))
-    if not updated:
-        raise HTTPException(status_code=404, detail="Venue not found")
-    return updated
-
-
-@router.delete("/venues/{venue_id}")
-def delete_venue(
-    venue_id: Annotated[UUID, Any], session: Annotated[Session, Depends(get_db)]
-) -> dict[str, str]:
-    service = VenueModerationService(session)
-    success = service.delete_venue_and_unlink_events(venue_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Venue not found")
-    return {"status": "success"}
-
-
-@router.post("/venues/merge")
+@router.post("/venues/merge", include_in_schema=False)
 def merge_venues(
     request: VenueMergeRequest, session: Annotated[Session, Depends(get_db)]
 ) -> dict[str, str]:
-    service = VenueModerationService(session)
-    success = service.merge_venues(request.source_venue_id, request.target_venue_id)
+    service = PlaceModerationService(session)
+    success = service.merge_places(request.source_venue_id, request.target_venue_id)
     if not success:
         raise HTTPException(status_code=404, detail="One or both venues not found")
     return {"status": "success"}
+
+
+@router.patch("/venues/{venue_id}", response_model=PlaceResponse, include_in_schema=False)
+def update_venue(
+    venue_id: Annotated[UUID, Any],
+    update: PlaceUpdate,
+    session: Annotated[Session, Depends(get_db)],
+) -> PlaceResponse:
+    return update_place(venue_id, update, session)
+
+
+@router.delete("/venues/{venue_id}", include_in_schema=False)
+def delete_venue(
+    venue_id: Annotated[UUID, Any], session: Annotated[Session, Depends(get_db)]
+) -> dict[str, str]:
+    return delete_place(venue_id, session)
 
 
 @router.post("/batch-update-location")

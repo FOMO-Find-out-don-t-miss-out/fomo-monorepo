@@ -309,7 +309,7 @@ async def test_purge_cache(session: Session) -> None:
 
     with patch("app.services.harvester.location.geocoder.engine", session.get_bind()):
         with patch("app.services.harvester.location.geocoder.Session", return_value=session):
-            GeocoderService.purge_cache(venue_name="V1")
+            GeocoderService.purge_cache(place_name="V1")
             assert session.exec(select(Venue).where(Venue.name == "V1")).first() is None
 
 
@@ -420,7 +420,7 @@ async def test_get_coordinates_failed_all_with_fuzzy(session: Session) -> None:
     config = get_country_config(DEFAULT_COUNTRY_CODE)
     with patch("app.services.harvester.location.geocoder.get_country_config", return_value=config):
         with patch(
-            "app.repositories.venue_repository.VenueRepository.get_by_name", return_value=None
+            "app.repositories.place_repository.PlaceRepository.get_by_name", return_value=None
         ):
             with patch("app.services.harvester.location.geocoder.engine", session.get_bind()):
 
@@ -538,7 +538,7 @@ def test_determine_status_city_distance_mismatch() -> None:
 async def test_get_coordinates_no_token() -> None:
     with patch("app.services.harvester.location.geocoder.Session"):
         with patch(
-            "app.repositories.venue_repository.VenueRepository.get_by_name", return_value=None
+            "app.repositories.place_repository.PlaceRepository.get_by_name", return_value=None
         ):
             with patch("app.core.config.settings.MAPBOX_ACCESS_TOKEN", None):
                 result = await GeocoderService.get_coordinates("Venue", DEFAULT_COUNTRY_CODE)

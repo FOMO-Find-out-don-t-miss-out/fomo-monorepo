@@ -19,7 +19,7 @@ class PendingEventUpdate(BaseModel):
     event_metadata: dict[str, Any] | None = None
 
 
-class VenueUpdate(BaseModel):
+class PlaceUpdate(BaseModel):
     name: str | None = None
     city: str | None = None
     full_address: str | None = None
@@ -28,7 +28,7 @@ class VenueUpdate(BaseModel):
     verification_status: PlaceVerificationStatus | None = None
 
 
-class Venue(BaseModel):
+class PlaceResponse(BaseModel):
     created_at: datetime = None
     updated_at: datetime = None
     id: UUID = None
@@ -44,6 +44,11 @@ class Venue(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class PlaceMergeRequest(BaseModel):
+    source_place_id: UUID
+    target_place_id: UUID
+
+
 class BatchApproveRequest(BaseModel):
     event_ids: list[UUID]
 
@@ -52,6 +57,7 @@ class BatchRejectRequest(BaseModel):
     event_ids: list[UUID]
 
 
+# Kept for deprecated /venues routes — field names are HTTP API contract for existing clients
 class VenueMergeRequest(BaseModel):
     source_venue_id: UUID
     target_venue_id: UUID
@@ -123,7 +129,6 @@ class PendingEventResponse(EventBaseResponse):
     @classmethod
     def map_from_orm(cls, data: Any) -> Any:  # noqa: ANN401
         if hasattr(data, "id") and not isinstance(data, dict):
-            # It's an ORM model (Event or PendingEvent)
             payload = data.model_dump()
             payload["location"] = parse_wkb_to_geojson(data.location)
             return {
@@ -140,3 +145,8 @@ class PendingEventResponse(EventBaseResponse):
                 },
             }
         return data
+
+
+# Backward-compat aliases — use canonical names for new code
+VenueUpdate = PlaceUpdate
+Venue = PlaceResponse

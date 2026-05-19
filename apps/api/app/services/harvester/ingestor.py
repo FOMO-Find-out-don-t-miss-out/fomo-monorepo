@@ -80,7 +80,7 @@ class IngestionService:
 
                 # SAVE/UPDATE VENUE CACHE
                 if event_data.location_name:
-                    from app.repositories.venue_repository import VenueRepository
+                    from app.repositories.place_repository import PlaceRepository
 
                     # Safe city extraction
                     loc_meta = event_data.event_metadata.get("location", {})
@@ -96,7 +96,7 @@ class IngestionService:
                         or loc_city
                     )
 
-                    resolved_place = VenueRepository(db).save_venue(
+                    resolved_place = PlaceRepository(db).save_place(
                         name=event_data.location_name,
                         country_code=event_data.country_code or "GR",
                         lat=event_data.lat,
