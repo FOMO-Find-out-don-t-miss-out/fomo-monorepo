@@ -11,11 +11,12 @@ try:
         Event,  # noqa: F401
         HypeLedger,  # noqa: F401
         Organizer,  # noqa: F401
+        OrganizerFollower,  # noqa: F401
         PendingEvent,  # noqa: F401
         Place,  # noqa: F401
         Profile,  # noqa: F401
-        SocialConnection,  # noqa: F401
         User,  # noqa: F401
+        UserConnection,  # noqa: F401
         WalletAccount,  # noqa: F401
         WalletTransaction,  # noqa: F401
     )

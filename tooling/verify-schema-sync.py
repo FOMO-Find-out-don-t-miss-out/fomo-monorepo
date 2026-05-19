@@ -28,15 +28,7 @@ sys.path.append(str(API_APP_ROOT))
 
 # Import all models to ensure they are registered in SQLModel.metadata.
 try:
-    from packages.domain.models import (
-        Event,
-        HypeLedger,
-        PendingEvent,
-        Profile,
-        SocialConnection,
-        User,
-        Venue,
-    )
+    import packages.domain.models  # noqa: F401
     from packages.domain.models.event import EventCategory
 except ImportError as e:
     print(f"Warning: Some models could not be imported: {e}")  # noqa: T201

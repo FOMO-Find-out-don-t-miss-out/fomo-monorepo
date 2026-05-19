@@ -21,11 +21,12 @@ from packages.domain.models.hype import HypeLedger
 from packages.domain.models.organizer import Organizer, OrganizerVerificationStatus
 from packages.domain.models.pending_event import DedupeStatus, PendingEvent, SubmissionType
 from packages.domain.models.place import Place, PlaceType, PlaceVerificationStatus, Venue
-from packages.domain.models.social import SocialConnection
+from packages.domain.models.social import ConnectionStatus, OrganizerFollower, UserConnection
 from packages.domain.models.user import Profile, User
 from packages.domain.models.wallet import WalletAccount, WalletTransaction, WalletTransactionType
 
 __all__ = [
+    "ConnectionStatus",
     "DedupeStatus",
     "Event",
     "EventBase",
@@ -42,6 +43,7 @@ __all__ = [
     "GpsValidationStatus",
     "HypeLedger",
     "Organizer",
+    "OrganizerFollower",
     "OrganizerVerificationStatus",
     "PendingEvent",
     "Place",
@@ -51,10 +53,10 @@ __all__ = [
     "RelationshipType",
     "ReportResolution",
     "ReportStatus",
-    "SocialConnection",
     "SubmissionType",
     "TimestampMixin",
     "User",
+    "UserConnection",
     "Venue",
     "WalletAccount",
     "WalletTransaction",
