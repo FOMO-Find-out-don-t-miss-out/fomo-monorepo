@@ -1,0 +1,3 @@
+packages/api-spec/openapi.json text eol=lf
+apps/harvester-dashboard/types/api.generated.ts text eol=lf
+apps/mobile/types/api.generated.ts text eol=lf
