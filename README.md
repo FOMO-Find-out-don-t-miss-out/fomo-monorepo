@@ -224,7 +224,7 @@ We enforce strict standards via `pnpm check-quality`:
 
 ---
 
-## 🔒 Security & Rules
+## 🔒 Security & Rules (check)
 - Never commit `.env` files.
 - Refer to [CORE_RULES.md](./CORE_RULES.md) for mandatory architectural standards.
 - **FastAPI Python models** are the source of truth for API definitions. `packages/api-spec/openapi.json` is generated from them and must not be hand-edited.
