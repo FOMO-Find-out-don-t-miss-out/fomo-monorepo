@@ -329,3 +329,7 @@
     inset 0 0 20px color-mix(in oklch, var(--neon-purple) 5%, transparent),
     0 0 10px color-mix(in oklch, var(--neon-purple) 8%, transparent);
 }
+
+.test{
+  display: none;
+}
