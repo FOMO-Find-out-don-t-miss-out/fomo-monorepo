@@ -63,7 +63,11 @@
       "Bash(pnpm --filter @fomo/api-spec check-quality)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(grep -rn \"venue\\\\|Venue\\\\|VenueRepository\\\\|VenueModerationService\" --include=\"*.py\" --exclude-path=\"*/migrations/versions/*\" --exclude-path=\"*/.venv/*\" .)"
+      "Bash(grep -rn \"venue\\\\|Venue\\\\|VenueRepository\\\\|VenueModerationService\" --include=\"*.py\" --exclude-path=\"*/migrations/versions/*\" --exclude-path=\"*/.venv/*\" .)",
+      "Bash(Get-ChildItem -Path \"C:\\\\fomo-monorepo\" -Recurse -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Sort-Object)",
+      "Bash(uv add *)"
     ]
   }
 }

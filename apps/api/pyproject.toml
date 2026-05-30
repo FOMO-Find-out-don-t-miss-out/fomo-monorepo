@@ -19,6 +19,7 @@ dependencies = [
     "alembic>=1.13.3",
     "domain",
     "jsonref>=1.1.0",
+    "prometheus-fastapi-instrumentator>=7.0.0",
 ]
 
 [tool.uv]
