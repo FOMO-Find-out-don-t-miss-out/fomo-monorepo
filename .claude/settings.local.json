@@ -71,7 +71,11 @@
       "Bash(Get-ChildItem -Path \"C:\\\\fomo-monorepo\\\\apps\\\\api\" -Recurse -Depth 2)",
       "Bash(Select-Object FullName, PSIsContainer)",
       "Bash(Format-Table -AutoSize)",
-      "Bash(uv sync *)"
+      "Bash(uv sync *)",
+      "Bash(docker build *)",
+      "Bash(docker info *)",
+      "Bash(docker context *)",
+      "Bash(Test-Path *)"
     ]
   }
 }
