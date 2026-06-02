@@ -14,5 +14,12 @@ class Settings(BaseSettings):
     GEMINI_MODEL: str = "gemini-2.5-flash"
     SCRAPER_PROXY_URL: str | None = None
 
+    # OpenTelemetry tracing — disabled by default; platform sets these in staging/prod.
+    OTEL_ENABLED: bool = False
+    OTEL_SERVICE_NAME: str = "fomo-api"
+    OTEL_EXPORTER_OTLP_ENDPOINT: str | None = None
+    OTEL_TRACES_SAMPLER: str = "parentbased_traceidratio"
+    OTEL_TRACES_SAMPLER_ARG: float = 0.1
+
 
 settings = Settings()

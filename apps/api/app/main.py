@@ -7,10 +7,13 @@ from prometheus_fastapi_instrumentator.metrics import latency, requests
 
 from app.api.api import api_router
 from app.core.config import settings
+from app.core.telemetry import setup_tracing
 
 logging.basicConfig(level=logging.INFO, force=True)
 
 app = FastAPI(title=settings.PROJECT_NAME, openapi_url=f"{settings.API_V1_STR}/openapi.json")
+
+setup_tracing(app)
 
 # Set all origins enabled for local development
 app.add_middleware(
