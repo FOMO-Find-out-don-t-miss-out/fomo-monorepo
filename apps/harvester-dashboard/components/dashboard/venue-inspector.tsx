@@ -183,7 +183,7 @@ export function VenueInspector({ venue, open, onOpenChange }: VenueInspectorProp
           {/* Map Header */}
           <div className="relative w-full h-56 bg-muted">
             <iframe
-              src={`https://api.mapbox.com/styles/v1/mapbox/dark-v11.html?title=false&access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw&zoomwheel=false#14/${editedVenue.lat}/${editedVenue.lng}`}
+              src={`https://api.mapbox.com/styles/v1/mapbox/dark-v11.html?title=false&access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? ''}&zoomwheel=false#14/${editedVenue.lat}/${editedVenue.lng}`}
               className="w-full h-full border-0 grayscale-[0.5] contrast-[1.2] brightness-[0.8]"
               title="Venue Location"
             />

@@ -30,6 +30,13 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED 1
 ENV NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 
+# NEXT_PUBLIC_MAPBOX_TOKEN is baked into the client bundle at build time.
+# Pass via --build-arg when running Kaniko/docker build.
+# If not provided, defaults to empty string and the Mapbox map iframe will not load.
+# Local dev: set NEXT_PUBLIC_MAPBOX_TOKEN in apps/harvester-dashboard/.env.local
+ARG NEXT_PUBLIC_MAPBOX_TOKEN=""
+ENV NEXT_PUBLIC_MAPBOX_TOKEN=$NEXT_PUBLIC_MAPBOX_TOKEN
+
 WORKDIR /app/apps/harvester-dashboard
 RUN pnpm run build
 

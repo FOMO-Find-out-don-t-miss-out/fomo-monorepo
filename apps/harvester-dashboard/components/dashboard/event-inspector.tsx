@@ -450,7 +450,7 @@ export function EventInspector({ event, open, onOpenChange, onApprove, onReject 
               <div className="rounded-xl overflow-hidden border border-neon-blue/30 shadow-[0_0_15px_rgba(37,99,235,0.1)] group">
                 <div className="h-48 bg-muted relative">
                   <iframe
-                    src={`https://api.mapbox.com/styles/v1/mapbox/dark-v11.html?title=false&access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw&zoomwheel=false#15/${lat}/${lng}`}
+                    src={`https://api.mapbox.com/styles/v1/mapbox/dark-v11.html?title=false&access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? ''}&zoomwheel=false#15/${lat}/${lng}`}
                     className="w-full h-full border-0 grayscale-[0.5] contrast-[1.2] brightness-[0.8] group-hover:grayscale-0 group-hover:brightness-100 transition-all duration-500"
                     title="Event Location"
                   />

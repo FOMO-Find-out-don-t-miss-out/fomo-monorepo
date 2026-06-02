@@ -41,6 +41,15 @@ WORKDIR /app
 # Verify uvicorn is present in the synced environment
 RUN uv run uvicorn --version
 
+# 6. Security: run as non-root user
+# Create a system group and user with a fixed UID (1001) so the image does not
+# run as root. chown transfers ownership of the /app tree so uv can read the
+# venv and the app can write to any directories it needs at runtime.
+RUN groupadd -r appgroup && useradd -r -m -g appgroup -u 1001 appuser \
+    && chown -R appuser:appgroup /app
+
+USER appuser
+
 # Run uvicorn using 'uv run' to ensure the workspace environment is correctly activated.
 # We run from the monorepo root so 'packages' is importable.
 # We use --app-dir to add 'apps/api' to the PYTHONPATH so 'app' is importable.
