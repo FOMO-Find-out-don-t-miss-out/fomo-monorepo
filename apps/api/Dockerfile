@@ -44,6 +44,13 @@ COPY --from=builder /app/apps/api /app/apps/api
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONPATH="/app"
 
+# Upgrade libgnutls30 to the patched Debian package that fixes CVE-2026-33845
+# and CVE-2026-42010.  --only-upgrade ensures nothing new is installed if the
+# package is already at the fixed version in a future base image rebuild.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends --only-upgrade libgnutls30 \
+    && rm -rf /var/lib/apt/lists/*
+
 # Smoke-test: confirms the venv and all native extensions were copied correctly.
 RUN uvicorn --version
 
