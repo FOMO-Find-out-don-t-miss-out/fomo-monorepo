@@ -12,6 +12,7 @@ dependencies = [
     "geoalchemy2>=0.15.2",
     "psycopg2-binary>=2.9.9",
     "instructor",
+    "openai>=1.0.0",
     "google-genai",
     "beautifulsoup4>=4.12.3",
     "lxml>=5.0.0",

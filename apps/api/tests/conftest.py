@@ -145,7 +145,7 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     skip_marker = pytest.mark.skip(
         reason=(
             "integration_ai: opt-in only. "
-            "Set RUN_EXTERNAL_AI_TESTS=true and supply GOOGLE_API_KEY to run."
+            "Set RUN_EXTERNAL_AI_TESTS=true and supply AI_API_KEY to run."
         )
     )
     for item in items:
