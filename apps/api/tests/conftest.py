@@ -1,5 +1,6 @@
 # isort: skip_file
 import asyncio
+import os
 import sys
 from collections.abc import AsyncGenerator, Generator
 from typing import Any
@@ -100,3 +101,53 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
+
+
+# ---------------------------------------------------------------------------
+# AI provider safety guard
+# ---------------------------------------------------------------------------
+# All tests run with zero real Gemini calls by default.
+# Tests that need AI output must patch ai_extractor._client with their own mock.
+# Tests that need the real API must be marked @pytest.mark.integration_ai and
+# the caller must set RUN_EXTERNAL_AI_TESTS=true.
+# ---------------------------------------------------------------------------
+
+_GUARD_MESSAGE = (
+    "External AI call attempted during tests. "
+    "Patch app.services.harvester.cleansing.ai_extractor._client with a mock, "
+    "or opt in with @pytest.mark.integration_ai + RUN_EXTERNAL_AI_TESTS=true."
+)
+
+
+@pytest.fixture(autouse=True)
+def _block_real_ai_client(
+    request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Replace the live Gemini client with a sentinel that raises on any call.
+
+    Tests that need AI output must supply their own mock via
+    ``patch("app.services.harvester.cleansing.ai_extractor._client")``.
+    Tests marked ``integration_ai`` are exempt from this guard.
+    """
+    if request.node.get_closest_marker("integration_ai"):
+        return  # integration_ai tests manage their own client and credentials
+
+    import app.services.harvester.cleansing.ai_extractor as ai_mod
+
+    blocker = MagicMock(name="ai_client_guard")
+    blocker.chat.completions.create.side_effect = RuntimeError(_GUARD_MESSAGE)
+    monkeypatch.setattr(ai_mod, "_client", blocker)
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Skip integration_ai tests unless RUN_EXTERNAL_AI_TESTS=true."""
+    run_external_ai = os.getenv("RUN_EXTERNAL_AI_TESTS", "").lower() == "true"
+    skip_marker = pytest.mark.skip(
+        reason=(
+            "integration_ai: opt-in only. "
+            "Set RUN_EXTERNAL_AI_TESTS=true and supply GOOGLE_API_KEY to run."
+        )
+    )
+    for item in items:
+        if item.get_closest_marker("integration_ai") and not run_external_ai:
+            item.add_marker(skip_marker, append=False)

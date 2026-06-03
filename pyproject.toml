@@ -19,6 +19,9 @@ members = [
 pythonpath = ["."]
 testpaths = ["apps/api/tests"]
 asyncio_mode = "auto"
+markers = [
+    "integration_ai: tests that intentionally call external paid AI providers; skipped unless RUN_EXTERNAL_AI_TESTS=true",
+]
 
 [dependency-groups]
 dev = [
