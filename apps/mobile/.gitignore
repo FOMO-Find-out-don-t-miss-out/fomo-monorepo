@@ -3,3 +3,8 @@ node_modules/
 dist/
 web-build/
 expo-env.d.ts
+
+# Environment / Secrets
+.env
+.env.*
+!.env.example

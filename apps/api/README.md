@@ -4,6 +4,19 @@ FastAPI backend for the FOMO platform.
 
 ---
 
+## Local environment setup
+
+```bash
+cp apps/api/.env.example apps/api/.env.local
+# Edit apps/api/.env.local with your local values
+```
+
+`.env` and `.env.local` are git-ignored. Never commit files containing real credentials.
+In Docker Compose the vars in the root `.env` are injected automatically — `apps/api/.env.local`
+is only needed when running the API process directly (outside Docker).
+
+---
+
 ## Running tests
 
 ### Normal test run (zero cost, no credentials required)

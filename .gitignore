@@ -68,10 +68,12 @@ apps/mobile/android/build.exit
 Thumbs.db
 
 # --- Environment / Secrets ---
+# Ignore all .env files and variants (.env.local, .env.production, .env.staging, …)
 .env
-.env.local
-.env.*.local
-! .env.example
+.env.*
+# Re-track only example files — these contain placeholders, never real secrets
+!.env.example
+!**/.env.example
 
 # --- Project Specific ---
 packages/api-spec/tsp-output/

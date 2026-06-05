@@ -69,21 +69,26 @@ pnpm check-quality
 ```
 
 ### 2. Environment Configuration
-Create a `.env` file in the root directory (and copy relevant keys to `apps/api/.env` and `apps/mobile/.env`):
-```env
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-POSTGRES_DB=fomo
-REDIS_URL=redis://redis:6379/0
-DATABASE_URL=postgresql+psycopg2://postgres:postgres@db:5432/fomo
-MAPBOX_ACCESS_TOKEN=your_mapbox_pk_token
-GOOGLE_API_KEY=your_gemini_api_key
-N8N_WEBHOOK_URL=http://fomo_harvester_n8n:5678/webhook/your-id
 
-# Mobile Specific (in apps/mobile/.env)
-EXPO_PUBLIC_MAPBOX_TOKEN=pk.your_public_token
+Copy the example files and fill in your local values:
+
+```bash
+cp .env.example .env
+cp apps/api/.env.example apps/api/.env.local
+cp apps/harvester-dashboard/.env.example apps/harvester-dashboard/.env.local
+cp apps/mobile/.env.example apps/mobile/.env
 ```
-*Note: For Mapbox Gradle downloads, place your secret `sk.*` token in `~/.gradle/gradle.properties`.*
+
+**Key rules:**
+- `.env` and `.env.local` files are git-ignored — never commit them.
+- Only `.env.example` files are tracked; they contain placeholders only.
+- AI extraction is **disabled by default** — no API key is needed for local dev or CI.
+- The Mapbox public token (`pk.*`) goes in `apps/mobile/.env` and `apps/harvester-dashboard/.env.local`.
+- The Mapbox secret token (`sk.*`) for Gradle downloads belongs in `~/.gradle/gradle.properties` only — never in tracked files.
+- Staging/prod credentials (Mapbox, AI API key) are injected by Jenkins credential binding, not committed to git.
+
+For AI extraction in staging, set `AI_PROVIDER=deepseek` and `AI_API_KEY=<key>` in the root `.env`.
+See `apps/api/README.md` for provider details.
 
 ### 3. Spin up the Infrastructure
 ```bash
@@ -225,6 +230,8 @@ We enforce strict standards via `pnpm check-quality`:
 ---
 
 ## 🔒 Security & Rules
-- Never commit `.env` files.
+- Never commit `.env` or `.env.local` files — they are git-ignored.
+- Only `.env.example` files are tracked; they must contain placeholder values only, never real tokens.
+- Real credentials (Mapbox sk.*, AI API keys) are injected at runtime — never hardcoded.
 - Refer to [CORE_RULES.md](./CORE_RULES.md) for mandatory architectural standards.
 - **FastAPI Python models** are the source of truth for API definitions. `packages/api-spec/openapi.json` is generated from them and must not be hand-edited.

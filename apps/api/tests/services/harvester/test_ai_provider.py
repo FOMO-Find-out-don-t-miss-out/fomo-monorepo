@@ -100,7 +100,7 @@ def test_init_client_deepseek_uses_deepseek_api_key_alias() -> None:
     with patch.object(settings, "AI_EXTRACTION_ENABLED", True), \
          patch.object(settings, "AI_PROVIDER", "deepseek"), \
          patch.object(settings, "AI_API_KEY", None), \
-         patch.object(settings, "DEEPSEEK_API_KEY", "sk-fake"), \
+         patch.object(settings, "DEEPSEEK_API_KEY", "example-api-key-for-testing"), \
          patch.object(settings, "AI_BASE_URL", "https://api.deepseek.com"), \
          patch.object(settings, "AI_REQUEST_TIMEOUT_SECONDS", 20), \
          patch("instructor.from_openai", return_value=fake_instructor), \
