@@ -76,7 +76,10 @@
       "Bash(docker info *)",
       "Bash(docker context *)",
       "Bash(Test-Path *)",
-      "Bash(RUN_EXTERNAL_AI_TESTS=true GOOGLE_API_KEY=dummy-key-not-real uv run pytest apps/api/tests/ -m integration_ai -v)"
+      "Bash(RUN_EXTERNAL_AI_TESTS=true GOOGLE_API_KEY=dummy-key-not-real uv run pytest apps/api/tests/ -m integration_ai -v)",
+      "Bash(dir apps\\\\harvester-dashboard)",
+      "Bash(dir apps\\\\mobile)",
+      "Bash(git check-ignore *)"
     ]
   }
 }
