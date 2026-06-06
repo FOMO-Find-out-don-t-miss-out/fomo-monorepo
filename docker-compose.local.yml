@@ -1,0 +1,139 @@
+# docker-compose.local.yml - Local development stack
+#
+# Pins service versions to match staging for environment parity.
+# Local defaults are hardcoded below; no root .env file is required.
+#
+# Usage:
+#   Infra only:       docker compose -f docker-compose.local.yml up -d postgres redis
+#   Full stack:       docker compose -f docker-compose.local.yml up --build
+#   With n8n:         docker compose -f docker-compose.local.yml --profile n8n up -d
+#   Tear down + wipe: docker compose -f docker-compose.local.yml down -v
+#
+# Staging version reference:
+#   postgres: postgis/postgis:16-3.4
+#   redis:    redis:7-alpine
+#   n8n:      n8nio/n8n:2.25.5 (pinned; update separately when needed)
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: fomo_local_postgres
+    restart: unless-stopped
+    shm_size: '256mb'
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: fomo
+      POSTGRES_PASSWORD: fomo_local_password
+      POSTGRES_DB: fomo
+    volumes:
+      - fomo_postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fomo -d fomo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: fomo_local_redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: ./apps/api/Dockerfile
+    container_name: fomo_local_api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      APP_ENV: local
+      LOG_LEVEL: debug
+      API_PORT: "8000"
+      DATABASE_URL: postgresql+psycopg2://fomo:fomo_local_password@postgres:5432/fomo
+      REDIS_URL: redis://redis:6379/0
+      AI_EXTRACTION_ENABLED: "false"
+      AI_PROVIDER: disabled
+      AI_MODEL: deepseek-v4-flash
+      AI_BASE_URL: https://api.deepseek.com
+      AI_MAX_INPUT_CHARS: "12000"
+      AI_MAX_OUTPUT_TOKENS: "800"
+      AI_REQUEST_TIMEOUT_SECONDS: "20"
+      # MAPBOX_ACCESS_TOKEN: your-mapbox-secret-token-here  # optional, only needed for geocoding
+      # AI_API_KEY: your-api-key-here                       # only needed when AI_PROVIDER != disabled
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  harvester-dashboard:
+    build:
+      context: .
+      dockerfile: ./apps/harvester-dashboard/Dockerfile
+      args:
+        # NEXT_PUBLIC_MAPBOX_TOKEN is baked into the client bundle at build time.
+        # Set this only if you need map features locally. Do not commit real tokens.
+        NEXT_PUBLIC_MAPBOX_TOKEN: ""
+    container_name: fomo_local_dashboard
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000/api/v1
+      NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+    depends_on:
+      api:
+        condition: service_started
+
+  # Local portal - static HTML page with links to all local services.
+  # Served by nginx at http://localhost:8088
+  local-portal:
+    image: nginx:1.27-alpine
+    container_name: fomo_local_portal
+    restart: unless-stopped
+    ports:
+      - "8088:80"
+    volumes:
+      - ./docs/local-portal:/usr/share/nginx/html:ro
+
+  # n8n is optional - only starts when the "n8n" profile is explicitly requested.
+  # Start with: docker compose -f docker-compose.local.yml --profile n8n up -d
+  # The n8n__harvester database is created automatically by infra/postgres/init-db.sh.
+  # n8n version is pinned; update the tag separately if you need a newer release.
+  n8n:
+    image: n8nio/n8n:2.25.5
+    container_name: fomo_local_n8n
+    profiles: ["n8n"]
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_DATABASE=n8n__harvester
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_USER=fomo
+      - DB_POSTGRESDB_PASSWORD=fomo_local_password
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678/
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  fomo_postgres_data:
+  n8n_data:

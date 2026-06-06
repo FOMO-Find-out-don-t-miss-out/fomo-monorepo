@@ -53,6 +53,36 @@ To support native builds and bypass long-path limits on Windows, you **MUST** ha
 
 ---
 
+## 💻 Local Development
+
+See **[docs/local-development.md](./docs/local-development.md)** for the complete local setup guide.
+
+**Windows PowerShell quick start:**
+
+```powershell
+pnpm install && uv sync --all-packages --group dev
+
+# Start infra (postgres + redis + local portal at http://localhost:8088)
+.\scripts\local-dev.ps1 infra
+
+# Apply migrations, then run the API with hot-reload
+uv run alembic -c apps/api/alembic.ini upgrade head
+uv run uvicorn app.main:app --app-dir apps/api --reload --host 0.0.0.0 --port 8000
+
+# Verify everything is up
+.\scripts\local-dev.ps1 smoke
+```
+
+**Full container mode** (builds API + dashboard from source - see GHCR note in docs if build fails):
+
+```powershell
+.\scripts\local-dev.ps1 up
+```
+
+**Local portal**: http://localhost:8088 - links to all services once infra is running.
+
+---
+
 ## ✅ Getting Started (First-Time Setup)
 
 ### 1. Bootstrap

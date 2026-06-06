@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FOMO — Local Dev Portal</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d1117;
+      color: #e6edf3;
+      font-family: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      padding: 40px 24px;
+      min-height: 100vh;
+    }
+
+    .container { max-width: 720px; margin: 0 auto; }
+
+    header { margin-bottom: 32px; }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 600;
+      color: #58a6ff;
+      letter-spacing: -0.5px;
+    }
+
+    h1 span { color: #e6edf3; }
+
+    .subtitle {
+      margin-top: 4px;
+      color: #8b949e;
+      font-size: 13px;
+    }
+
+    .section { margin-bottom: 28px; }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #8b949e;
+      margin-bottom: 10px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #21262d;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+
+    td {
+      padding: 7px 0;
+      border-bottom: 1px solid #161b22;
+      vertical-align: top;
+    }
+
+    td:first-child {
+      width: 210px;
+      color: #8b949e;
+      padding-right: 16px;
+    }
+
+    a {
+      color: #58a6ff;
+      text-decoration: none;
+    }
+
+    a:hover { text-decoration: underline; }
+
+    .badge {
+      display: inline-block;
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-weight: 600;
+      vertical-align: middle;
+      margin-left: 6px;
+    }
+
+    .badge-ok      { background: #1a4731; color: #3fb950; }
+    .badge-warn    { background: #3d2b00; color: #d29922; }
+    .badge-off     { background: #1c2128; color: #8b949e; }
+    .badge-optional { background: #1c2128; color: #8b949e; }
+
+    .note {
+      margin-top: 20px;
+      padding: 12px 16px;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      color: #8b949e;
+      font-size: 12px;
+    }
+
+    .note strong { color: #e6edf3; }
+
+    .cmd {
+      display: inline-block;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 4px;
+      padding: 1px 6px;
+      color: #e6edf3;
+      font-size: 12px;
+    }
+
+    footer {
+      margin-top: 40px;
+      color: #30363d;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>FOMO <span>Local Dev Portal</span></h1>
+    <p class="subtitle">Local development only &mdash; not accessible outside this machine</p>
+  </header>
+
+  <div class="section">
+    <div class="section-title">Application</div>
+    <table>
+      <tr>
+        <td>API Docs (Swagger)</td>
+        <td><a href="http://localhost:8000/docs" target="_blank">http://localhost:8000/docs</a></td>
+      </tr>
+      <tr>
+        <td>API Health</td>
+        <td><a href="http://localhost:8000/api/v1/health" target="_blank">http://localhost:8000/api/v1/health</a></td>
+      </tr>
+      <tr>
+        <td>API Metrics</td>
+        <td><a href="http://localhost:8000/metrics" target="_blank">http://localhost:8000/metrics</a></td>
+      </tr>
+      <tr>
+        <td>Dashboard</td>
+        <td><a href="http://localhost:3000" target="_blank">http://localhost:3000</a></td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Infrastructure</div>
+    <table>
+      <tr>
+        <td>Postgres / PostGIS</td>
+        <td>
+          <span>localhost:5432</span>
+          <span class="badge badge-ok">postgis:16-3.4</span>
+        </td>
+      </tr>
+      <tr>
+        <td>Redis</td>
+        <td>
+          <span>localhost:6379</span>
+          <span class="badge badge-ok">redis:7-alpine</span>
+        </td>
+      </tr>
+      <tr>
+        <td>n8n</td>
+        <td>
+          <a href="http://localhost:5678" target="_blank">http://localhost:5678</a>
+          <span class="badge badge-optional">optional</span>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-title">AI Extraction</div>
+    <table>
+      <tr>
+        <td>Provider</td>
+        <td>
+          <span>disabled</span>
+          <span class="badge badge-off">no paid calls</span>
+        </td>
+      </tr>
+      <tr>
+        <td>Setting</td>
+        <td><span class="cmd">AI_EXTRACTION_ENABLED=false</span> &nbsp; <span class="cmd">AI_PROVIDER=disabled</span></td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="note">
+    <strong>n8n is optional.</strong> It only starts with the <span class="cmd">n8n</span> profile:<br>
+    <span class="cmd">.\scripts\local-dev.ps1 n8n</span> &nbsp; or &nbsp;
+    <span class="cmd">docker compose -f docker-compose.local.yml --profile n8n up -d</span>
+  </div>
+
+  <div class="note" style="margin-top:10px">
+    <strong>Quick commands (PowerShell):</strong><br>
+    <span class="cmd">.\scripts\local-dev.ps1 infra</span> &mdash; start postgres + redis + this portal<br>
+    <span class="cmd">.\scripts\local-dev.ps1 up</span> &mdash; build + start full stack<br>
+    <span class="cmd">.\scripts\local-dev.ps1 smoke</span> &mdash; run smoke tests<br>
+    <span class="cmd">.\scripts\local-dev.ps1 urls</span> &mdash; print all URLs<br>
+    <span class="cmd">.\scripts\local-dev.ps1 reset</span> &mdash; wipe volumes &amp; restart
+  </div>
+
+  <footer>FOMO monorepo &mdash; local-portal &mdash; this page is served by nginx:1.27-alpine on port 8088</footer>
+
+</div>
+</body>
+</html>
