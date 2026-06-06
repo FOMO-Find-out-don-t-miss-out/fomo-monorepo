@@ -79,7 +79,10 @@
       "Bash(RUN_EXTERNAL_AI_TESTS=true GOOGLE_API_KEY=dummy-key-not-real uv run pytest apps/api/tests/ -m integration_ai -v)",
       "Bash(dir apps\\\\harvester-dashboard)",
       "Bash(dir apps\\\\mobile)",
-      "Bash(git check-ignore *)"
+      "Bash(git check-ignore *)",
+      "PowerShell(cd C:\\\\fomo-monorepo; $r = Invoke-WebRequest -Uri \"http://localhost:8088\" -UseBasicParsing; \"HTTP $\\($r.StatusCode\\)\"; $r.Content.Substring\\(0, 200\\) 2>&1)",
+      "PowerShell(docker compose *)",
+      "PowerShell(docker port fomo_local_postgres *)"
     ]
   }
 }
