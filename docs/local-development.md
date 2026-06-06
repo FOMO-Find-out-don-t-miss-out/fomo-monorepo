@@ -334,6 +334,105 @@ pnpm check-quality
 
 ---
 
+## Optional: Inspecting the staging database from PyCharm
+
+> **Warning:** Normal feature development must use the local Docker Compose database (`localhost:5432`).
+> Staging database access is for read-only debugging and inspection only.
+> Never commit kubeconfig files, database passwords, `.env` files, or any copied secrets.
+> Never expose the staging database port publicly.
+
+This section documents how to connect PyCharm's Database plugin to the staging Postgres instance via a `kubectl port-forward` tunnel. The tunnel runs locally and never exposes the database outside your machine.
+
+**Prerequisite:** you need the staging Kubernetes kubeconfig from the fomo-platform repository.
+See [docs/runbooks/staging-access-and-port-forwarding.md](runbooks/staging-access-and-port-forwarding.md) for how to obtain and place it.
+
+### 1. Check which Kubernetes context is active
+
+Before running any `kubectl` command, confirm the terminal is not using the Docker Desktop context:
+
+```bash
+kubectl config current-context
+kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}{"\n"}'
+```
+
+If the output looks like this, you are on the wrong context:
+
+```
+docker-desktop
+https://kubernetes.docker.internal:6443
+```
+
+Using the Docker Desktop context with the staging kubeconfig causes a TLS error because the staging certificate is valid for `fomo-staging-02`/`localhost`, not `kubernetes.docker.internal`. Do not attempt to fix this by running `kubectl config set-cluster`.
+
+### 2. Set the staging alias
+
+Add this alias to your shell profile (`.bashrc`, `.zshrc`, or WSL equivalent) so you never accidentally run staging commands with the wrong context:
+
+```bash
+alias kfomo='KUBECONFIG=$HOME/.kube/fomo-staging.yaml kubectl'
+```
+
+Reload your shell or source the profile, then verify:
+
+```bash
+kfomo get pods -n fomo-staging
+```
+
+You should see the running pods in the `fomo-staging` namespace.
+
+### 3. Start the port-forward tunnel
+
+```bash
+kfomo port-forward -n fomo-staging svc/fomo-postgres 15432:5432
+```
+
+- Port `15432` is used to avoid conflicting with your local Postgres on `5432`.
+- If `15432` is already in use, substitute another free port (e.g. `15433:5432`) and use that port in PyCharm.
+- **Keep this terminal open** while using PyCharm. Closing it ends the tunnel.
+
+### 4. Retrieve credentials from the staging secret
+
+Run each command in a separate terminal (do not paste output into chat, tickets, or shared docs):
+
+```bash
+kfomo get secret fomo-postgres -n fomo-staging -o jsonpath='{.data.POSTGRES_USER}' | base64 -d && echo
+kfomo get secret fomo-postgres -n fomo-staging -o jsonpath='{.data.POSTGRES_DB}'   | base64 -d && echo
+kfomo get secret fomo-postgres -n fomo-staging -o jsonpath='{.data.POSTGRES_PASSWORD}' | base64 -d && echo
+```
+
+> Use the raw value of `POSTGRES_PASSWORD` in PyCharm. Do not use the URL-encoded password from `DATABASE_URL` (it may contain percent-encoded characters that PyCharm will double-encode).
+
+### 5. Configure PyCharm Database plugin
+
+1. Open **Database** panel > **+** > **Data Source** > **PostgreSQL**.
+2. Fill in the connection settings:
+
+   | Field | Value |
+   |---|---|
+   | Host | `localhost` |
+   | Port | `15432` |
+   | Database | `fomo` |
+   | User | `fomo` |
+   | Password | raw `POSTGRES_PASSWORD` from the Kubernetes secret |
+   | SSL | disabled |
+
+3. The auto-generated JDBC URL should read:
+   ```
+   jdbc:postgresql://localhost:15432/fomo
+   ```
+4. Click **Test Connection**. It should succeed while the port-forward terminal is running.
+
+### Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| TLS error mentioning `kubernetes.docker.internal` | Terminal is using Docker Desktop context, not staging kubeconfig | Use the `kfomo` alias; do not run `kubectl config set-cluster` |
+| `Connection refused` in PyCharm | Port-forward terminal was closed or crashed | Re-run `kfomo port-forward -n fomo-staging svc/fomo-postgres 15432:5432` |
+| `address already in use: 15432` | Local port is taken | Use a different local port, e.g. `15433:5432`, and update PyCharm accordingly |
+| `Unable to connect to server` in `kfomo get pods` | Wrong or missing kubeconfig | Confirm `~/.kube/fomo-staging.yaml` exists and points to the staging cluster |
+
+---
+
 ## Differences from staging
 
 | Area | Local | Staging |
