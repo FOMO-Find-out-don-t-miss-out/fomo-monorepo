@@ -10,13 +10,13 @@
 #   Tear down + wipe: docker compose -f docker-compose.local.yml down -v
 #
 # Staging version reference:
-#   postgres: postgis/postgis:16-3.4
-#   redis:    redis:7-alpine
+#   postgres: postgis/postgis:18-3.6
+#   redis:    redis:8.6.4-alpine
 #   n8n:      n8nio/n8n:2.25.5 (pinned; update separately when needed)
 
 services:
   postgres:
-    image: postgis/postgis:16-3.4
+    image: postgis/postgis:18-3.6
     container_name: fomo_local_postgres
     restart: unless-stopped
     shm_size: '256mb'
@@ -27,7 +27,7 @@ services:
       POSTGRES_PASSWORD: fomo_local_password
       POSTGRES_DB: fomo
     volumes:
-      - fomo_postgres_data:/var/lib/postgresql/data
+      - fomo_postgres_data:/var/lib/postgresql
       - ./infra/postgres/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U fomo -d fomo"]
@@ -36,7 +36,7 @@ services:
       retries: 5
 
   redis:
-    image: redis:7-alpine
+    image: redis:8.6.4-alpine
     container_name: fomo_local_redis
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]

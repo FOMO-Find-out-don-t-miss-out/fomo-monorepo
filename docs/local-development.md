@@ -338,8 +338,8 @@ pnpm check-quality
 
 | Area | Local | Staging |
 |---|---|---|
-| Postgres | postgis/postgis:16-3.4 | postgis/postgis:16-3.4 |
-| Redis | redis:7-alpine | redis:7-alpine |
+| Postgres | postgis/postgis:18-3.6 | postgis/postgis:18-3.6 |
+| Redis | redis:8.6.4-alpine | redis:8.6.4-alpine |
 | Orchestration | Docker Compose | Kubernetes + ArgoCD |
 | Ingress / TLS | None (plain HTTP) | Traefik + cert-manager |
 | CI/CD | Manual | Jenkins |
@@ -355,8 +355,8 @@ pnpm check-quality
 
 | Service | Local | Staging reference |
 |---|---|---|
-| Postgres/PostGIS | postgis/postgis:16-3.4 | postgis/postgis:16-3.4 |
-| Redis | redis:7-alpine | redis:7-alpine |
+| Postgres/PostGIS | postgis/postgis:18-3.6 | postgis/postgis:18-3.6 |
+| Redis | redis:8.6.4-alpine | redis:8.6.4-alpine |
 | API | Built from local source | ghcr.io/fomo-find-out-don-t-miss-out/fomo-api:2eecedd |
 | Dashboard | Built from local source | ghcr.io/fomo-find-out-don-t-miss-out/fomo-harvester-dashboard:b7bd5f3 |
 | n8n | n8nio/n8n:2.25.5 (pinned) | Separate deployment |
