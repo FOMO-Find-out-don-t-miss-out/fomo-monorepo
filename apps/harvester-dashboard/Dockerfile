@@ -28,12 +28,14 @@ COPY . .
 
 # Disable telemetry and build-time linting for speed
 ENV NEXT_TELEMETRY_DISABLED 1
-ENV NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 
-# NEXT_PUBLIC_MAPBOX_TOKEN is baked into the client bundle at build time.
-# Pass via --build-arg when running Kaniko/docker build.
-# If not provided, defaults to empty string and the Mapbox map iframe will not load.
-# Local dev: set NEXT_PUBLIC_MAPBOX_TOKEN in apps/harvester-dashboard/.env.local
+# NEXT_PUBLIC_* vars are baked into the client bundle at build time by `next build`.
+# Runtime env vars cannot override them — pass these via --build-arg.
+# NEXT_PUBLIC_API_URL is required for staging/production. Omitting it fails the build.
+# Local dev: use .env.local (not Docker) or pass via docker-compose build args.
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
 ARG NEXT_PUBLIC_MAPBOX_TOKEN=""
 ENV NEXT_PUBLIC_MAPBOX_TOKEN=$NEXT_PUBLIC_MAPBOX_TOKEN
 

@@ -80,12 +80,14 @@ services:
     build:
       context: .
       dockerfile: ./apps/harvester-dashboard/Dockerfile
+      args:
+        # NEXT_PUBLIC_API_URL is baked into the Next.js client bundle at build time.
+        # Runtime env vars cannot override it. This default targets the local API container.
+        NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
     container_name: fomo_harvester_dashboard
     restart: always
     ports:
       - "3000:3000"
-    environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
     depends_on:
       api:
         condition: service_started

@@ -14,6 +14,15 @@ import {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
+// Warn in the browser if the build arg was not injected — helps catch misconfigured builds early.
+if (typeof window !== "undefined" && !API_BASE_URL) {
+  console.error(
+    "[harvester-dashboard] NEXT_PUBLIC_API_URL is not set. All API calls will fail.\n" +
+    "For local dev: copy .env.example to .env.local and set NEXT_PUBLIC_API_URL.\n" +
+    "For Docker: pass --build-arg NEXT_PUBLIC_API_URL=<url> to docker build."
+  );
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}${path}`;
   const response = await fetch(url, {

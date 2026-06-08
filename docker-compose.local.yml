@@ -82,16 +82,14 @@ services:
       context: .
       dockerfile: ./apps/harvester-dashboard/Dockerfile
       args:
-        # NEXT_PUBLIC_MAPBOX_TOKEN is baked into the client bundle at build time.
-        # Set this only if you need map features locally. Do not commit real tokens.
+        # NEXT_PUBLIC_* vars are baked into the Next.js client bundle at build time.
+        # Runtime env vars cannot override them — they must be passed here as build args.
+        NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
         NEXT_PUBLIC_MAPBOX_TOKEN: ""
     container_name: fomo_local_dashboard
     restart: unless-stopped
     ports:
       - "3000:3000"
-    environment:
-      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000/api/v1
-      NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
     depends_on:
       api:
         condition: service_started
