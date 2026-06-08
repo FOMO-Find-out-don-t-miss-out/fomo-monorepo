@@ -1,3 +1,6 @@
+import json
+
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,6 +14,23 @@ class Settings(BaseSettings):
     N8N_WEBHOOK_URL: str | None = None
     MAPBOX_ACCESS_TOKEN: str | None = None
     SCRAPER_PROXY_URL: str | None = None
+
+    # CORS — origins the browser is allowed to call the API from.
+    # Accepts a JSON array or a comma-separated string.
+    # Example: CORS_ALLOWED_ORIGINS=["https://dashboard.staging.fomo-lab.org","http://localhost:3000"]
+    CORS_ALLOWED_ORIGINS: list[str] = ["http://localhost:3000"]
+
+    @field_validator("CORS_ALLOWED_ORIGINS", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v: object) -> list[str]:
+        if isinstance(v, list):
+            return v
+        if isinstance(v, str):
+            stripped = v.strip()
+            if stripped.startswith("["):
+                return json.loads(stripped)
+            return [origin.strip() for origin in stripped.split(",") if origin.strip()]
+        raise ValueError(f"CORS_ALLOWED_ORIGINS must be a list or string, got {type(v)}")
 
     # AI provider configuration
     AI_EXTRACTION_ENABLED: bool = False
