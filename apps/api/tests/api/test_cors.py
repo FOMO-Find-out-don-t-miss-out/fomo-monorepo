@@ -1,33 +1,71 @@
+import json
+
 import pytest
 from app.core.config import Settings
 from httpx import AsyncClient
 
 # ---------------------------------------------------------------------------
-# Settings validator unit tests
+# cors_allowed_origins_list property unit tests
 # ---------------------------------------------------------------------------
 
 
 def test_cors_origins_default() -> None:
     s = Settings()
-    assert "http://localhost:3000" in s.CORS_ALLOWED_ORIGINS
+    assert s.cors_allowed_origins_list == ["http://localhost:3000"]
 
 
 def test_cors_origins_comma_separated() -> None:
-    s = Settings(CORS_ALLOWED_ORIGINS="http://localhost:3000,https://dashboard.staging.fomo-lab.org")  # type: ignore[call-arg]
-    assert s.CORS_ALLOWED_ORIGINS == [
-        "http://localhost:3000",
+    s = Settings(CORS_ALLOWED_ORIGINS="https://dashboard.staging.fomo-lab.org,http://localhost:3000")  # type: ignore[call-arg]
+    assert s.cors_allowed_origins_list == [
         "https://dashboard.staging.fomo-lab.org",
+        "http://localhost:3000",
+    ]
+
+
+def test_cors_origins_comma_separated_with_whitespace() -> None:
+    raw = "  https://dashboard.staging.fomo-lab.org , http://localhost:3000  "
+    s = Settings(CORS_ALLOWED_ORIGINS=raw)  # type: ignore[call-arg]
+    assert s.cors_allowed_origins_list == [
+        "https://dashboard.staging.fomo-lab.org",
+        "http://localhost:3000",
     ]
 
 
 def test_cors_origins_json_array() -> None:
-    s = Settings(CORS_ALLOWED_ORIGINS='["http://localhost:3000","https://dashboard.staging.fomo-lab.org"]')  # type: ignore[call-arg]
-    assert "https://dashboard.staging.fomo-lab.org" in s.CORS_ALLOWED_ORIGINS
+    val = json.dumps(["https://dashboard.staging.fomo-lab.org", "http://localhost:3000"])
+    s = Settings(CORS_ALLOWED_ORIGINS=val)  # type: ignore[call-arg]
+    assert s.cors_allowed_origins_list == [
+        "https://dashboard.staging.fomo-lab.org",
+        "http://localhost:3000",
+    ]
 
 
-def test_cors_origins_list_passthrough() -> None:
-    s = Settings(CORS_ALLOWED_ORIGINS=["http://localhost:3000"])  # type: ignore[call-arg]
-    assert s.CORS_ALLOWED_ORIGINS == ["http://localhost:3000"]
+def test_cors_origins_single_value() -> None:
+    s = Settings(CORS_ALLOWED_ORIGINS="http://localhost:3000")  # type: ignore[call-arg]
+    assert s.cors_allowed_origins_list == ["http://localhost:3000"]
+
+
+def test_cors_origins_empty_string_returns_empty() -> None:
+    s = Settings(CORS_ALLOWED_ORIGINS="")  # type: ignore[call-arg]
+    assert s.cors_allowed_origins_list == []
+
+
+def test_cors_origins_empty_entries_dropped() -> None:
+    s = Settings(CORS_ALLOWED_ORIGINS="http://localhost:3000,,  ,")  # type: ignore[call-arg]
+    assert s.cors_allowed_origins_list == ["http://localhost:3000"]
+
+
+def test_cors_origins_invalid_json_raises() -> None:
+    s = Settings(CORS_ALLOWED_ORIGINS="[not-valid-json")  # type: ignore[call-arg]
+    with pytest.raises(json.JSONDecodeError):
+        _ = s.cors_allowed_origins_list
+
+
+def test_cors_origins_json_object_not_array_treated_as_literal() -> None:
+    # A JSON object doesn't start with "[", so it is not JSON-parsed.
+    # It is treated as a single literal origin string (safe: no crash, no wildcard).
+    s = Settings(CORS_ALLOWED_ORIGINS='{"key": "value"}')  # type: ignore[call-arg]
+    assert s.cors_allowed_origins_list == ['{"key": "value"}']
 
 
 # ---------------------------------------------------------------------------

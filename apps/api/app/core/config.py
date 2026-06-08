@@ -1,6 +1,5 @@
 import json
 
-from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,21 +15,25 @@ class Settings(BaseSettings):
     SCRAPER_PROXY_URL: str | None = None
 
     # CORS — origins the browser is allowed to call the API from.
-    # Accepts a JSON array or a comma-separated string.
-    # Example: CORS_ALLOWED_ORIGINS=["https://dashboard.staging.fomo-lab.org","http://localhost:3000"]
-    CORS_ALLOWED_ORIGINS: list[str] = ["http://localhost:3000"]
+    # Stored as a plain str so pydantic-settings never attempts JSON pre-parsing.
+    # Use cors_allowed_origins_list to get the parsed list for CORSMiddleware.
+    # Accepts comma-separated (preferred for Kubernetes ConfigMaps) or a JSON array.
+    # Example: CORS_ALLOWED_ORIGINS=https://dashboard.staging.fomo-lab.org,http://localhost:3000
+    CORS_ALLOWED_ORIGINS: str = "http://localhost:3000"
 
-    @field_validator("CORS_ALLOWED_ORIGINS", mode="before")
-    @classmethod
-    def parse_cors_origins(cls, v: object) -> list[str]:
-        if isinstance(v, list):
-            return v
-        if isinstance(v, str):
-            stripped = v.strip()
-            if stripped.startswith("["):
-                return json.loads(stripped)
-            return [origin.strip() for origin in stripped.split(",") if origin.strip()]
-        raise ValueError(f"CORS_ALLOWED_ORIGINS must be a list or string, got {type(v)}")
+    @property
+    def cors_allowed_origins_list(self) -> list[str]:
+        raw = self.CORS_ALLOWED_ORIGINS.strip()
+        if not raw:
+            return []
+        if raw.startswith("["):
+            parsed = json.loads(raw)
+            if not isinstance(parsed, list):
+                raise ValueError(
+                    f"CORS_ALLOWED_ORIGINS JSON must be an array, got {type(parsed).__name__}"
+                )
+            return [str(v).strip() for v in parsed if str(v).strip()]
+        return [origin.strip() for origin in raw.split(",") if origin.strip()]
 
     # AI provider configuration
     AI_EXTRACTION_ENABLED: bool = False
