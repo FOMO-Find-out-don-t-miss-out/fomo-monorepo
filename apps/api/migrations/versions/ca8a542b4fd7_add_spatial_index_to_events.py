@@ -16,14 +16,9 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.create_index(
-        "idx_events_location",
-        "events",
-        ["location"],
-        unique=False,
-        postgresql_using="gist",
-    )
+    # IF NOT EXISTS makes this safe for fresh-reset flows where the index may already exist.
+    op.execute("CREATE INDEX IF NOT EXISTS idx_events_location ON events USING gist (location)")
 
 
 def downgrade() -> None:
-    op.drop_index("idx_events_location", table_name="events")
+    op.execute("DROP INDEX IF EXISTS idx_events_location")

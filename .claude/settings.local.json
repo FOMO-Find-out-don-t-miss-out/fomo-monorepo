@@ -85,7 +85,8 @@
       "PowerShell(docker port fomo_local_postgres *)",
       "PowerShell(docker exec fomo_local_postgres *)",
       "Bash(Get-ChildItem *)",
-      "Bash(pnpm --filter @fomo/harvester-dashboard lint)"
+      "Bash(pnpm --filter @fomo/harvester-dashboard lint)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\pavlo\\\\Documents\\\\Personal projects\\\\fomo-platform\" -Recurse -Depth 3 | Where-Object { !$_.PSIsContainer } | Select-Object FullName)"
     ]
   }
 }

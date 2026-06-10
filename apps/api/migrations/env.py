@@ -36,8 +36,9 @@ if config.config_file_name is not None:
 
 target_metadata = SQLModel.metadata
 
-# Set database URL from settings
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# Set database URL from settings.
+# configparser treats % as an interpolation marker; double it to pass the literal character.
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL.replace("%", "%%"))
 
 
 def include_object(obj: object, name: str, type_: str, reflected: bool, compare_to: object) -> bool:

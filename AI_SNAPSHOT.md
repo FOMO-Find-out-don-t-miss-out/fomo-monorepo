@@ -184,3 +184,8 @@ Total endpoints: 24
 - `.coverage` file present (95% target enforced).
 - Linting: Ruff (Python), ESLint (TS/JS).
 - Validation: FastAPI → openapi.json → openapi-typescript pipeline.
+
+## 🗄 Migration notes (FOMO-140)
+- `apps/api/migrations/env.py`: DATABASE_URL `%` characters are doubled to `%%` for Alembic configparser compatibility.
+- `ca8a542b4fd7_add_spatial_index_to_events.py`: uses `CREATE INDEX IF NOT EXISTS` / `DROP INDEX IF EXISTS` — idempotent for fresh-reset flows.
+- Operational staging runbook: `docs/runbooks/staging/staging-database-migrations.md` in **fomo-platform**.

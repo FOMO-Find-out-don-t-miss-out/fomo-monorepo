@@ -345,6 +345,7 @@ This section documents how to connect PyCharm's Database plugin to the staging P
 
 **Prerequisite:** you need the staging Kubernetes kubeconfig from the fomo-platform repository.
 See [docs/runbooks/staging-access-and-port-forwarding.md](runbooks/staging-access-and-port-forwarding.md) for how to obtain and place it.
+For running or verifying Alembic migrations in staging see `docs/runbooks/staging/staging-database-migrations.md` in the **fomo-platform** repo.
 
 ### 1. Check which Kubernetes context is active
 
