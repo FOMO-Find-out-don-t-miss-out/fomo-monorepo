@@ -86,7 +86,11 @@
       "PowerShell(docker exec fomo_local_postgres *)",
       "Bash(Get-ChildItem *)",
       "Bash(pnpm --filter @fomo/harvester-dashboard lint)",
-      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\pavlo\\\\Documents\\\\Personal projects\\\\fomo-platform\" -Recurse -Depth 3 | Where-Object { !$_.PSIsContainer } | Select-Object FullName)"
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\pavlo\\\\Documents\\\\Personal projects\\\\fomo-platform\" -Recurse -Depth 3 | Where-Object { !$_.PSIsContainer } | Select-Object FullName)",
+      "Bash(Select-Object Name)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\fomo-monorepo\\\\apps\\\\api\\\\app\" -Recurse -Directory | Select-Object -ExpandProperty FullName | Where-Object {$_ -notmatch '__pycache__'})",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\fomo-monorepo\\\\packages\\\\domain\" -Recurse -Directory | Select-Object -ExpandProperty FullName | Where-Object {$_ -notmatch '__pycache__'})",
+      "Bash(grep -v \"tooling\\\\\\\\\")"
     ]
   }
 }

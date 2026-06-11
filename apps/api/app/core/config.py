@@ -50,6 +50,29 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: str | None = None
     GEMINI_MODEL: str = "gemini-2.5-flash"
 
+    # OIDC / Keycloak JWT authentication.
+    # Set AUTH_OIDC_ENABLED=true in staging/prod to enforce JWT validation.
+    # When false (default), get_current_identity returns None and
+    # require_authenticated_identity raises HTTP 503 (misconfiguration signal).
+    AUTH_OIDC_ENABLED: bool = False
+    AUTH_OIDC_ISSUER: str | None = None
+    AUTH_OIDC_JWKS_URL: str | None = None
+    AUTH_OIDC_CLIENT_ID: str | None = None
+    # Comma-separated allowed aud values.  Empty = audience claim not validated.
+    # Keycloak public clients often omit client_id from aud; prefer azp validation.
+    AUTH_OIDC_ALLOWED_AUDIENCES: str = ""
+    # Comma-separated allowed azp values.  Empty = azp claim not validated.
+    # azp is the Keycloak client that requested the token — reliable for public clients.
+    AUTH_OIDC_ALLOWED_AZP: str = ""
+
+    @property
+    def oidc_allowed_audiences_list(self) -> list[str]:
+        return [v.strip() for v in self.AUTH_OIDC_ALLOWED_AUDIENCES.split(",") if v.strip()]
+
+    @property
+    def oidc_allowed_azp_list(self) -> list[str]:
+        return [v.strip() for v in self.AUTH_OIDC_ALLOWED_AZP.split(",") if v.strip()]
+
     # OpenTelemetry tracing — disabled by default; platform sets these in staging/prod.
     OTEL_ENABLED: bool = False
     OTEL_SERVICE_NAME: str = "fomo-api"
