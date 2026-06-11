@@ -9,8 +9,11 @@ from packages.domain.models.base import TimestampMixin
 class User(TimestampMixin, SQLModel, table=True):
     __tablename__ = "users"
     id: UUID = Field(default_factory=uuid4, primary_key=True)
-    external_id: str = Field(unique=True, index=True)  # Supabase/Auth0
-    email: str = Field(unique=True, index=True)
+    external_id: str = Field(unique=True, index=True)  # Keycloak sub
+    email: str | None = Field(default=None, unique=True, index=True)
+    # Reserved for OTP phone verification (FOMO-149+); not set by JWT sync.
+    phone_number: str | None = Field(default=None)
+    phone_verified: bool = Field(default=False)
 
 
 class Profile(TimestampMixin, SQLModel, table=True):
