@@ -24,6 +24,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/identity/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get My Identity
+         * @description Return the validated identity of the authenticated caller.
+         *
+         *     Requires a valid Keycloak Bearer JWT.  Useful for verifying authentication
+         *     from the dashboard and as a canary for OIDC configuration.
+         */
+        get: operations["get_my_identity_api_v1_identity_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ingestion/ingest": {
         parameters: {
             query?: never;
@@ -778,6 +801,33 @@ export interface components {
          * @enum {string}
          */
         PlaceVerificationStatus: "unverified" | "system_matched" | "manually_verified";
+        /**
+         * TokenIdentity
+         * @description Validated identity extracted from a Keycloak JWT access token.
+         *
+         *     Created by FOMO-147; user/profile DB sync is deferred to FOMO-148.
+         */
+        TokenIdentity: {
+            /** Sub */
+            sub: string;
+            /** Issuer */
+            issuer: string;
+            /** Email */
+            email?: string | null;
+            /** Preferred Username */
+            preferred_username?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Audience */
+            audience?: string[] | string | null;
+            /** Azp */
+            azp?: string | null;
+            /**
+             * Realm Roles
+             * @default []
+             */
+            realm_roles: string[];
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -818,6 +868,26 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+        };
+    };
+    get_my_identity_api_v1_identity_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenIdentity"];
                 };
             };
         };
