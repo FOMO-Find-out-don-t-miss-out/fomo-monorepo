@@ -22,7 +22,7 @@ from packages.domain.models.organizer import Organizer, OrganizerVerificationSta
 from packages.domain.models.pending_event import DedupeStatus, PendingEvent, SubmissionType
 from packages.domain.models.place import Place, PlaceType, PlaceVerificationStatus, Venue
 from packages.domain.models.social import ConnectionStatus, OrganizerFollower, UserConnection
-from packages.domain.models.user import Profile, User
+from packages.domain.models.user import Profile, User, UserSystemRole
 from packages.domain.models.wallet import WalletAccount, WalletTransaction, WalletTransactionType
 
 __all__ = [
@@ -57,6 +57,7 @@ __all__ = [
     "TimestampMixin",
     "User",
     "UserConnection",
+    "UserSystemRole",
     "Venue",
     "WalletAccount",
     "WalletTransaction",

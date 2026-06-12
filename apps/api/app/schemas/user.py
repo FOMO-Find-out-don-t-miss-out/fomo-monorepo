@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from packages.domain.models.user import Profile, User
+from packages.domain.models.user import Profile, User, UserSystemRole
 
 
 class UserMeResponse(BaseModel):
@@ -11,7 +11,8 @@ class UserMeResponse(BaseModel):
 
     Exposes internal user/profile state for the authenticated caller.
     Wallet balance and transactions are intentionally excluded (separate domain).
-    Phone fields are present but only populated by the OTP flow (FOMO-149+).
+    Phone fields are present but only populated by the OTP flow.
+    system_role reflects backend RBAC role; dashboard uses it for conditional UI.
     """
 
     id: UUID
@@ -19,6 +20,7 @@ class UserMeResponse(BaseModel):
     email: str | None
     phone_number: str | None
     phone_verified: bool
+    system_role: UserSystemRole
     username: str
     avatar_url: str | None
     created_at: datetime
@@ -32,6 +34,7 @@ class UserMeResponse(BaseModel):
             email=user.email,
             phone_number=user.phone_number,
             phone_verified=user.phone_verified,
+            system_role=user.system_role,
             username=profile.username,
             avatar_url=profile.avatar_url,
             created_at=user.created_at,

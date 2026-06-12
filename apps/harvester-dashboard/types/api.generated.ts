@@ -47,6 +47,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/identity/admin-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Admin Check
+         * @description Return 200 if caller has admin role, 403 otherwise.
+         */
+        get: operations["admin_check_api_v1_identity_admin_check_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/identity/manager-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Manager Check
+         * @description Return 200 if caller has manager or above, 403 otherwise.
+         */
+        get: operations["manager_check_api_v1_identity_manager_check_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/identity/moderator-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Moderator Check
+         * @description Return 200 if caller has moderator or above, 403 otherwise.
+         */
+        get: operations["moderator_check_api_v1_identity_moderator_check_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/identity/service-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Service Check
+         * @description Return 200 if caller has service role, 403 otherwise.
+         */
+        get: operations["service_check_api_v1_identity_service_check_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/me": {
         parameters: {
             query?: never;
@@ -858,7 +938,8 @@ export interface components {
          *
          *     Exposes internal user/profile state for the authenticated caller.
          *     Wallet balance and transactions are intentionally excluded (separate domain).
-         *     Phone fields are present but only populated by the OTP flow (FOMO-149+).
+         *     Phone fields are present but only populated by the OTP flow.
+         *     system_role reflects backend RBAC role; dashboard uses it for conditional UI.
          */
         UserMeResponse: {
             /**
@@ -874,6 +955,7 @@ export interface components {
             phone_number: string | null;
             /** Phone Verified */
             phone_verified: boolean;
+            system_role: components["schemas"]["UserSystemRole"];
             /** Username */
             username: string;
             /** Avatar Url */
@@ -889,6 +971,18 @@ export interface components {
              */
             updated_at: string;
         };
+        /**
+         * UserSystemRole
+         * @description System access roles for backend RBAC.
+         *
+         *     These govern API access control only and are intentionally separate from
+         *     product trust states (scout, trusted_partner, organizer tiers, etc.).
+         *
+         *     Hierarchy (human roles):  admin > manager > moderator > user
+         *     Service is a standalone machine role, not part of the human hierarchy.
+         * @enum {string}
+         */
+        UserSystemRole: "admin" | "manager" | "moderator" | "user" | "service";
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -949,6 +1043,94 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TokenIdentity"];
+                };
+            };
+        };
+    };
+    admin_check_api_v1_identity_admin_check_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    manager_check_api_v1_identity_manager_check_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    moderator_check_api_v1_identity_moderator_check_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    service_check_api_v1_identity_service_check_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };
