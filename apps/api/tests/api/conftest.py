@@ -1,18 +1,28 @@
-"""Shared auth fixtures for API-level tests (FOMO-147 / FOMO-148).
+"""Shared auth fixtures for API-level tests (FOMO-147 / FOMO-148 / FOMO-150).
 
 All JWT signing is done offline with a locally generated RSA key pair.
 No live Keycloak calls are made.
+
+Role-injection fixtures (moderator_auth, service_auth) override
+require_authenticated_user so existing tests pass without carrying JWTs.
+The client fixture clears dependency_overrides on teardown.
 """
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
+from uuid import uuid4
 
 import jwt
 import pytest
+from app.core.security.rbac import require_authenticated_user
+from app.main import app
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+
+from packages.domain.models.user import User, UserSystemRole
 
 TEST_ISSUER = "https://test.example.com/realms/test-realm"
 TEST_AZP = "test-client"
@@ -108,3 +118,45 @@ def auth_overrides(rsa_public_key: rsa.RSAPublicKey, monkeypatch: pytest.MonkeyP
     mock_jwks_client.get_signing_key_from_jwt.return_value = mock_signing_key
 
     monkeypatch.setattr(validator_module, "get_jwks_client", lambda: mock_jwks_client)
+
+
+# ---------------------------------------------------------------------------
+# Role-injection fixtures for protected route tests (FOMO-150)
+# ---------------------------------------------------------------------------
+# These fixtures override require_authenticated_user at the FastAPI DI level so
+# that existing functional tests keep working after RBAC was applied to routers.
+# The client fixture's dependency_overrides.clear() cleans up on teardown.
+# ---------------------------------------------------------------------------
+
+
+def _make_user(role: UserSystemRole) -> User:
+    return User(id=uuid4(), external_id=f"{role.value}-test-sub", system_role=role)
+
+
+@pytest.fixture
+def moderator_auth() -> Generator[None, None, None]:
+    """Inject a moderator user into the dependency graph.
+
+    Use via pytestmark or as a direct fixture argument.
+    Satisfies require_moderator, require_authenticated_user, and any dependency
+    that chains from require_authenticated_user.
+    """
+    app.dependency_overrides[require_authenticated_user] = lambda: _make_user(
+        UserSystemRole.moderator
+    )
+    yield
+    app.dependency_overrides.pop(require_authenticated_user, None)
+
+
+@pytest.fixture
+def service_auth() -> Generator[None, None, None]:
+    """Inject a service user into the dependency graph.
+
+    Use via pytestmark or as a direct fixture argument.
+    Satisfies require_service and require_authenticated_user.
+    """
+    app.dependency_overrides[require_authenticated_user] = lambda: _make_user(
+        UserSystemRole.service
+    )
+    yield
+    app.dependency_overrides.pop(require_authenticated_user, None)

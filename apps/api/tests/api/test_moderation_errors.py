@@ -3,6 +3,8 @@ from uuid import uuid4
 import pytest
 from httpx import AsyncClient
 
+pytestmark = pytest.mark.usefixtures("moderator_auth")
+
 
 @pytest.mark.asyncio
 async def test_reject_event_not_found(client: AsyncClient) -> None:

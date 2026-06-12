@@ -3,6 +3,8 @@ from uuid import uuid4
 import pytest
 from httpx import AsyncClient
 
+pytestmark = pytest.mark.usefixtures("moderator_auth")
+
 
 @pytest.mark.asyncio
 async def test_get_pending_events_with_filters(client: AsyncClient) -> None:

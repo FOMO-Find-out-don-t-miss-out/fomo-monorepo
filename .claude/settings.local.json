@@ -92,7 +92,9 @@
       "PowerShell(Get-ChildItem -Path \"C:\\\\fomo-monorepo\\\\packages\\\\domain\" -Recurse -Directory | Select-Object -ExpandProperty FullName | Where-Object {$_ -notmatch '__pycache__'})",
       "Bash(grep -v \"tooling\\\\\\\\\")",
       "Bash(pnpm *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(sort -t'\"' -k2)",
+      "Bash(Remove-Item -Path \"C:\\\\fomo-monorepo\\\\docs\\\\runbooks\\\\n8n-service-auth.md\" -Force)"
     ]
   }
 }

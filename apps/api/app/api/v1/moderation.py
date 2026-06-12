@@ -4,6 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
 
+from app.core.security.rbac import require_moderator
 from app.db.session import get_db
 from app.schemas.moderation import (
     BatchApproveRequest,
@@ -21,7 +22,7 @@ from app.services.harvester.location.geocoder import GeocodeResult, GeocoderServ
 from app.services.moderation.moderation_service import ModerationService
 from app.services.moderation.place_service import PlaceModerationService
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_moderator)])
 
 
 @router.get("/pending-events", response_model=list[PendingEventResponse])

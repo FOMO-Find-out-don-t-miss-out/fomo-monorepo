@@ -9,6 +9,8 @@ from sqlmodel import Session, select
 
 from packages.domain.models import DedupeStatus, Event, PendingEvent, SubmissionType
 
+pytestmark = pytest.mark.usefixtures("service_auth")
+
 
 @pytest.mark.asyncio
 async def test_ingest_events_new(client: AsyncClient, session: Session) -> None:

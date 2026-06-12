@@ -8,6 +8,8 @@ from sqlmodel import Session
 
 from packages.domain.models import Place
 
+pytestmark = pytest.mark.usefixtures("moderator_auth")
+
 
 def make_place(**kwargs: object) -> Place:
     defaults = dict(

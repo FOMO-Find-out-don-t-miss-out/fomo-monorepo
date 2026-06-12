@@ -4,6 +4,8 @@ import pytest
 from httpx import AsyncClient
 from sqlmodel import Session
 
+pytestmark = pytest.mark.usefixtures("moderator_auth")
+
 
 @pytest.mark.asyncio
 async def test_merge_venues_endpoint(client: AsyncClient, session: Session) -> None:

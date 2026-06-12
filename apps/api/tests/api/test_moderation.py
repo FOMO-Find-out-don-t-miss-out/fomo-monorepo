@@ -6,6 +6,8 @@ from sqlmodel import Session
 
 from packages.domain.models import Event, EventProvenance, EventStatus, PendingEvent
 
+pytestmark = pytest.mark.usefixtures("moderator_auth")
+
 
 @pytest.mark.asyncio
 async def test_get_pending_events(client: AsyncClient, session: Session) -> None:

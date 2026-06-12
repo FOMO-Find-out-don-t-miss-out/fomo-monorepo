@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlmodel import Session, select
 
+from app.core.security.rbac import require_service
 from app.db.session import get_db
 from app.schemas.event import EventIngest, IngestSummary
 from app.services.harvester.ingestor import IngestionService
@@ -22,7 +23,7 @@ from packages.domain.models import (
 from packages.domain.schemas.extracted_event import ExtractedEvent
 from packages.domain.utils.url_utils import get_domain_from_url
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_service)])
 logger = logging.getLogger(__name__)
 
 

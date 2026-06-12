@@ -13,6 +13,8 @@ from packages.domain.schemas.extracted_event import ExtractedEvent
 
 client = TestClient(app)
 
+pytestmark = pytest.mark.usefixtures("moderator_auth")
+
 # --- Moderation.py Coverage ---
 
 

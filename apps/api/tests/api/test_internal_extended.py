@@ -6,6 +6,8 @@ from app.services.harvester.orchestrator import HarvesterOrchestrator
 from httpx import AsyncClient
 from sqlmodel import Session
 
+pytestmark = pytest.mark.usefixtures("service_auth")
+
 
 @pytest.mark.asyncio
 async def test_run_scraper_registry_source(session: Session) -> None:

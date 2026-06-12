@@ -9,7 +9,7 @@ from packages.domain.models import PendingEvent
 
 
 @pytest.mark.asyncio
-async def test_purge_old_events(client: AsyncClient, session: Session) -> None:
+async def test_purge_old_events(client: AsyncClient, session: Session, service_auth: None) -> None:
     # Create an old published event
     old_event = PendingEvent(
         title="Old Event",
@@ -157,7 +157,9 @@ async def test_clean_json_ld_list_empty() -> None:
 
 
 @pytest.mark.asyncio
-async def test_to_pending_event_response_invalid_loc(session: Session, client: AsyncClient) -> None:
+async def test_to_pending_event_response_invalid_loc(
+    session: Session, client: AsyncClient, moderator_auth: None
+) -> None:
     # Trigger _to_pending_event_response with invalid location
     from uuid import uuid4
 
