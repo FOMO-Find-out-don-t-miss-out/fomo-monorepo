@@ -94,7 +94,9 @@
       "Bash(pnpm *)",
       "Bash(git commit *)",
       "Bash(sort -t'\"' -k2)",
-      "Bash(Remove-Item -Path \"C:\\\\fomo-monorepo\\\\docs\\\\runbooks\\\\n8n-service-auth.md\" -Force)"
+      "Bash(Remove-Item -Path \"C:\\\\fomo-monorepo\\\\docs\\\\runbooks\\\\n8n-service-auth.md\" -Force)",
+      "Bash(Select-Object FullName)",
+      "Bash(Sort-Object FullName)"
     ]
   }
 }

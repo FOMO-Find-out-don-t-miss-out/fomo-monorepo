@@ -15,11 +15,25 @@ export type PendingEvent = Omit<
   status: 'pending' | 'published' | 'rejected';
 };
 
-/** Venue as returned by the API. id is always present on fetched records. */
-export type Venue = Omit<components['schemas']['Venue'], 'id'> & { id: string };
+/**
+ * Venue as returned by the API (backed by PlaceResponse schema).
+ * id is always present on fetched records.
+ * is_manually_verified is a dashboard-side convenience field; the backend
+ * canonical field is verification_status === 'manually_verified'.
+ */
+export type Venue = Omit<components['schemas']['PlaceResponse'], 'id'> & {
+  id: string;
+  is_manually_verified?: boolean;
+};
 export type PendingEventUpdate = components['schemas']['PendingEventUpdate'];
-export type VenueUpdate        = components['schemas']['VenueUpdate'];
-export type VenueMergeRequest  = components['schemas']['VenueMergeRequest'];
+export type VenueUpdate = components['schemas']['PlaceUpdate'] & {
+  is_manually_verified?: boolean;
+};
+/** Merge request shape as sent by the dashboard API client (field names differ from PlaceMergeRequest). */
+export interface VenueMergeRequest {
+  source_venue_id: string;
+  target_venue_id: string;
+}
 export type LocationBatchUpdate = components['schemas']['LocationBatchUpdate'];
 export type BatchApproveRequest = components['schemas']['BatchApproveRequest'];
 export type BatchRejectRequest  = components['schemas']['BatchRejectRequest'];
@@ -38,6 +52,14 @@ export type GeocodeSuggestion = Omit<
   lng: number;
   geocoding_metadata: { [key: string]: unknown };
 };
+
+// ── Auth / user types ────────────────────────────────────────────────────────
+
+/** FOMO internal user, including system_role for dashboard access control. */
+export type UserMeResponse = components['schemas']['UserMeResponse'];
+
+/** Role assigned to a FOMO user. admin > manager > moderator > user; service is isolated. */
+export type UserSystemRole = components['schemas']['UserSystemRole'];
 
 // ── Types not yet declared as named schemas in FastAPI ───────────────────────
 

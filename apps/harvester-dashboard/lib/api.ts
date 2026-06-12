@@ -11,6 +11,7 @@ import {
   GeocodeSuggestion,
   SuccessResponse
 } from "../types/api";
+import { getAccessToken, getUserManager } from "./auth";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -24,14 +25,25 @@ if (typeof window !== "undefined" && !API_BASE_URL) {
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = await getAccessToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options.headers as Record<string, string> | undefined),
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   const url = `${API_BASE_URL}${path}`;
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-  });
+  const response = await fetch(url, { ...options, headers });
+
+  if (response.status === 401) {
+    // Token expired mid-session — redirect to Keycloak unless already on an auth page
+    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/auth/")) {
+      getUserManager().signinRedirect().catch(() => {});
+    }
+    throw new Error("Session expired. Please log in again.");
+  }
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}));
