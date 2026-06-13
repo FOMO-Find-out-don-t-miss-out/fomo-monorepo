@@ -151,6 +151,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Users
+         * @description List all FOMO users for admin management, ordered newest first.
+         */
+        get: operations["list_users_api_v1_admin_users_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/system-role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update User System Role
+         * @description Update a user's system_role.
+         *
+         *     Prevents self-demotion: an admin cannot change their own role away from admin.
+         *     Assigning admin role to another user and then updating your own role is the
+         *     supported workflow for role transfers.
+         */
+        patch: operations["update_user_system_role_api_v1_admin_users__user_id__system_role_patch"];
+        trace?: never;
+    };
     "/api/v1/ingestion/ingest": {
         parameters: {
             query?: never;
@@ -933,6 +977,43 @@ export interface components {
             realm_roles: string[];
         };
         /**
+         * UpdateSystemRoleRequest
+         * @description Request body for PATCH /admin/users/{user_id}/system-role.
+         */
+        UpdateSystemRoleRequest: {
+            system_role: components["schemas"]["UserSystemRole"];
+        };
+        /**
+         * UserAdminResponse
+         * @description User record returned by admin management endpoints.
+         */
+        UserAdminResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** External Id */
+            external_id: string;
+            /** Email */
+            email: string | null;
+            /** Username */
+            username: string | null;
+            /** Avatar Url */
+            avatar_url: string | null;
+            system_role: components["schemas"]["UserSystemRole"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
          * UserMeResponse
          * @description Response schema for GET /api/v1/users/me.
          *
@@ -1151,6 +1232,61 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserMeResponse"];
+                };
+            };
+        };
+    };
+    list_users_api_v1_admin_users_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserAdminResponse"][];
+                };
+            };
+        };
+    };
+    update_user_system_role_api_v1_admin_users__user_id__system_role_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSystemRoleRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserAdminResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

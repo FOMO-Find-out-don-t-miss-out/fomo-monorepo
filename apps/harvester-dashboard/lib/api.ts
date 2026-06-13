@@ -9,7 +9,9 @@ import {
   LocationBatchUpdate,
   OccurrenceCreate,
   GeocodeSuggestion,
-  SuccessResponse
+  SuccessResponse,
+  UserAdminResponse,
+  UpdateSystemRoleRequest,
 } from "../types/api";
 import { getAccessToken, getUserManager } from "./auth";
 
@@ -214,4 +216,17 @@ export const moderationApi = {
     const params = new URLSearchParams({ q: query, country_code: countryCode });
     return request<GeocodeSuggestion[]>(`/moderation/geocode/suggestions?${params.toString()}`);
   }
+};
+
+export const adminApi = {
+  /** List all FOMO users, ordered newest first. Admin only. */
+  getUsers: (): Promise<UserAdminResponse[]> =>
+    request<UserAdminResponse[]>("/admin/users"),
+
+  /** Update a user's system_role. Prevents self-demotion. Admin only. */
+  updateUserRole: (userId: string, body: UpdateSystemRoleRequest): Promise<UserAdminResponse> =>
+    request<UserAdminResponse>(`/admin/users/${userId}/system-role`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
 };

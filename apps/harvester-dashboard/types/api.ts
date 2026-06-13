@@ -61,6 +61,14 @@ export type UserMeResponse = components['schemas']['UserMeResponse'];
 /** Role assigned to a FOMO user. admin > manager > moderator > user; service is isolated. */
 export type UserSystemRole = components['schemas']['UserSystemRole'];
 
+// ── Admin user management types (FOMO-157) ───────────────────────────────────
+
+/** User record returned by admin management endpoints. */
+export type UserAdminResponse = components['schemas']['UserAdminResponse'];
+
+/** Request body for PATCH /admin/users/{user_id}/system-role. */
+export type UpdateSystemRoleRequest = components['schemas']['UpdateSystemRoleRequest'];
+
 // ── Types not yet declared as named schemas in FastAPI ───────────────────────
 
 /**

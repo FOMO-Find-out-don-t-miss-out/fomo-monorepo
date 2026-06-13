@@ -10,12 +10,13 @@ import {
   CheckCheck,
   LogOut,
   User2,
+  Users,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/components/providers/auth-provider'
 import { RequireAuth } from '@/components/auth/require-auth'
 import { RequireRole } from '@/components/auth/require-role'
-import { MODERATOR_AND_ABOVE } from '@/lib/auth'
+import { MODERATOR_AND_ABOVE, hasAdminAccess } from '@/lib/auth'
 
 const navItems = [
   { href: '/', label: 'Pending', icon: Calendar },
@@ -27,9 +28,12 @@ interface DashboardLayoutProps {
   children: React.ReactNode
 }
 
+const adminNavItem = { href: '/admin/users', label: 'Users', icon: Users }
+
 function DashboardContent({ children }: DashboardLayoutProps) {
   const pathname = usePathname()
   const { fomoUser, oidcUser, logout } = useAuth()
+  const isAdmin = hasAdminAccess(fomoUser?.system_role)
 
   const displayName =
     fomoUser?.username ??
@@ -73,6 +77,29 @@ function DashboardContent({ children }: DashboardLayoutProps) {
               </Link>
             )
           })}
+          {isAdmin && (() => {
+            const isActive = pathname === adminNavItem.href
+            return (
+              <Link
+                href={adminNavItem.href}
+                className={cn(
+                  'w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 relative group',
+                  isActive
+                    ? 'bg-neon-purple/20 text-neon-purple neon-border-purple neon-glow-sm'
+                    : 'text-muted-foreground hover:text-neon-purple hover:bg-neon-purple/10'
+                )}
+                title={adminNavItem.label}
+              >
+                <adminNavItem.icon className={cn(
+                  "w-6 h-6 transition-transform duration-300 group-hover:scale-110",
+                  isActive && "animate-neon-pulse"
+                )} />
+                {isActive && (
+                  <span className="absolute -left-1 w-1 h-6 bg-neon-purple rounded-r-full shadow-[0_0_10px_var(--neon-purple)]" />
+                )}
+              </Link>
+            )
+          })()}
         </nav>
 
         {/* Bottom actions */}
