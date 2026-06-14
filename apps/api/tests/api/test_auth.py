@@ -145,6 +145,122 @@ async def test_wrong_azp_returns_401(
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Multi-client AZP (FOMO-159) — comma-separated AUTH_OIDC_ALLOWED_AZP
+# ---------------------------------------------------------------------------
+
+_SECOND_AZP = "fomo-n8n-ingestion"
+_MULTI_AZP = f"{TEST_AZP},{_SECOND_AZP}"
+
+
+def _make_multi_azp_overrides(
+    monkeypatch: pytest.MonkeyPatch,
+    rsa_public_key: object,
+    *,
+    allowed_azp: str = _MULTI_AZP,
+) -> None:
+    """Apply settings + JWKS mock for multi-AZP tests."""
+    import app.core.config as config_module
+    import app.core.security.jwt_validator as validator_module
+
+    monkeypatch.setattr(config_module.settings, "AUTH_OIDC_ENABLED", True)
+    monkeypatch.setattr(config_module.settings, "AUTH_OIDC_ISSUER", TEST_ISSUER)
+    monkeypatch.setattr(
+        config_module.settings,
+        "AUTH_OIDC_JWKS_URL",
+        "https://test.example.com/.well-known/jwks.json",
+    )
+    monkeypatch.setattr(config_module.settings, "AUTH_OIDC_ALLOWED_AZP", allowed_azp)
+    monkeypatch.setattr(config_module.settings, "AUTH_OIDC_ALLOWED_AUDIENCES", "")
+
+    mock_signing_key = MagicMock()
+    mock_signing_key.key = rsa_public_key
+    mock_jwks_client = MagicMock()
+    mock_jwks_client.get_signing_key_from_jwt.return_value = mock_signing_key
+    monkeypatch.setattr(validator_module, "get_jwks_client", lambda: mock_jwks_client)
+
+
+@pytest.mark.asyncio
+async def test_multi_azp_first_client_accepted(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+    rsa_private_key: rsa.RSAPrivateKey,
+) -> None:
+    """First client in a comma-separated AZP list must be accepted."""
+    _make_multi_azp_overrides(monkeypatch, rsa_private_key.public_key())
+    token = sign_token(rsa_private_key, azp=TEST_AZP)
+    resp = await client.get("/api/v1/identity/me", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200
+    assert resp.json()["azp"] == TEST_AZP
+
+
+@pytest.mark.asyncio
+async def test_multi_azp_second_client_accepted(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+    rsa_private_key: rsa.RSAPrivateKey,
+) -> None:
+    """Second client in a comma-separated AZP list must be accepted."""
+    _make_multi_azp_overrides(monkeypatch, rsa_private_key.public_key())
+    token = sign_token(rsa_private_key, azp=_SECOND_AZP)
+    resp = await client.get("/api/v1/identity/me", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200
+    assert resp.json()["azp"] == _SECOND_AZP
+
+
+@pytest.mark.asyncio
+async def test_multi_azp_disallowed_client_rejected(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+    rsa_private_key: rsa.RSAPrivateKey,
+) -> None:
+    """A client not in the AZP list must be rejected with 401."""
+    _make_multi_azp_overrides(monkeypatch, rsa_private_key.public_key())
+    token = sign_token(rsa_private_key, azp="some-unauthorized-client")
+    resp = await client.get("/api/v1/identity/me", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_multi_azp_whitespace_in_config_handled(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+    rsa_private_key: rsa.RSAPrivateKey,
+) -> None:
+    """Whitespace around comma-separated AZP values must be trimmed."""
+    _make_multi_azp_overrides(
+        monkeypatch,
+        rsa_private_key.public_key(),
+        allowed_azp=f" {TEST_AZP} , {_SECOND_AZP} ",
+    )
+    token = sign_token(rsa_private_key, azp=_SECOND_AZP)
+    resp = await client.get("/api/v1/identity/me", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_multi_azp_empty_entries_do_not_allow_empty_azp(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+    rsa_private_key: rsa.RSAPrivateKey,
+) -> None:
+    """Empty entries in a comma-separated AZP config must not grant access."""
+    _make_multi_azp_overrides(
+        monkeypatch,
+        rsa_private_key.public_key(),
+        allowed_azp=f"{TEST_AZP},,{_SECOND_AZP},",
+    )
+    # A token whose azp happens to be an empty string must not be accepted
+    token = sign_token(rsa_private_key, azp="", extra={"azp": ""})
+    resp = await client.get("/api/v1/identity/me", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Audience validation (when configured)
+# ---------------------------------------------------------------------------
+
+
 @pytest.mark.asyncio
 async def test_audience_validated_when_configured(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch, rsa_private_key: rsa.RSAPrivateKey
