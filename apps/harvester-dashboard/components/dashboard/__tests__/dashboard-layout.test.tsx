@@ -33,6 +33,8 @@ import { DashboardLayout } from '../dashboard-layout'
 const BASE_AUTH = {
   isAuthenticated: true,
   isLoading: false,
+  sessionExpired: false,
+  isLoggingOut: false,
   oidcUser: { profile: { preferred_username: 'testuser' } },
   fomoUser: null,
   login: vi.fn(),
@@ -107,5 +109,29 @@ describe('DashboardLayout', () => {
     render(<DashboardLayout><div data-testid="content">page content</div></DashboardLayout>)
 
     expect(screen.getByTestId('content')).toBeInTheDocument()
+  })
+
+  it('disables the logout button while logout is in progress', () => {
+    mockUseAuth.mockReturnValue({
+      ...BASE_AUTH,
+      isLoggingOut: true,
+      fomoUser: { id: 'u1', username: 'mod', system_role: 'moderator' },
+    })
+
+    render(<DashboardLayout><div>content</div></DashboardLayout>)
+
+    const logoutBtn = screen.getByTitle('Signing out…')
+    expect(logoutBtn).toBeDisabled()
+  })
+
+  it('shows email and role in the user identity tooltip when available', () => {
+    mockUseAuth.mockReturnValue({
+      ...BASE_AUTH,
+      fomoUser: { id: 'u1', username: 'mod', email: 'mod@example.com', system_role: 'moderator' },
+    })
+
+    render(<DashboardLayout><div>content</div></DashboardLayout>)
+
+    expect(screen.getByTitle('mod@example.com · Moderator')).toBeInTheDocument()
   })
 })

@@ -96,7 +96,9 @@
       "Bash(sort -t'\"' -k2)",
       "Bash(Remove-Item -Path \"C:\\\\fomo-monorepo\\\\docs\\\\runbooks\\\\n8n-service-auth.md\" -Force)",
       "Bash(Select-Object FullName)",
-      "Bash(Sort-Object FullName)"
+      "Bash(Sort-Object FullName)",
+      "PowerShell(head *)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\fomo-monorepo\\\\apps\\\\harvester-dashboard\\\\app\" -Recurse -Force | Where-Object { $_.Extension -eq \".tsx\" -or $_.Extension -eq \".ts\" })"
     ]
   }
 }

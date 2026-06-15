@@ -8,6 +8,7 @@ import {
   Settings,
   Flame,
   CheckCheck,
+  Loader2,
   LogOut,
   User2,
   Users,
@@ -30,15 +31,18 @@ interface DashboardLayoutProps {
 
 const adminNavItem = { href: '/admin/users', label: 'Users', icon: Users }
 
+function formatRole(role: string): string {
+  return role.charAt(0).toUpperCase() + role.slice(1);
+}
+
 function DashboardContent({ children }: DashboardLayoutProps) {
   const pathname = usePathname()
-  const { fomoUser, oidcUser, logout } = useAuth()
+  const { fomoUser, oidcUser, logout, isLoggingOut } = useAuth()
   const isAdmin = hasAdminAccess(fomoUser?.system_role)
 
-  const displayName =
-    fomoUser?.username ??
-    oidcUser?.profile?.preferred_username ??
-    'User'
+  const displayEmail = fomoUser?.email ?? (oidcUser?.profile?.email as string | undefined) ?? null
+  const roleLabel = fomoUser?.system_role ? formatRole(fomoUser.system_role) : null
+  const userTitle = [displayEmail, roleLabel].filter(Boolean).join(' · ') || 'User'
 
   return (
     <div className="flex h-screen bg-background selection:bg-neon-purple/30 selection:text-neon-purple">
@@ -107,7 +111,7 @@ function DashboardContent({ children }: DashboardLayoutProps) {
           {/* User identity */}
           <div
             className="w-12 h-12 rounded-xl flex items-center justify-center text-muted-foreground bg-muted/20 transition-all duration-300"
-            title={displayName}
+            title={userTitle}
           >
             <User2 className="w-5 h-5" />
           </div>
@@ -123,10 +127,15 @@ function DashboardContent({ children }: DashboardLayoutProps) {
           {/* Logout */}
           <button
             onClick={logout}
-            className="w-12 h-12 rounded-xl flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all duration-300"
-            title="Logout"
+            disabled={isLoggingOut}
+            className="w-12 h-12 rounded-xl flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
+            title={isLoggingOut ? 'Signing out…' : 'Logout'}
           >
-            <LogOut className="w-5 h-5" />
+            {isLoggingOut ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <LogOut className="w-5 h-5" />
+            )}
           </button>
         </div>
       </aside>

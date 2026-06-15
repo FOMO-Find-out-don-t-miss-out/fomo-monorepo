@@ -9,11 +9,11 @@ vi.mock('@/components/providers/auth-provider', () => ({
 
 import { useAuth } from '@/components/providers/auth-provider';
 
-function makeUser(role: UserMeResponse['system_role']): UserMeResponse {
+function makeUser(role: UserMeResponse['system_role'], email?: string): UserMeResponse {
   return {
     id: 'test-id',
     external_id: 'sub',
-    email: null,
+    email: email ?? null,
     phone_number: null,
     phone_verified: false,
     system_role: role,
@@ -28,6 +28,8 @@ const baseAuth = {
   oidcUser: null,
   isLoading: false,
   isAuthenticated: true,
+  sessionExpired: false,
+  isLoggingOut: false,
   login: vi.fn(),
   logout: vi.fn(),
 };
@@ -61,7 +63,8 @@ describe('RequireRole', () => {
       </RequireRole>
     );
     expect(screen.queryByText('Protected Content')).not.toBeInTheDocument();
-    expect(screen.getByText(/don't have permission/i)).toBeInTheDocument();
+    expect(screen.getByText(/Access restricted/i)).toBeInTheDocument();
+    expect(screen.getByText(/required permissions/i)).toBeInTheDocument();
   });
 
   it('renders the default forbidden UI when role is isolated (service)', () => {
@@ -72,6 +75,7 @@ describe('RequireRole', () => {
       </RequireRole>
     );
     expect(screen.queryByText('Protected Content')).not.toBeInTheDocument();
+    expect(screen.getByText(/Access restricted/i)).toBeInTheDocument();
   });
 
   it('renders a custom fallback when role is insufficient', () => {
@@ -96,9 +100,8 @@ describe('RequireRole', () => {
         <div>Protected Content</div>
       </RequireRole>
     );
-    // Loading state — neither content nor forbidden should be visible
     expect(screen.queryByText('Protected Content')).not.toBeInTheDocument();
-    expect(screen.queryByText(/don't have permission/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Access restricted/i)).not.toBeInTheDocument();
   });
 
   it('renders forbidden when not authenticated and no fomoUser', () => {
@@ -113,6 +116,42 @@ describe('RequireRole', () => {
       </RequireRole>
     );
     expect(screen.queryByText('Protected Content')).not.toBeInTheDocument();
-    expect(screen.getByText(/don't have permission/i)).toBeInTheDocument();
+    expect(screen.getByText(/Access restricted/i)).toBeInTheDocument();
+  });
+
+  it('shows the signed-in email in forbidden UI when available', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      ...baseAuth,
+      fomoUser: makeUser('user', 'alice@example.com'),
+    });
+    render(
+      <RequireRole roles={['admin']}>
+        <div>Protected Content</div>
+      </RequireRole>
+    );
+    expect(screen.getByText('alice@example.com')).toBeInTheDocument();
+  });
+
+  it('shows a formatted role label in forbidden UI when email is present', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      ...baseAuth,
+      fomoUser: makeUser('moderator', 'bob@example.com'),
+    });
+    render(
+      <RequireRole roles={['admin']}>
+        <div>Protected Content</div>
+      </RequireRole>
+    );
+    expect(screen.getByText(/Moderator/)).toBeInTheDocument();
+  });
+
+  it('shows Log out button in the forbidden UI', () => {
+    vi.mocked(useAuth).mockReturnValue({ ...baseAuth, fomoUser: makeUser('user') });
+    render(
+      <RequireRole roles={['admin']}>
+        <div>Protected Content</div>
+      </RequireRole>
+    );
+    expect(screen.getByRole('button', { name: /log out/i })).toBeInTheDocument();
   });
 });

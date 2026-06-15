@@ -13,7 +13,7 @@ import {
   UserAdminResponse,
   UpdateSystemRoleRequest,
 } from "../types/api";
-import { getAccessToken, getUserManager } from "./auth";
+import { getAccessToken } from "./auth";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -40,9 +40,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(url, { ...options, headers });
 
   if (response.status === 401) {
-    // Token expired mid-session — redirect to Keycloak unless already on an auth page
-    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/auth/")) {
-      getUserManager().signinRedirect().catch(() => {});
+    // Signal session expiry to the AuthProvider via a custom event so the UI
+    // can show "Log in again" without triggering an automatic redirect, which
+    // can cause redirect loops when the Keycloak session has also expired.
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("fomo:session-expired"));
     }
     throw new Error("Session expired. Please log in again.");
   }
