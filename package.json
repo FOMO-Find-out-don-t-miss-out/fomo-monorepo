@@ -23,7 +23,8 @@
       "react": "19.1.0",
       "react-dom": "19.1.0",
       "@types/react": "19.1.10",
-      "@types/react-dom": "19.1.5"
+      "@types/react-dom": "19.1.5",
+      "shell-quote": ">=1.8.4"
     }
   },
   "packageManager": "pnpm@10.3.0"

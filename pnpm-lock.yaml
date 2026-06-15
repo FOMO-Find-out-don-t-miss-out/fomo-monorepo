@@ -9,6 +9,7 @@ overrides:
   react-dom: 19.1.0
   '@types/react': 19.1.10
   '@types/react-dom': 19.1.5
+  shell-quote: '>=1.8.4'
 
 importers:
 
