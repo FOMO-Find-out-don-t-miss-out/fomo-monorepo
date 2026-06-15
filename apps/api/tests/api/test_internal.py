@@ -734,5 +734,127 @@ async def test_ingest_no_location_name_no_place(session: Session) -> None:
     assert pending is not None
     assert pending.place_candidate_id is None
 
-    all_places = session.exec(select(Place)).all()
-    assert len(all_places) == 0
+
+@pytest.mark.asyncio
+async def test_ingest_unresolved_cache_hit_does_not_auto_approve(session: Session) -> None:
+    """FOMO-156: a cache hit on an unresolved Place (lat/lng=None) must NOT cause
+    auto-approval even when all other TrustEngine gates would pass.
+    The event must land as 'pending', and no live Event row must be created.
+    """
+    from datetime import timedelta
+
+    from app.repositories.place_repository import PlaceRepository
+    from app.services.harvester.ingestor import IngestionService
+    from packages.domain.schemas.extracted_event import ExtractedEvent
+
+    repo = PlaceRepository(session)
+    repo.save_unresolved_place("Unresolved Club", "GR")
+
+    future = datetime.now(UTC) + timedelta(days=30)
+    events = [
+        ExtractedEvent(
+            title="Big Concert",
+            location_name="Unresolved Club",
+            start_time=future,
+            category="Music",
+            ingestion_method="json_ld",
+            confidence_score=0.95,
+        )
+    ]
+
+    summary = await IngestionService.ingest_events(session, events)
+    assert summary.added == 1
+
+    pending = session.exec(select(PendingEvent).where(PendingEvent.title == "Big Concert")).first()
+    assert pending is not None
+    assert pending.status == "pending"
+    assert pending.place_candidate_id is not None
+
+    live = session.exec(select(Event).where(Event.title == "Big Concert")).first()
+    assert live is None
+
+
+@pytest.mark.asyncio
+async def test_ingest_resolved_cache_hit_preserves_auto_approve_eligibility(
+    session: Session,
+) -> None:
+    """A cache hit on a resolved Place (real lat/lng) must keep the event eligible
+    for auto-approval when TrustEngine gates pass.
+    """
+    from datetime import timedelta
+
+    from app.repositories.place_repository import PlaceRepository
+    from app.services.harvester.ingestor import IngestionService
+    from packages.domain.schemas.extracted_event import ExtractedEvent
+
+    repo = PlaceRepository(session)
+    repo.save_place("Resolved Venue", "GR", 37.97, 23.73, "Main St, Athens", 0.95, "Athens")
+
+    future = datetime.now(UTC) + timedelta(days=30)
+    events = [
+        ExtractedEvent(
+            title="Verified Concert",
+            location_name="Resolved Venue",
+            start_time=future,
+            category="Music",
+            ingestion_method="json_ld",
+        )
+    ]
+
+    summary = await IngestionService.ingest_events(session, events)
+    assert summary.added == 1
+
+    pending = session.exec(
+        select(PendingEvent).where(PendingEvent.title == "Verified Concert")
+    ).first()
+    assert pending is not None
+    assert pending.place_candidate_id is not None
+
+    live = session.exec(select(Event).where(Event.title == "Verified Concert")).first()
+    assert live is not None
+
+
+@pytest.mark.asyncio
+async def test_ingest_geocoder_failure_second_event_reuses_place_stays_pending(
+    session: Session,
+) -> None:
+    """FOMO-156: after an unresolved place is created by a first geocoding failure,
+    a second event with the same venue name must reuse the place but still land
+    as 'pending' — not auto-approved.
+    """
+    from datetime import timedelta
+
+    from app.services.harvester.ingestor import IngestionService
+    from packages.domain.models import Place
+    from packages.domain.schemas.extracted_event import ExtractedEvent
+
+    future = datetime.now(UTC) + timedelta(days=30)
+
+    def _make(title: str) -> ExtractedEvent:
+        return ExtractedEvent(
+            title=title,
+            location_name="Ghost Venue",
+            start_time=future,
+            category="Music",
+            ingestion_method="json_ld",
+            confidence_score=0.95,
+        )
+
+    with patch(
+        "app.services.harvester.ingestor.GeocoderService.get_coordinates",
+        new_callable=AsyncMock,
+        return_value=None,
+    ):
+        await IngestionService.ingest_events(session, [_make("Show 1")])
+        await IngestionService.ingest_events(session, [_make("Show 2")])
+
+    places = session.exec(select(Place).where(Place.name == "Ghost Venue")).all()
+    assert len(places) == 1
+
+    for title in ("Show 1", "Show 2"):
+        ev = session.exec(select(PendingEvent).where(PendingEvent.title == title)).first()
+        assert ev is not None, f"{title} not found"
+        assert ev.status == "pending", f"{title} was auto-approved but must stay pending"
+        assert ev.place_candidate_id == places[0].id
+
+    assert session.exec(select(Event).where(Event.title.in_(["Show 1", "Show 2"]))).first() is None

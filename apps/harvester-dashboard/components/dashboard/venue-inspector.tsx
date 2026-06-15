@@ -33,6 +33,7 @@ import type { Venue, GeocodeSuggestion } from '@/types/api'
 import { moderationApi } from '@/lib/api'
 import {
   GitMerge,
+  MapPin,
   Trash2,
   Save,
   CheckCircle2,
@@ -182,14 +183,27 @@ export function VenueInspector({ venue, open, onOpenChange }: VenueInspectorProp
         <ScrollArea className="flex-1 min-h-0 scrollbar-neon">
           {/* Map Header */}
           <div className="relative w-full h-56 bg-muted">
-            <iframe
-              src={`https://api.mapbox.com/styles/v1/mapbox/dark-v11.html?title=false&access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? ''}&zoomwheel=false#14/${editedVenue.lat}/${editedVenue.lng}`}
-              className="w-full h-full border-0 grayscale-[0.5] contrast-[1.2] brightness-[0.8]"
-              title="Venue Location"
-            />
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-              <div className="w-6 h-6 bg-neon-blue rounded-full border-2 border-white neon-glow-blue animate-neon-pulse" />
-            </div>
+            {process.env.NEXT_PUBLIC_MAPBOX_TOKEN && editedVenue.lat != null && editedVenue.lng != null ? (
+              <>
+                <iframe
+                  src={`https://api.mapbox.com/styles/v1/mapbox/dark-v11.html?title=false&access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}&zoomwheel=false#14/${editedVenue.lat}/${editedVenue.lng}`}
+                  className="w-full h-full border-0 grayscale-[0.5] contrast-[1.2] brightness-[0.8]"
+                  title="Venue Location"
+                />
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+                  <div className="w-6 h-6 bg-neon-blue rounded-full border-2 border-white neon-glow-blue animate-neon-pulse" />
+                </div>
+              </>
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground/60">
+                <MapPin className="w-8 h-8 opacity-30" />
+                <p className="text-[11px] font-medium text-center px-4">
+                  {editedVenue.lat == null || editedVenue.lng == null
+                    ? 'Location not yet resolved — geocoding pending'
+                    : 'Map unavailable — configure NEXT_PUBLIC_MAPBOX_TOKEN'}
+                </p>
+              </div>
+            )}
             
             <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent pointer-events-none" />
             

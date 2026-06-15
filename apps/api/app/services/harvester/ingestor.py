@@ -43,15 +43,27 @@ class IngestionService:
                 event_data.event_metadata = {}
 
             place_candidate_id = None
+            place_is_resolved = False  # True only when cached place has real coordinates
             if event_data.location_name:
                 venue = db.exec(select(Place).where(Place.name == event_data.location_name)).first()
                 if venue:
-                    logger.info(f"[INGEST] Venue Match Found: '{event_data.location_name}'")
-                    event_data.lat = venue.lat
-                    event_data.lng = venue.lng
-                    event_data.geocoding_status = "verified"
-                    event_data.confidence_score = 1.0
                     place_candidate_id = venue.id
+                    if venue.lat is not None and venue.lng is not None:
+                        logger.info(f"[INGEST] Venue Match Found: '{event_data.location_name}'")
+                        event_data.lat = venue.lat
+                        event_data.lng = venue.lng
+                        event_data.geocoding_status = "verified"
+                        event_data.confidence_score = 1.0
+                        place_is_resolved = True
+                    else:
+                        # Unresolved place candidate — link for moderation but do not
+                        # treat as geocoding success; auto-approval must not fire.
+                        logger.info(
+                            "[INGEST] Venue match is unresolved; auto-approval disabled "
+                            "for '%s' place_id=%s",
+                            event_data.title,
+                            venue.id,
+                        )
                 elif event_data.lat is None or event_data.lng is None:
                     logger.info(
                         f"[INGEST] No Venue Cache Match for '{event_data.location_name}'. "
@@ -152,6 +164,12 @@ class IngestionService:
                     place_candidate_id = resolved_place.id
 
             is_auto_approved = trust_engine.is_trusted_for_autopublish(event_data)
+
+            # Defense-in-depth: never auto-approve when the linked place has no coordinates,
+            # regardless of what the trust engine decided based on event fields alone.
+            if is_auto_approved and place_candidate_id and not place_is_resolved:
+                is_auto_approved = False
+                logger.info("[INGEST] Auto-Approve skipped: unresolved place candidate")
 
             existing_pending = db.exec(
                 select(PendingEvent).where(
