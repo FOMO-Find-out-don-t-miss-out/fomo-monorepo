@@ -161,6 +161,16 @@ export interface paths {
         /**
          * List Users
          * @description List all FOMO users for admin management, ordered newest first.
+         *
+         *     Attempts a single Keycloak batch call to populate identity_status for each
+         *     user.  Returns "unknown" for all users when KEYCLOAK_ADMIN_* is not
+         *     configured or the Keycloak call fails — this is graceful degradation, not
+         *     an error.
+         *
+         *     Orphaned users (FOMO DB row exists, Keycloak identity missing) are marked
+         *     identity_status="missing_in_keycloak".  They cannot log in because Keycloak
+         *     will not issue tokens for them, but they remain in the DB until an admin
+         *     explicitly cleans them up.  See FOMO-161 for the full orphan-handling policy.
          */
         get: operations["list_users_api_v1_admin_users_get"];
         put?: never;
@@ -193,6 +203,41 @@ export interface paths {
          *     supported workflow for role transfers.
          */
         patch: operations["update_user_system_role_api_v1_admin_users__user_id__system_role_patch"];
+        trace?: never;
+    };
+    "/api/v1/admin/users/invite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Invite User
+         * @description Create or prepare a dashboard user in Keycloak and the FOMO database.
+         *
+         *     Behaviour by case:
+         *       A. Keycloak user absent + FOMO user absent
+         *          → Create both; return keycloak_created=True.
+         *       B. Keycloak user exists + FOMO user absent
+         *          → Create FOMO user mapped to existing Keycloak identity;
+         *            return keycloak_created=False.
+         *       C. FOMO user exists (by external_id) → 409 Conflict.
+         *       D. FOMO user exists (by email, different external_id) → 409 Conflict.
+         *
+         *     The created Keycloak user has UPDATE_PASSWORD as a required action, meaning
+         *     the user must set a password on first login.  If SMTP is configured in
+         *     Keycloak, trigger an execute-actions-email from the Keycloak Admin UI to
+         *     send the user an invite link; otherwise, share the Keycloak realm login URL
+         *     and instruct the user to use "Forgot password".
+         */
+        post: operations["invite_user_api_v1_admin_users_invite_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/ingestion/ingest": {
@@ -761,6 +806,55 @@ export interface components {
             /** Updated */
             updated: number;
         };
+        /**
+         * InviteUserRequest
+         * @description Request body for POST /admin/users/invite.
+         */
+        InviteUserRequest: {
+            /** Email */
+            email: string;
+            system_role: components["schemas"]["UserSystemRole"];
+        };
+        /**
+         * InviteUserResponse
+         * @description Response for POST /admin/users/invite.
+         *
+         *     Extends UserAdminResponse with information about the Keycloak side of the
+         *     operation so the caller knows whether a new Keycloak identity was created.
+         */
+        InviteUserResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** External Id */
+            external_id: string;
+            /** Email */
+            email: string | null;
+            /** Username */
+            username: string | null;
+            /** Avatar Url */
+            avatar_url: string | null;
+            system_role: components["schemas"]["UserSystemRole"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Identity Status
+             * @default unknown
+             */
+            identity_status: string;
+            /** Keycloak Created */
+            keycloak_created: boolean;
+        };
         /** LocationBatchUpdate */
         LocationBatchUpdate: {
             /** Target Name */
@@ -1012,6 +1106,11 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /**
+             * Identity Status
+             * @default unknown
+             */
+            identity_status: string;
         };
         /**
          * UserMeResponse
@@ -1278,6 +1377,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserAdminResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    invite_user_api_v1_admin_users_invite_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteUserRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteUserResponse"];
                 };
             };
             /** @description Validation Error */

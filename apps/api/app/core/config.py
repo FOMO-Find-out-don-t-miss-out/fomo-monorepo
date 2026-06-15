@@ -73,6 +73,23 @@ class Settings(BaseSettings):
     def oidc_allowed_azp_list(self) -> list[str]:
         return [v.strip() for v in self.AUTH_OIDC_ALLOWED_AZP.split(",") if v.strip()]
 
+    # Keycloak Admin REST API — used by backend-only admin flows (e.g. user invite).
+    # Must be a service account with "manage-users" realm role in the target realm.
+    # Set all four vars; any missing var disables admin features gracefully.
+    # Platform follow-up: inject these via fomo-platform secrets/ConfigMap.
+    KEYCLOAK_ADMIN_BASE_URL: str | None = None  # e.g. https://auth.fomo-lab.org
+    KEYCLOAK_ADMIN_REALM: str = "fomo-admin"
+    KEYCLOAK_ADMIN_CLIENT_ID: str | None = None   # service-account client id
+    KEYCLOAK_ADMIN_CLIENT_SECRET: str | None = None  # service-account client secret
+
+    @property
+    def keycloak_admin_configured(self) -> bool:
+        return bool(
+            self.KEYCLOAK_ADMIN_BASE_URL
+            and self.KEYCLOAK_ADMIN_CLIENT_ID
+            and self.KEYCLOAK_ADMIN_CLIENT_SECRET
+        )
+
     # OpenTelemetry tracing — disabled by default; platform sets these in staging/prod.
     OTEL_ENABLED: bool = False
     OTEL_SERVICE_NAME: str = "fomo-api"

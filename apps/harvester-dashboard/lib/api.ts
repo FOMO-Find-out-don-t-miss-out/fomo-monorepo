@@ -12,6 +12,8 @@ import {
   SuccessResponse,
   UserAdminResponse,
   UpdateSystemRoleRequest,
+  InviteUserRequest,
+  InviteUserResponse,
 } from "../types/api";
 import { getAccessToken } from "./auth";
 
@@ -229,6 +231,13 @@ export const adminApi = {
   updateUserRole: (userId: string, body: UpdateSystemRoleRequest): Promise<UserAdminResponse> =>
     request<UserAdminResponse>(`/admin/users/${userId}/system-role`, {
       method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+
+  /** Create or prepare a dashboard user in Keycloak and FOMO DB. Admin only. */
+  inviteUser: (body: InviteUserRequest): Promise<InviteUserResponse> =>
+    request<InviteUserResponse>("/admin/users/invite", {
+      method: "POST",
       body: JSON.stringify(body),
     }),
 };
