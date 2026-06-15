@@ -47,6 +47,7 @@ async def ingest_events(
                 source_provider=get_domain_from_url(e.source_url),
                 ingestion_method="manual",
                 event_metadata={**e.event_metadata, "original_link": e.source_url},
+                location_name=e.location_name,
             )
         )
     return await IngestionService.ingest_events(db, extracted_list)

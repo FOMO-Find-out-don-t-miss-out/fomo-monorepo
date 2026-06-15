@@ -50,6 +50,45 @@ async def test_ingest_events_new(client: AsyncClient, session: Session) -> None:
 
 
 @pytest.mark.asyncio
+async def test_ingest_preserves_location_name(client: AsyncClient, session: Session) -> None:
+    """Regression: /ingest must forward location_name so geocoding and place lookup can run.
+
+    FOMO-156: the endpoint was dropping location_name when converting EventBase →
+    ExtractedEvent, so events landed with location_name=NULL and geocoding_status="failed"
+    even when the caller provided a venue name.
+    """
+    payload = {
+        "events": [
+            {
+                "title": "Jazz Night at Gagarin",
+                "start_time": "2026-07-15T21:00:00Z",
+                "source_url": "https://more.com/gr-el/events/99999",
+                "location_name": "Gagarin 205",
+            }
+        ]
+    }
+
+    # Geocoder would call Mapbox (not available in tests); mock it to return None so the
+    # ingestor stores the event with no resolved coordinates but preserves location_name.
+    with patch(
+        "app.services.harvester.ingestor.GeocoderService.get_coordinates",
+        new_callable=AsyncMock,
+        return_value=None,
+    ):
+        response = await client.post("/api/v1/ingestion/ingest", json=payload)
+
+    assert response.status_code == 200
+
+    pending = session.exec(
+        select(PendingEvent).where(PendingEvent.title == "Jazz Night at Gagarin")
+    ).first()
+    assert pending is not None
+    assert pending.status == "pending"
+    # location_name must be preserved — previously dropped, causing all geocoding to be skipped
+    assert pending.location_name == "Gagarin 205"
+
+
+@pytest.mark.asyncio
 async def test_ingest_events_update(client: AsyncClient, session: Session) -> None:
     """Test updating existing pending events during ingestion."""
     # Detection: where(PendingEvent.title == ev.title, PendingEvent.start_time == ev.start_time)
