@@ -144,11 +144,13 @@ class KeycloakAdminService:
             KeycloakAdminError: on non-201 response from Keycloak.
         """
         headers = await self._auth_headers()
+        normalized = email.strip().lower()
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.post(
                 f"{self._base}/admin/realms/{self._realm}/users",
                 json={
-                    "email": email,
+                    "username": normalized,
+                    "email": normalized,
                     "enabled": True,
                     "emailVerified": True,
                     "requiredActions": ["UPDATE_PASSWORD"],

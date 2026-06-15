@@ -265,7 +265,9 @@ async def test_create_user_success_extracts_id_from_location(respx_mock: object)
 
 @pytest.mark.asyncio
 async def test_create_user_sends_expected_payload(respx_mock: object) -> None:
-    """create_user must send email, enabled=True, emailVerified=True, UPDATE_PASSWORD action."""
+    """create_user must send username, email, enabled, emailVerified, UPDATE_PASSWORD."""
+    import json
+
     new_kc_id = "payload-check-uuid"
     _mock_token(respx_mock)
     route = respx_mock.post(_USERS_URL).mock(  # type: ignore[union-attr]
@@ -278,12 +280,34 @@ async def test_create_user_sends_expected_payload(respx_mock: object) -> None:
     svc = _make_service()
     await svc.create_user("payload@example.com")
 
-    import json
     sent = json.loads(route.calls.last.request.content)
+    assert sent["username"] == "payload@example.com"
     assert sent["email"] == "payload@example.com"
     assert sent["enabled"] is True
     assert sent["emailVerified"] is True
     assert "UPDATE_PASSWORD" in sent["requiredActions"]
+
+
+@pytest.mark.asyncio
+async def test_create_user_username_normalised_to_lowercase(respx_mock: object) -> None:
+    """username and email are both normalised before being sent to Keycloak."""
+    import json
+
+    new_kc_id = "norm-uuid"
+    _mock_token(respx_mock)
+    route = respx_mock.post(_USERS_URL).mock(  # type: ignore[union-attr]
+        return_value=httpx.Response(
+            201,
+            headers={"Location": f"{_BASE}/admin/realms/{_REALM}/users/{new_kc_id}"},
+        )
+    )
+
+    svc = _make_service()
+    await svc.create_user("  User@Example.COM  ")
+
+    sent = json.loads(route.calls.last.request.content)
+    assert sent["username"] == "user@example.com"
+    assert sent["email"] == "user@example.com"
 
 
 @pytest.mark.asyncio
