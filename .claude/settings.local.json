@@ -99,7 +99,8 @@
       "Bash(Sort-Object FullName)",
       "PowerShell(head *)",
       "PowerShell(Get-ChildItem -Path \"C:\\\\fomo-monorepo\\\\apps\\\\harvester-dashboard\\\\app\" -Recurse -Force | Where-Object { $_.Extension -eq \".tsx\" -or $_.Extension -eq \".ts\" })",
-      "Bash(sort -k2)"
+      "Bash(sort -k2)",
+      "Bash(echo \"exit:$?\")"
     ]
   }
 }
