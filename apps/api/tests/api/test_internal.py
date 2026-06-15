@@ -707,7 +707,6 @@ async def test_ingest_no_location_name_no_place(session: Session) -> None:
     """Events without location_name must not create any Place row."""
     from app.services.harvester.ingestor import IngestionService
 
-    from packages.domain.models import Place
     from packages.domain.schemas.extracted_event import ExtractedEvent
 
     events = [
@@ -745,6 +744,7 @@ async def test_ingest_unresolved_cache_hit_does_not_auto_approve(session: Sessio
 
     from app.repositories.place_repository import PlaceRepository
     from app.services.harvester.ingestor import IngestionService
+
     from packages.domain.schemas.extracted_event import ExtractedEvent
 
     repo = PlaceRepository(session)
@@ -785,6 +785,7 @@ async def test_ingest_resolved_cache_hit_preserves_auto_approve_eligibility(
 
     from app.repositories.place_repository import PlaceRepository
     from app.services.harvester.ingestor import IngestionService
+
     from packages.domain.schemas.extracted_event import ExtractedEvent
 
     repo = PlaceRepository(session)
@@ -825,6 +826,7 @@ async def test_ingest_geocoder_failure_second_event_reuses_place_stays_pending(
     from datetime import timedelta
 
     from app.services.harvester.ingestor import IngestionService
+
     from packages.domain.models import Place
     from packages.domain.schemas.extracted_event import ExtractedEvent
 
