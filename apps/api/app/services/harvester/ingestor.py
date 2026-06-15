@@ -69,6 +69,47 @@ class IngestionService:
                         event_data.confidence_score = geo_res.relevance
                         event_data.geocoding_status = geo_res.geocoding_status
                         event_data.geocoding_metadata = geo_res.geocoding_metadata
+                        logger.info(
+                            "[INGEST] Geocoder resolved '%s' → status=%s lat=%s lng=%s",
+                            event_data.location_name,
+                            geo_res.geocoding_status,
+                            geo_res.lat,
+                            geo_res.lng,
+                        )
+                    else:
+                        logger.warning(
+                            "[INGEST] Geocoder returned no result for '%s'",
+                            event_data.location_name,
+                        )
+                        from app.repositories.place_repository import PlaceRepository
+
+                        unresolved = PlaceRepository(db).save_unresolved_place(
+                            name=event_data.location_name,
+                            country_code=event_data.country_code or "GR",
+                            source_provider=event_data.source_provider,
+                        )
+                        place_candidate_id = unresolved.id
+                        logger.info(
+                            "[INGEST] Unresolved place candidate linked: '%s' id=%s",
+                            event_data.location_name,
+                            unresolved.id,
+                        )
+                else:
+                    # Coordinates already present (scraper or upstream cleansing provided
+                    # them), but venue is not yet in the Place cache.  If no upstream
+                    # component set a meaningful status (the default is "failed"), mark
+                    # "ambiguous" so batch-geocode doesn't retry events that already have
+                    # coordinates.  Preserve an explicit status (e.g. "verified") that
+                    # was set by CleansingService.
+                    if event_data.geocoding_status == "failed":
+                        event_data.geocoding_status = "ambiguous"
+                        logger.info(
+                            "[INGEST] Scraper-provided coords for '%s' (lat=%s lng=%s) — "
+                            "status upgraded from failed to ambiguous.",
+                            event_data.location_name,
+                            event_data.lat,
+                            event_data.lng,
+                        )
 
             logger.info(f">>> INGESTING: {event_data.title} at {event_data.location_name}")
 

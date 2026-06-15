@@ -573,3 +573,166 @@ async def test_internal_ingest_logic_auto_approve(session: Session) -> None:
     pending = session.exec(select(PendingEvent).where(PendingEvent.title == "Auto Event")).first()
     assert pending is not None
     assert pending.status == "published"
+
+
+@pytest.mark.asyncio
+async def test_ingest_scraper_provided_coords_sets_ambiguous(session: Session) -> None:
+    """Regression (FOMO-156): events with scraper-provided lat/lng and no Place cache entry
+    must land with geocoding_status='ambiguous', not the 'failed' default.
+    The geocoder must NOT be called since coordinates are already present.
+    """
+    from app.services.harvester.ingestor import IngestionService
+
+    from packages.domain.schemas.extracted_event import ExtractedEvent
+
+    events = [
+        ExtractedEvent(
+            title="Pre-geocoded Event",
+            location_name="Some Venue Not In Cache",
+            start_time=datetime.now(UTC),
+            category="Music",
+            lat=37.97,
+            lng=23.73,
+            ingestion_method="json_ld",
+        )
+    ]
+
+    with patch(
+        "app.services.harvester.ingestor.GeocoderService.get_coordinates",
+        new_callable=AsyncMock,
+    ) as mock_geo:
+        summary = await IngestionService.ingest_events(session, events)
+
+    mock_geo.assert_not_called()
+    assert summary.added == 1
+
+    pending = session.exec(
+        select(PendingEvent).where(PendingEvent.title == "Pre-geocoded Event")
+    ).first()
+    assert pending is not None
+    assert pending.geocoding_status == "ambiguous"
+    assert pending.place_candidate_id is not None
+
+
+@pytest.mark.asyncio
+async def test_ingest_geocoder_failure_creates_unresolved_place(session: Session) -> None:
+    """FOMO-156: when location_name is set but geocoding fails, an unresolved Place
+    candidate must be created and linked to pending_events.place_candidate_id.
+    The event status must remain 'pending' and geocoding_status must be 'failed'.
+    """
+    from app.services.harvester.ingestor import IngestionService
+
+    from packages.domain.models import Place
+    from packages.domain.schemas.extracted_event import ExtractedEvent
+
+    events = [
+        ExtractedEvent(
+            title="No Coords Event",
+            location_name="Mystery Venue",
+            start_time=datetime.now(UTC),
+            category="Music",
+            ingestion_method="json_ld",
+            source_provider="more.com",
+        )
+    ]
+
+    with patch(
+        "app.services.harvester.ingestor.GeocoderService.get_coordinates",
+        new_callable=AsyncMock,
+        return_value=None,
+    ):
+        summary = await IngestionService.ingest_events(session, events)
+
+    assert summary.added == 1
+
+    pending = session.exec(
+        select(PendingEvent).where(PendingEvent.title == "No Coords Event")
+    ).first()
+    assert pending is not None
+    assert pending.status == "pending"
+    assert pending.geocoding_status == "failed"
+    assert pending.location is None
+    assert pending.place_candidate_id is not None
+
+    place = session.get(Place, pending.place_candidate_id)
+    assert place is not None
+    assert place.name == "Mystery Venue"
+    assert place.lat is None
+    assert place.lng is None
+    assert place.source_provider == "more.com"
+    from packages.domain.models.place import PlaceVerificationStatus
+    assert place.verification_status == PlaceVerificationStatus.unverified
+
+
+@pytest.mark.asyncio
+async def test_ingest_geocoder_failure_reuses_existing_place(session: Session) -> None:
+    """FOMO-156: repeated ingestion of the same venue name must reuse the existing
+    unresolved Place row rather than creating duplicates.
+    """
+    from app.services.harvester.ingestor import IngestionService
+
+    from packages.domain.models import Place
+    from packages.domain.schemas.extracted_event import ExtractedEvent
+
+    def _make_event(title: str) -> ExtractedEvent:
+        return ExtractedEvent(
+            title=title,
+            location_name="Recurring Mystery Venue",
+            start_time=datetime.now(UTC),
+            category="Music",
+            ingestion_method="json_ld",
+        )
+
+    with patch(
+        "app.services.harvester.ingestor.GeocoderService.get_coordinates",
+        new_callable=AsyncMock,
+        return_value=None,
+    ):
+        await IngestionService.ingest_events(session, [_make_event("Event A")])
+        await IngestionService.ingest_events(session, [_make_event("Event B")])
+
+    places = session.exec(
+        select(Place).where(Place.name == "Recurring Mystery Venue")
+    ).all()
+    assert len(places) == 1
+
+    event_a = session.exec(select(PendingEvent).where(PendingEvent.title == "Event A")).first()
+    event_b = session.exec(select(PendingEvent).where(PendingEvent.title == "Event B")).first()
+    assert event_a is not None and event_b is not None
+    assert event_a.place_candidate_id == event_b.place_candidate_id
+
+
+@pytest.mark.asyncio
+async def test_ingest_no_location_name_no_place(session: Session) -> None:
+    """Events without location_name must not create any Place row."""
+    from app.services.harvester.ingestor import IngestionService
+
+    from packages.domain.models import Place
+    from packages.domain.schemas.extracted_event import ExtractedEvent
+
+    events = [
+        ExtractedEvent(
+            title="Nameless Location Event",
+            start_time=datetime.now(UTC),
+            category="Music",
+            ingestion_method="json_ld",
+        )
+    ]
+
+    with patch(
+        "app.services.harvester.ingestor.GeocoderService.get_coordinates",
+        new_callable=AsyncMock,
+    ) as mock_geo:
+        summary = await IngestionService.ingest_events(session, events)
+
+    mock_geo.assert_not_called()
+    assert summary.added == 1
+
+    pending = session.exec(
+        select(PendingEvent).where(PendingEvent.title == "Nameless Location Event")
+    ).first()
+    assert pending is not None
+    assert pending.place_candidate_id is None
+
+    all_places = session.exec(select(Place)).all()
+    assert len(all_places) == 0

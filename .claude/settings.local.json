@@ -98,7 +98,8 @@
       "Bash(Select-Object FullName)",
       "Bash(Sort-Object FullName)",
       "PowerShell(head *)",
-      "PowerShell(Get-ChildItem -Path \"C:\\\\fomo-monorepo\\\\apps\\\\harvester-dashboard\\\\app\" -Recurse -Force | Where-Object { $_.Extension -eq \".tsx\" -or $_.Extension -eq \".ts\" })"
+      "PowerShell(Get-ChildItem -Path \"C:\\\\fomo-monorepo\\\\apps\\\\harvester-dashboard\\\\app\" -Recurse -Force | Where-Object { $_.Extension -eq \".tsx\" -or $_.Extension -eq \".ts\" })",
+      "Bash(sort -k2)"
     ]
   }
 }

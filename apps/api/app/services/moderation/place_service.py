@@ -49,31 +49,47 @@ class PlaceModerationService:
         if any(k in kwargs for k in ["lat", "lng", "name", "full_address", "verification_status"]):
             lat = kwargs.get("lat", place.lat)
             lng = kwargs.get("lng", place.lng)
-            status = (
-                "verified"
-                if place.verification_status == PlaceVerificationStatus.manually_verified
-                else "ambiguous"
-            )
-            wkt_str = f"POINT({lng} {lat})"
-            place.location = WKTElement(wkt_str, srid=4326)
 
-            statement_pending = select(PendingEvent).where(PendingEvent.location_name == old_name)
-            for ev in self.session.exec(statement_pending).all():
-                ev.location_name = new_name
-                ev.location = WKTElement(wkt_str, srid=4326)
-                ev.geocoding_status = status
-                ev.geocoding_metadata = {
-                    "source": "manual_sync",
-                    "full_address": kwargs.get("full_address", place.full_address),
-                    "city": kwargs.get("city", place.city),
-                }
-                self.session.add(ev)
+            if lat is not None and lng is not None:
+                status = (
+                    "verified"
+                    if place.verification_status == PlaceVerificationStatus.manually_verified
+                    else "ambiguous"
+                )
+                wkt_str = f"POINT({lng} {lat})"
+                place.location = WKTElement(wkt_str, srid=4326)
 
-            statement_events = select(Event).where(Event.location_name == old_name)
-            for ev in self.session.exec(statement_events).all():
-                ev.location_name = new_name
-                ev.location = WKTElement(wkt_str, srid=4326)
-                self.session.add(ev)
+                statement_pending = select(PendingEvent).where(
+                    PendingEvent.location_name == old_name
+                )
+                for ev in self.session.exec(statement_pending).all():
+                    ev.location_name = new_name
+                    ev.location = WKTElement(wkt_str, srid=4326)
+                    ev.geocoding_status = status
+                    ev.geocoding_metadata = {
+                        "source": "manual_sync",
+                        "full_address": kwargs.get("full_address", place.full_address),
+                        "city": kwargs.get("city", place.city),
+                    }
+                    self.session.add(ev)
+
+                statement_events = select(Event).where(Event.location_name == old_name)
+                for ev in self.session.exec(statement_events).all():
+                    ev.location_name = new_name
+                    ev.location = WKTElement(wkt_str, srid=4326)
+                    self.session.add(ev)
+            elif "name" in kwargs:
+                statement_pending = select(PendingEvent).where(
+                    PendingEvent.location_name == old_name
+                )
+                for ev in self.session.exec(statement_pending).all():
+                    ev.location_name = new_name
+                    self.session.add(ev)
+
+                statement_events = select(Event).where(Event.location_name == old_name)
+                for ev in self.session.exec(statement_events).all():
+                    ev.location_name = new_name
+                    self.session.add(ev)
 
         self.session.commit()
         self.session.refresh(place)
@@ -104,24 +120,27 @@ class PlaceModerationService:
 
         source_name = source.name.strip()
         target_name = target.name.strip()
-        target_wkt = f"POINT({target.lng} {target.lat})"
+        has_coords = target.lat is not None and target.lng is not None
+        target_wkt = f"POINT({target.lng} {target.lat})" if has_coords else None
         geocoding_status = (
             "verified"
             if target.verification_status == PlaceVerificationStatus.manually_verified
             else "ambiguous"
-        )
+        ) if has_coords else "failed"
 
         for ev in self.session.exec(
             select(PendingEvent).where(PendingEvent.location_name == source_name)
         ).all():
             ev.location_name = target_name
-            ev.location = WKTElement(target_wkt, srid=4326)
+            if target_wkt:
+                ev.location = WKTElement(target_wkt, srid=4326)
             ev.geocoding_status = geocoding_status
             self.session.add(ev)
 
         for ev in self.session.exec(select(Event).where(Event.location_name == source_name)).all():
             ev.location_name = target_name
-            ev.location = WKTElement(target_wkt, srid=4326)
+            if target_wkt:
+                ev.location = WKTElement(target_wkt, srid=4326)
             self.session.add(ev)
 
         self.session.delete(source)

@@ -106,6 +106,39 @@ class PlaceRepository:
         self.session.refresh(new_place)
         return new_place
 
+    def save_unresolved_place(
+        self,
+        name: str,
+        country_code: str,
+        source_provider: str | None = None,
+    ) -> Place:
+        """Creates or returns an existing unresolved place candidate.
+
+        Used when geocoding fails: the place is recorded for moderator review
+        with no coordinates.  Skips the update step so that a manually-verified
+        place is never downgraded by a failed geocoding attempt.
+        """
+        country_code = country_code.upper()
+        statement = select(Place).where(Place.name == name, Place.country_code == country_code)
+        existing = self.session.exec(statement).first()
+        if existing:
+            return existing
+
+        new_place = Place(
+            name=name,
+            country_code=country_code,
+            match_confidence=0.0,
+            verification_status=PlaceVerificationStatus.unverified,
+            source_provider=source_provider,
+        )
+        self.session.add(new_place)
+        self.session.commit()
+        self.session.refresh(new_place)
+        logger.info(
+            "[REPOSITORY] Created unresolved place candidate: '%s' (%s)", name, country_code
+        )
+        return new_place
+
     def delete_places(self, name: str | None = None) -> int:
         """Deletes places by name, or all places if name is None."""
         statement = select(Place)

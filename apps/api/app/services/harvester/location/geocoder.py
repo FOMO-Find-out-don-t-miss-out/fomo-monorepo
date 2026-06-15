@@ -224,6 +224,10 @@ class GeocoderService:
                 )
 
         if not settings.MAPBOX_ACCESS_TOKEN:
+            logger.warning(
+                "[GEOCODER] MAPBOX_ACCESS_TOKEN not set — geocoding skipped for '%s'",
+                location_name,
+            )
             return None
 
         primary_query = search_term or location_name

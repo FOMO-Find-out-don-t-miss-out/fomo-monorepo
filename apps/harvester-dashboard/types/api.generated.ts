@@ -1014,11 +1014,11 @@ export interface components {
             /** City */
             city?: string | null;
             /** Lat */
-            lat: number;
+            lat?: number | null;
             /** Lng */
-            lng: number;
+            lng?: number | null;
             /** Full Address */
-            full_address: string;
+            full_address?: string | null;
             /** Relevance */
             relevance: number;
             /** @default unverified */

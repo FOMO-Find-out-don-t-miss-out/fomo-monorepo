@@ -35,9 +35,9 @@ class PlaceResponse(BaseModel):
     name: str
     country_code: str
     city: str | None = None
-    lat: float
-    lng: float
-    full_address: str
+    lat: float | None = None
+    lng: float | None = None
+    full_address: str | None = None
     relevance: float
     verification_status: PlaceVerificationStatus = PlaceVerificationStatus.unverified
 

@@ -33,9 +33,9 @@ class Place(TimestampMixin, SQLModel, table=True):
     normalized_name: str | None = Field(default=None, index=True)
     country_code: str = Field(index=True)
     city: str | None = Field(default=None, index=True)
-    lat: float
-    lng: float
-    full_address: str
+    lat: float | None = Field(default=None)
+    lng: float | None = Field(default=None)
+    full_address: str | None = Field(default=None)
     location: Any = Field(
         default=None,
         exclude=True,
