@@ -59,6 +59,7 @@ import { toast } from 'sonner'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 interface EventInspectorProps {
+  mode: 'pending' | 'published'
   event: PendingEvent | null
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -153,7 +154,7 @@ function DateTimePicker({
   );
 }
 
-export function EventInspector({ event, open, onOpenChange, onApprove, onReject }: EventInspectorProps) {
+export function EventInspector({ mode, event, open, onOpenChange, onApprove, onReject }: EventInspectorProps) {
   const queryClient = useQueryClient()
   const [editedEvent, setEditedEvent] = useState<PendingEvent | null>(null)
   const [locationSearch, setLocationSearch] = useState('')
@@ -556,7 +557,7 @@ export function EventInspector({ event, open, onOpenChange, onApprove, onReject 
         {/* Action Buttons */}
         <div className="p-6 border-t border-neon-blue/20 bg-card/90 backdrop-blur-xl sticky bottom-0 z-30 space-y-3 shadow-[0_-10px_30px_rgba(0,0,0,0.3)]">
           <div className="grid grid-cols-2 gap-3">
-            {event.status === 'published' ? (
+            {mode === 'published' ? (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button
@@ -614,8 +615,8 @@ export function EventInspector({ event, open, onOpenChange, onApprove, onReject 
                 size="sm"
                 className="h-9 font-bold uppercase tracking-widest text-[10px]"
                 onClick={() => {
-                  const updateFn = event.status === 'published' 
-                    ? moderationApi.updatePublishedEvent 
+                  const updateFn = mode === 'published'
+                    ? moderationApi.updatePublishedEvent
                     : moderationApi.updateEvent;
                   
                   updateFn(editedEvent.id, {

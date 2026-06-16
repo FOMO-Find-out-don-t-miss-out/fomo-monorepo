@@ -131,11 +131,12 @@ function PublishedEventsDashboard() {
         </div>
 
         <EventInspector
+          mode="published"
           event={selectedEvent}
           open={inspectorOpen && !!selectedEvent}
           onOpenChange={setInspectorOpen}
           onApprove={() => {}} // Not applicable for published
-          onReject={(e) => unpublishMutation.mutate(e.id)} // "Reject" here means unpublish
+          onReject={(e) => unpublishMutation.mutate(e.id)} // wired to Unpublish for published mode
         />
       </div>
     </DashboardLayout>

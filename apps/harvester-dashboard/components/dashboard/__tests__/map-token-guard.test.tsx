@@ -106,6 +106,7 @@ function renderEventInspector(token: string | undefined) {
   }
   return render(
     <EventInspector
+      mode="pending"
       event={BASE_EVENT}
       open
       onOpenChange={noop}

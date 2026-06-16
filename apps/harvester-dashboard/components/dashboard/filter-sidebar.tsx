@@ -81,7 +81,7 @@ export function FilterSidebar({
   }, [locationSearch])
 
   return (
-    <aside className="w-72 flex-shrink-0 border-r border-neon-blue/10 bg-card/40 backdrop-blur-xl flex flex-col z-10">
+    <aside className="w-72 flex-shrink-0 border-r border-neon-blue/10 bg-card/40 backdrop-blur-xl flex flex-col min-h-0 z-10">
       <div className="p-6 border-b border-neon-blue/10 bg-card/20">
         <div className="flex items-center gap-3 mb-2">
           <div className="w-8 h-8 rounded-lg bg-neon-purple/20 flex items-center justify-center border border-neon-purple/30">
@@ -99,7 +99,7 @@ export function FilterSidebar({
         </div>
       </div>
 
-      <ScrollArea className="flex-1 scrollbar-neon">
+      <ScrollArea className="flex-1 min-h-0 scrollbar-neon">
         <div className="p-6 space-y-8">
           {/* Quick Location Search - Only for Pending */}
           {mode === 'pending' && (

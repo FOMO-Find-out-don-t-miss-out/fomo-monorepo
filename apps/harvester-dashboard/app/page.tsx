@@ -144,7 +144,7 @@ function EventsDashboard() {
 
   return (
     <DashboardLayout>
-      <div className="h-full flex">
+      <div className="h-full flex min-h-0">
         <FilterSidebar
           mode="pending"
           selectedCategory={selectedCategory}
@@ -185,6 +185,7 @@ function EventsDashboard() {
         </div>
 
         <EventInspector
+          mode="pending"
           event={selectedEvent}
           open={inspectorOpen && !!selectedEvent}
           onOpenChange={setInspectorOpen}

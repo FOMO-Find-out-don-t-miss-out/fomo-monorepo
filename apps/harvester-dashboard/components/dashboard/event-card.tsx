@@ -41,7 +41,7 @@ const statusConfig: Record<string, { icon: React.ElementType, color: string, neo
 const dedupeBadgeConfig: Record<string, { icon: React.ElementType, className: string }> = {
   not_checked: {
     icon: ShieldQuestion,
-    className: 'border-border/50 text-muted-foreground bg-muted/10'
+    className: 'border-border text-foreground/70 bg-muted/30'
   },
   possible_match: {
     icon: AlertCircle,
