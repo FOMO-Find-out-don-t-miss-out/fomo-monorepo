@@ -684,6 +684,11 @@ export interface components {
             /** Event Ids */
             event_ids: string[];
         };
+        /**
+         * DedupeStatus
+         * @enum {string}
+         */
+        DedupeStatus: "not_checked" | "no_match" | "possible_match" | "merged" | "duplicate_confirmed";
         /** EventBase */
         EventBase: {
             /** Title */
@@ -977,6 +982,10 @@ export interface components {
             geocoding_metadata: {
                 [key: string]: unknown;
             };
+            /** @default not_checked */
+            dedupe_status: components["schemas"]["DedupeStatus"];
+            /** Candidate Event Id */
+            candidate_event_id?: string | null;
         };
         /** PendingEventUpdate */
         PendingEventUpdate: {
@@ -1682,6 +1691,7 @@ export interface operations {
             query?: {
                 location_name?: string | null;
                 geocoding_status?: string[] | null;
+                dedupe_status?: string[] | null;
             };
             header?: never;
             path?: never;

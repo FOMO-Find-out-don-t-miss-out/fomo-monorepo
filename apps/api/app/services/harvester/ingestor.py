@@ -5,6 +5,11 @@ from geoalchemy2 import WKTElement
 from sqlmodel import Session, select
 
 from app.schemas.event import IngestSummary
+from app.services.dedup.collision_detector import (
+    CollisionDetector,
+    log_assessment,
+    signature_from_extracted,
+)
 from app.services.harvester.location.geocoder import GeocoderService
 from packages.domain.models import (
     DedupeStatus,
@@ -18,9 +23,32 @@ from packages.domain.models import (
     SubmissionType,
 )
 from packages.domain.schemas.extracted_event import ExtractedEvent
+from packages.domain.services.event_collision_service import CollisionBucket
 from packages.domain.services.trust_engine import TrustEngine
 
 logger = logging.getLogger(__name__)
+
+# Maps a collision bucket to the dedupe_status persisted on the pending row.
+_BUCKET_TO_DEDUPE_STATUS = {
+    CollisionBucket.no_collision: DedupeStatus.not_checked,
+    CollisionBucket.exact_source_match: DedupeStatus.duplicate_confirmed,
+    CollisionBucket.high_confidence_collision: DedupeStatus.duplicate_confirmed,
+    CollisionBucket.possible_collision: DedupeStatus.possible_match,
+}
+
+# Safe fields to backfill on a matched live Event when claiming an ingestion
+# source signal — never touches title/start_time/location/place_id/status/
+# trust_level/provenance/visibility.
+_CLAIMABLE_FIELDS = ("ticket_url", "photo_url", "description", "end_time")
+
+
+def _claim_safe_metadata(live_event: Event, event_data: ExtractedEvent) -> None:
+    """Backfills only currently-missing safe fields on an existing live event."""
+    for field_name in _CLAIMABLE_FIELDS:
+        if getattr(live_event, field_name) is None:
+            new_value = getattr(event_data, field_name, None)
+            if new_value is not None:
+                setattr(live_event, field_name, new_value)
 
 
 class IngestionService:
@@ -179,7 +207,43 @@ class IngestionService:
                 )
             ).first()
 
+            # FOMO-16: shared collision detection — reused by reconciliation and (in
+            # the future) any user-submission endpoint. Finds the best matching live
+            # event and the best matching pending event near the same place/time,
+            # even when titles differ slightly.
+            candidate_signature = signature_from_extracted(
+                event_data, place_id=place_candidate_id, place_is_resolved=place_is_resolved
+            )
+            assessment = CollisionDetector(db).assess(
+                candidate_signature,
+                exclude_pending_id=existing_pending.id if existing_pending else None,
+            )
+
+            # A near-duplicate pending row (close but not byte-identical title/time)
+            # is treated the same as the legacy exact-triple match: update it in
+            # place instead of creating a second pending row for the same event.
+            if existing_pending is None and assessment.best_pending_match is not None:
+                if assessment.best_pending_match.score.bucket in (
+                    CollisionBucket.exact_source_match,
+                    CollisionBucket.high_confidence_collision,
+                ):
+                    existing_pending = db.get(PendingEvent, assessment.best_pending_match.target_id)
+
+            # Conservative: never auto-approve a new live event out of a row that
+            # already collides (at any confidence) with something else. Routine
+            # re-scrapes of the same source (exact_source_match) are exempted —
+            # that's the normal "update existing pending row" path, not a risk.
+            if assessment.bucket in (
+                CollisionBucket.possible_collision,
+                CollisionBucket.high_confidence_collision,
+            ):
+                is_auto_approved = False
+
             pending_status = "published" if is_auto_approved else "pending"
+            dedupe_status = _BUCKET_TO_DEDUPE_STATUS[assessment.bucket]
+            candidate_event_id = (
+                assessment.best_live_match.target_id if assessment.best_live_match else None
+            )
 
             # FOMO-163: a moderator's rejected/published decision is protected — a
             # repeated scrape of the same event must not silently overwrite it.
@@ -211,8 +275,8 @@ class IngestionService:
                 existing_pending.description = event_data.description
                 existing_pending.photo_url = event_data.photo_url
                 existing_pending.submission_type = SubmissionType.harvested
-                existing_pending.dedupe_status = DedupeStatus.not_checked
-                existing_pending.candidate_event_id = None
+                existing_pending.dedupe_status = dedupe_status
+                existing_pending.candidate_event_id = candidate_event_id
                 existing_pending.place_candidate_id = place_candidate_id
                 existing_pending.reviewed_by = None
                 existing_pending.reviewed_at = None
@@ -255,8 +319,8 @@ class IngestionService:
                     description=event_data.description,
                     photo_url=event_data.photo_url,
                     submission_type=SubmissionType.harvested,
-                    dedupe_status=DedupeStatus.not_checked,
-                    candidate_event_id=None,
+                    dedupe_status=dedupe_status,
+                    candidate_event_id=candidate_event_id,
                     place_candidate_id=place_candidate_id,
                     reviewed_by=None,
                     reviewed_at=None,
@@ -265,44 +329,74 @@ class IngestionService:
                 db.add(new_pending)
                 added_count += 1
 
-            if is_auto_approved and not protected:
-                existing_live = db.exec(
-                    select(Event).where(
-                        Event.title == event_data.title, Event.start_time == event_data.start_time
-                    )
-                ).first()
+            if assessment.best_live_match is not None:
+                action = (
+                    "block_duplicate"
+                    if assessment.bucket is CollisionBucket.high_confidence_collision
+                    else "link_to_existing"
+                    if assessment.bucket is CollisionBucket.exact_source_match
+                    else "mark_possible_collision"
+                )
+            elif protected:
+                action = "skip_protected"
+            elif is_auto_approved:
+                action = "create_new"
+            else:
+                action = "create_pending"
+            log_assessment(assessment, source_provider=event_data.source_provider, action=action)
 
-                if not existing_live:
-                    logger.info(f"[INGEST] Auto-Approve: '{event_data.title}'")
-                    live_id = uuid4()
-                    live_event = Event(
-                        id=live_id,
-                        title=event_data.title,
-                        description=event_data.description,
-                        photo_url=event_data.photo_url,
-                        location=wkt_point,
-                        location_name=event_data.location_name,
-                        country_code=event_data.country_code,
-                        start_time=event_data.start_time,
-                        end_time=event_data.end_time,
-                        category=event_data.category,
-                        sub_category=event_data.sub_category,
-                        tags=event_data.tags,
-                        hype_score=event_data.hype_score,
-                        ticket_url=event_data.ticket_url,
-                        source_url=event_data.event_metadata.get("original_link"),
-                        source_provider=event_data.source_provider,
-                        ingestion_method=event_data.ingestion_method,
-                        event_metadata=event_data.event_metadata,
-                        geocoding_status=event_data.geocoding_status,
-                        geocoding_metadata=event_data.geocoding_metadata,
-                        status=EventStatus.live,
-                        provenance=EventProvenance.aggregated,
-                        trust_level=EventTrustLevel.unverified,
-                        visibility=EventVisibility.public,
-                        place_id=place_candidate_id,
-                    )
+            if protected:
+                pass
+            elif (
+                assessment.best_live_match is not None
+                and assessment.best_live_match.score.bucket
+                in (
+                    CollisionBucket.exact_source_match,
+                    CollisionBucket.high_confidence_collision,
+                )
+            ):
+                # Already collides with a live event — never create a second one,
+                # regardless of this candidate's own auto-approval eligibility.
+                # Claim only safe/missing metadata onto the existing row.
+                live_event = db.get(Event, assessment.best_live_match.target_id)
+                if live_event is not None:
+                    _claim_safe_metadata(live_event, event_data)
                     db.add(live_event)
+            elif assessment.best_live_match is not None:
+                # possible_collision against a live event: never silently merge or
+                # auto-approve — leave the pending row as-is for moderator review.
+                pass
+            elif is_auto_approved:
+                logger.info(f"[INGEST] Auto-Approve: '{event_data.title}'")
+                live_id = uuid4()
+                live_event = Event(
+                    id=live_id,
+                    title=event_data.title,
+                    description=event_data.description,
+                    photo_url=event_data.photo_url,
+                    location=wkt_point,
+                    location_name=event_data.location_name,
+                    country_code=event_data.country_code,
+                    start_time=event_data.start_time,
+                    end_time=event_data.end_time,
+                    category=event_data.category,
+                    sub_category=event_data.sub_category,
+                    tags=event_data.tags,
+                    hype_score=event_data.hype_score,
+                    ticket_url=event_data.ticket_url,
+                    source_url=event_data.event_metadata.get("original_link"),
+                    source_provider=event_data.source_provider,
+                    ingestion_method=event_data.ingestion_method,
+                    event_metadata=event_data.event_metadata,
+                    geocoding_status=event_data.geocoding_status,
+                    geocoding_metadata=event_data.geocoding_metadata,
+                    status=EventStatus.live,
+                    provenance=EventProvenance.aggregated,
+                    trust_level=EventTrustLevel.unverified,
+                    visibility=EventVisibility.public,
+                    place_id=place_candidate_id,
+                )
+                db.add(live_event)
 
         db.commit()
         return IngestSummary(added=added_count, updated=updated_count)

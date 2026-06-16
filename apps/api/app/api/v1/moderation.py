@@ -30,9 +30,10 @@ def get_pending_events(
     session: Annotated[Session, Depends(get_db)],
     location_name: str | None = None,
     geocoding_status: Annotated[list[str] | None, Query()] = None,
+    dedupe_status: Annotated[list[str] | None, Query()] = None,
 ) -> list[PendingEventResponse]:
     service = ModerationService(session)
-    events = service.get_pending_events(location_name, geocoding_status)
+    events = service.get_pending_events(location_name, geocoding_status, dedupe_status)
     return [PendingEventResponse.model_validate(e) for e in events]
 
 

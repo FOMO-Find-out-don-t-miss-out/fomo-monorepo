@@ -263,6 +263,7 @@ class ModerationService:
         self,
         location_name: str | None = None,
         geocoding_status: list[str] | None = None,
+        dedupe_status: list[str] | None = None,
     ) -> list[PendingEvent]:
         """Fetches pending events with filtering."""
         statement = select(PendingEvent).where(PendingEvent.status == "pending")
@@ -270,6 +271,8 @@ class ModerationService:
             statement = statement.where(PendingEvent.location_name == location_name)
         if geocoding_status:
             statement = statement.where(PendingEvent.geocoding_status.in_(geocoding_status))
+        if dedupe_status:
+            statement = statement.where(PendingEvent.dedupe_status.in_(dedupe_status))
 
         statement = statement.order_by(PendingEvent.location_name)
         return list(self.session.exec(statement).all())

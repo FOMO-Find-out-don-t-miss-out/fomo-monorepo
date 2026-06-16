@@ -4,6 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, field_serializer, model_validator
 
+from packages.domain.models.pending_event import DedupeStatus
 from packages.domain.models.place import PlaceVerificationStatus
 from packages.domain.utils.geo_utils import parse_wkb_to_geojson
 
@@ -124,6 +125,8 @@ class PendingEventResponse(EventBaseResponse):
     confidence_score: float | None = None
     geocoding_status: str
     geocoding_metadata: dict[str, Any] = {}
+    dedupe_status: DedupeStatus = DedupeStatus.not_checked
+    candidate_event_id: UUID | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -143,6 +146,8 @@ class PendingEventResponse(EventBaseResponse):
                     "full_address": getattr(data, "geocoding_metadata", {}).get("full_address")
                     or data.location_name,
                 },
+                "dedupe_status": getattr(data, "dedupe_status", DedupeStatus.not_checked),
+                "candidate_event_id": getattr(data, "candidate_event_id", None),
             }
         return data
 

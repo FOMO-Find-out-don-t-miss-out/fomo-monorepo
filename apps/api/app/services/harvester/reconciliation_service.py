@@ -17,8 +17,10 @@ from geoalchemy2.elements import WKTElement
 from sqlmodel import Session, or_, select
 
 from app.repositories.place_repository import PlaceRepository
+from app.services.dedup.collision_detector import CollisionDetector, signature_from_pending
 from app.services.moderation.moderation_service import ModerationService
-from packages.domain.models import Event, PendingEvent, Place, PlaceVerificationStatus
+from packages.domain.models import PendingEvent, Place, PlaceVerificationStatus
+from packages.domain.services.event_collision_service import CollisionBucket
 from packages.domain.services.trust_engine import TrustEngine
 
 logger = logging.getLogger(__name__)
@@ -223,11 +225,13 @@ class ReconciliationService:
         return bool(place and self._is_resolved(place))
 
     def _has_conflicting_live_event(self, pending: PendingEvent) -> bool:
-        existing_live = self.db.exec(
-            select(Event).where(
-                Event.title == pending.title,
-                Event.start_time == pending.start_time,
-                Event.location_name == pending.location_name,
-            )
-        ).first()
-        return existing_live is not None
+        """FOMO-16: shared collision detection, conservative by design — any
+        non-no_collision match against a live event blocks auto-approval here,
+        consistent with the policy already enforced for fresh ingestion.
+        """
+        signature = signature_from_pending(self.db, pending)
+        assessment = CollisionDetector(self.db).assess(signature, exclude_pending_id=pending.id)
+        return (
+            assessment.best_live_match is not None
+            and assessment.best_live_match.score.bucket is not CollisionBucket.no_collision
+        )

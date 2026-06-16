@@ -103,7 +103,9 @@
       "Bash(echo \"exit:$?\")",
       "Bash(dir C:\\\\fomo-monorepo\\\\docs)",
       "Bash(NEXT_PUBLIC_API_URL=http://localhost:8000 pnpm --filter @fomo/harvester-dashboard build)",
-      "Bash(NEXT_PUBLIC_API_URL=http://localhost:8000 NEXT_PUBLIC_KEYCLOAK_URL=http://localhost:8080 NEXT_PUBLIC_KEYCLOAK_REALM=fomo NEXT_PUBLIC_KEYCLOAK_CLIENT_ID=harvester-dashboard pnpm build)"
+      "Bash(NEXT_PUBLIC_API_URL=http://localhost:8000 NEXT_PUBLIC_KEYCLOAK_URL=http://localhost:8080 NEXT_PUBLIC_KEYCLOAK_REALM=fomo NEXT_PUBLIC_KEYCLOAK_CLIENT_ID=harvester-dashboard pnpm build)",
+      "Bash(Select-Object -First 10)",
+      "Bash(python3 *)"
     ]
   }
 }
