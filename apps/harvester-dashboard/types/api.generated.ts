@@ -779,7 +779,7 @@ export interface components {
             /** Relevance */
             relevance: number;
             /** Full Address */
-            full_address: string;
+            full_address?: string | null;
             /** Country Code */
             country_code: string;
             /** City */
