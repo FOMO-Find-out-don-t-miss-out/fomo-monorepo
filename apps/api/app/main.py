@@ -10,6 +10,9 @@ from app.core.config import settings
 from app.core.telemetry import setup_tracing
 
 logging.basicConfig(level=logging.INFO, force=True)
+# Suppress httpx/httpcore request logs — they print full URLs including access_token query params.
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 app = FastAPI(title=settings.PROJECT_NAME, openapi_url=f"{settings.API_V1_STR}/openapi.json")
 

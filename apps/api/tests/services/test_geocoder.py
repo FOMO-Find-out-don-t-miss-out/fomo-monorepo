@@ -592,3 +592,64 @@ def test_extract_city() -> None:
         "athens",
         "thessaloniki",
     ]
+
+
+# ── GeocodeResult null-field tolerance (FOMO-156) ────────────────────────────
+
+
+def test_geocode_result_accepts_null_full_address() -> None:
+    """GeocodeResult.full_address is now nullable; no ValidationError for None."""
+    from app.services.harvester.location.geocoder import GeocodeResult
+
+    res = GeocodeResult(
+        lat=37.9838,
+        lng=23.7275,
+        relevance=0.9,
+        full_address=None,
+        country_code="GR",
+    )
+    assert res.full_address is None
+    assert res.lat == 37.9838
+
+
+def test_geocode_result_empty_string_full_address() -> None:
+    """GeocodeResult.full_address can be an empty string (Mapbox fallback path)."""
+    from app.services.harvester.location.geocoder import GeocodeResult
+
+    res = GeocodeResult(
+        lat=37.9,
+        lng=23.7,
+        relevance=0.8,
+        full_address="",
+        country_code="GR",
+    )
+    assert res.full_address == ""
+
+
+@pytest.mark.asyncio
+async def test_get_coordinates_skips_unresolved_cache_hit(session: Session) -> None:
+    """An unresolved (no-coords) place in the cache must not be returned as a geocoding
+    result — the geocoder should fall through to Mapbox instead."""
+    from packages.domain.models import Place, PlaceVerificationStatus
+
+    # Seed an unresolved place (lat/lng = None) in the DB
+    unresolved = Place(
+        name="Ghost Venue",
+        country_code="GR",
+        match_confidence=0.0,
+        verification_status=PlaceVerificationStatus.unverified,
+    )
+    session.add(unresolved)
+    session.commit()
+
+    # Mapbox returns no features so we can confirm fallthrough without network
+    empty_resp = MapboxResponse(type="FeatureCollection", features=[])
+    with (
+        patch("app.services.harvester.location.geocoder.Session", return_value=session),
+        patch.object(MapboxClient, "search_box", new_callable=AsyncMock, return_value=empty_resp),
+        patch.object(MapboxClient, "geocode_v6", new_callable=AsyncMock, return_value=empty_resp),
+    ):
+        result = await GeocoderService.get_coordinates("Ghost Venue", "GR")
+
+    # Unresolved cache hit must be ignored; Mapbox returned nothing → None
+    assert result is None

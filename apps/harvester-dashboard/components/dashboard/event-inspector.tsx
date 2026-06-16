@@ -193,6 +193,10 @@ export function EventInspector({ event, open, onOpenChange, onApprove, onReject 
   // Extract occurrences from metadata
   const occurrences = (editedEvent.event_metadata?.occurrences as Array<{ start_time: string }> | undefined) ?? []
 
+  // Only pk.* tokens are valid for browser/iframe usage; sk.* tokens are server-side only.
+  const rawMapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
+  const mapboxToken = rawMapboxToken?.startsWith('pk.') ? rawMapboxToken : null
+
   // Extract coordinates for Mapbox iframe
   let lat = 37.9838, lng = 23.7275 // Default Athens
   
@@ -449,10 +453,10 @@ export function EventInspector({ event, open, onOpenChange, onApprove, onReject 
               
               <div className="rounded-xl overflow-hidden border border-neon-blue/30 shadow-[0_0_15px_rgba(37,99,235,0.1)] group">
                 <div className="h-48 bg-muted relative">
-                  {process.env.NEXT_PUBLIC_MAPBOX_TOKEN ? (
+                  {mapboxToken ? (
                     <>
                       <iframe
-                        src={`https://api.mapbox.com/styles/v1/mapbox/dark-v11.html?title=false&access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}&zoomwheel=false#15/${lat}/${lng}`}
+                        src={`https://api.mapbox.com/styles/v1/mapbox/dark-v11.html?title=false&access_token=${mapboxToken}&zoomwheel=false#15/${lat}/${lng}`}
                         className="w-full h-full border-0 grayscale-[0.5] contrast-[1.2] brightness-[0.8] group-hover:grayscale-0 group-hover:brightness-100 transition-all duration-500"
                         title="Event Location"
                       />
@@ -463,8 +467,8 @@ export function EventInspector({ event, open, onOpenChange, onApprove, onReject 
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground/60">
                       <MapPin className="w-7 h-7 opacity-30" />
-                      <p className="text-[11px] font-medium">
-                        Map unavailable — configure NEXT_PUBLIC_MAPBOX_TOKEN
+                      <p className="text-[11px] font-medium text-center px-4">
+                        Map is unavailable because the Mapbox public token is not configured correctly.
                       </p>
                     </div>
                   )}

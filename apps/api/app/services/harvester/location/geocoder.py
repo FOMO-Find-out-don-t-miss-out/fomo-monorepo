@@ -23,7 +23,7 @@ class GeocodeResult(BaseModel):
     lat: float | None = None
     lng: float | None = None
     relevance: float
-    full_address: str
+    full_address: str | None = None
     country_code: str
     city: str | None = None
     geocoding_status: str = "failed"
@@ -211,7 +211,7 @@ class GeocoderService:
 
         with Session(engine) as session:
             cached = PlaceRepository(session).get_by_name(location_name, config.code, city_hint)
-            if cached:
+            if cached and cached.lat is not None and cached.lng is not None:
                 return GeocodeResult(
                     lat=cached.lat,
                     lng=cached.lng,

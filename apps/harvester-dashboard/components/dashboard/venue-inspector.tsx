@@ -173,6 +173,10 @@ export function VenueInspector({ venue, open, onOpenChange }: VenueInspectorProp
 
   if (!venue || !editedVenue) return null
 
+  // Only pk.* tokens are valid for browser/iframe usage; sk.* tokens are server-side only.
+  const rawMapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
+  const mapboxToken = rawMapboxToken?.startsWith('pk.') ? rawMapboxToken : null
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-xl p-0 flex flex-col bg-card/95 backdrop-blur-xl border-l border-neon-blue/20 shadow-[0_0_50px_rgba(0,0,0,0.5)] h-full">
@@ -183,10 +187,10 @@ export function VenueInspector({ venue, open, onOpenChange }: VenueInspectorProp
         <ScrollArea className="flex-1 min-h-0 scrollbar-neon">
           {/* Map Header */}
           <div className="relative w-full h-56 bg-muted">
-            {process.env.NEXT_PUBLIC_MAPBOX_TOKEN && editedVenue.lat != null && editedVenue.lng != null ? (
+            {mapboxToken && editedVenue.lat != null && editedVenue.lng != null ? (
               <>
                 <iframe
-                  src={`https://api.mapbox.com/styles/v1/mapbox/dark-v11.html?title=false&access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}&zoomwheel=false#14/${editedVenue.lat}/${editedVenue.lng}`}
+                  src={`https://api.mapbox.com/styles/v1/mapbox/dark-v11.html?title=false&access_token=${mapboxToken}&zoomwheel=false#14/${editedVenue.lat}/${editedVenue.lng}`}
                   className="w-full h-full border-0 grayscale-[0.5] contrast-[1.2] brightness-[0.8]"
                   title="Venue Location"
                 />
@@ -200,7 +204,7 @@ export function VenueInspector({ venue, open, onOpenChange }: VenueInspectorProp
                 <p className="text-[11px] font-medium text-center px-4">
                   {editedVenue.lat == null || editedVenue.lng == null
                     ? 'Location not yet resolved — geocoding pending'
-                    : 'Map unavailable — configure NEXT_PUBLIC_MAPBOX_TOKEN'}
+                    : 'Map is unavailable because the Mapbox public token is not configured correctly.'}
                 </p>
               </div>
             )}

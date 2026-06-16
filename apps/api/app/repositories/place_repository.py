@@ -64,7 +64,7 @@ class PlaceRepository:
         country_code: str,
         lat: float,
         lng: float,
-        full_address: str,
+        full_address: str | None,
         relevance: float,
         city: str | None = None,
     ) -> Place:
