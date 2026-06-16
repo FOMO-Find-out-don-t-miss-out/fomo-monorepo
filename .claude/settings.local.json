@@ -105,7 +105,10 @@
       "Bash(NEXT_PUBLIC_API_URL=http://localhost:8000 pnpm --filter @fomo/harvester-dashboard build)",
       "Bash(NEXT_PUBLIC_API_URL=http://localhost:8000 NEXT_PUBLIC_KEYCLOAK_URL=http://localhost:8080 NEXT_PUBLIC_KEYCLOAK_REALM=fomo NEXT_PUBLIC_KEYCLOAK_CLIENT_ID=harvester-dashboard pnpm build)",
       "Bash(Select-Object -First 10)",
-      "Bash(python3 *)"
+      "Bash(python3 *)",
+      "Bash(NEXT_PUBLIC_API_URL=https://api.example.com pnpm --filter @fomo/harvester-dashboard build)",
+      "Bash(NEXT_PUBLIC_API_URL=https://api.example.com NEXT_PUBLIC_KEYCLOAK_URL=https://kc.example.com NEXT_PUBLIC_KEYCLOAK_REALM=fomo NEXT_PUBLIC_KEYCLOAK_CLIENT_ID=dashboard pnpm --filter @fomo/harvester-dashboard build)",
+      "Bash(git checkout *)"
     ]
   }
 }

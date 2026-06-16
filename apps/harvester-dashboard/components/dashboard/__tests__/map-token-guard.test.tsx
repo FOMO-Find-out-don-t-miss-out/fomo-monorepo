@@ -70,6 +70,8 @@ const BASE_EVENT: PendingEvent = {
   event_metadata: {},
   tags: [],
   country_code: 'GR',
+  dedupe_status: 'not_checked',
+  candidate_event_id: null,
 }
 
 const BASE_VENUE: Venue = {
