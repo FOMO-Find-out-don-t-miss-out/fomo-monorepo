@@ -1,23 +1,13 @@
+import { DEFAULT_DISCOVERY_LAT, DEFAULT_DISCOVERY_LNG } from '../../utils/location-config';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-// Runtime pk.* token. Mirrors `MAPBOX_ACCESS_TOKEN` from apps/api/.env and
-// must be re-declared in apps/mobile with the `EXPO_PUBLIC_` prefix so Metro
-// inlines it into the client bundle. The sk.* download token required for
-// native builds belongs in EAS secrets, not here.
 const ACCESS_TOKEN =
   (globalThis as { process?: { env?: Record<string, string | undefined> } })
     .process?.env?.EXPO_PUBLIC_MAPBOX_TOKEN ?? '';
 
 const DARK_STYLE_URL = 'mapbox://styles/mapbox/dark-v11';
-// Placeholder centering — swap for device location once permissions flow lands.
-const DEFAULT_CENTER: [number, number] = [-73.9857, 40.7484]; // NYC
 const DEFAULT_ZOOM = 12;
-
-// ─── Lazy native-module load ─────────────────────────────────────────────────
-// `@rnmapbox/maps` ships native code; importing it in Expo Go throws at
-// module eval. We swallow that here so the rest of the screen still boots,
-// and render a dark placeholder until a dev client is built.
 
 type MaybeComponent = React.ComponentType<Record<string, unknown>> | null;
 
@@ -39,9 +29,17 @@ try {
   nativeAvailable = false;
 }
 
-// ─── Component ───────────────────────────────────────────────────────────────
+interface FomoMapProps {
+  centerLat?: number;
+  centerLng?: number;
+}
 
-export function FomoMap() {
+export function FomoMap({ centerLat, centerLng }: FomoMapProps = {}) {
+  const center: [number, number] = [
+    centerLng ?? DEFAULT_DISCOVERY_LNG,
+    centerLat ?? DEFAULT_DISCOVERY_LAT,
+  ];
+
   if (!nativeAvailable || !MapViewComp || !CameraComp) {
     return (
       <View style={[styles.container, styles.fallback]}>
@@ -67,7 +65,7 @@ export function FomoMap() {
       >
         <Camera
           zoomLevel={DEFAULT_ZOOM}
-          centerCoordinate={DEFAULT_CENTER}
+          centerCoordinate={center}
           animationMode="none"
         />
       </MapView>
