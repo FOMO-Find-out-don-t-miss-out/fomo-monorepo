@@ -117,7 +117,7 @@ export function VenueInspector({ venue, open, onOpenChange }: VenueInspectorProp
         is_manually_verified: v.is_manually_verified
       })
       
-      if (applyToAll) {
+      if (applyToAll && v.lat != null && v.lng != null) {
         await moderationApi.batchUpdateLocation({
           target_name: v.name,
           lat: v.lat,
@@ -275,8 +275,8 @@ export function VenueInspector({ venue, open, onOpenChange }: VenueInspectorProp
                 </Label>
                 <Input
                   id="address"
-                  value={editedVenue.full_address}
-                  onChange={(e) => setEditedVenue({ ...editedVenue, full_address: e.target.value })}
+                  value={editedVenue.full_address ?? ""}
+                  onChange={(e) => setEditedVenue({ ...editedVenue, full_address: e.target.value || null })}
                   className="bg-card/40 input-neon font-medium"
                 />
               </div>
@@ -290,8 +290,8 @@ export function VenueInspector({ venue, open, onOpenChange }: VenueInspectorProp
                     id="latitude"
                     type="number"
                     step="0.0001"
-                    value={editedVenue.lat}
-                    onChange={(e) => setEditedVenue({ ...editedVenue, lat: parseFloat(e.target.value) || 0 })}
+                    value={editedVenue.lat ?? ""}
+                    onChange={(e) => setEditedVenue({ ...editedVenue, lat: e.target.value === '' ? null : parseFloat(e.target.value) })}
                     className="bg-card/40 input-neon font-mono text-xs"
                   />
                 </div>
@@ -303,8 +303,8 @@ export function VenueInspector({ venue, open, onOpenChange }: VenueInspectorProp
                     id="longitude"
                     type="number"
                     step="0.0001"
-                    value={editedVenue.lng}
-                    onChange={(e) => setEditedVenue({ ...editedVenue, lng: parseFloat(e.target.value) || 0 })}
+                    value={editedVenue.lng ?? ""}
+                    onChange={(e) => setEditedVenue({ ...editedVenue, lng: e.target.value === '' ? null : parseFloat(e.target.value) })}
                     className="bg-card/40 input-neon font-mono text-xs"
                   />
                 </div>

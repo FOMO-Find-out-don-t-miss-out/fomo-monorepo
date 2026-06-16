@@ -66,13 +66,10 @@ const BASE_EVENT: PendingEvent = {
   source_url: null,
   source_provider: 'test',
   ingestion_method: 'json_ld',
-  description: null,
   photo_url: null,
   event_metadata: {},
   tags: [],
   country_code: 'GR',
-  place_candidate_id: null,
-  created_at: '2026-06-01T00:00:00Z',
 }
 
 const BASE_VENUE: Venue = {
