@@ -28,7 +28,6 @@ import {
   ExternalLink,
   Check,
   X,
-  GitMerge,
   RefreshCw,
   Calendar as CalendarIcon,
   MapPin,
@@ -259,7 +258,7 @@ export function EventInspector({ event, open, onOpenChange, onApprove, onReject 
 
               <div className="space-y-2">
                 <Label htmlFor="venue" className="text-[10px] font-bold text-neon-blue uppercase tracking-[0.2em] ml-1">
-                  Venue Name
+                  Place Name
                 </Label>
                 <Input
                   id="venue"
@@ -548,14 +547,10 @@ export function EventInspector({ event, open, onOpenChange, onApprove, onReject 
               </>
             )}
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Button variant="neon" size="sm" className="h-9 font-bold uppercase tracking-widest text-[10px]" onClick={() => toast.info('Merge feature coming soon')}>
-              <GitMerge className="w-4 h-4 mr-2" />
-              Merge Venue
-            </Button>
-            <Button 
-                variant="neon-purple" 
-                size="sm" 
+          <div className="grid grid-cols-1 gap-3">
+            <Button
+                variant="neon-purple"
+                size="sm"
                 className="h-9 font-bold uppercase tracking-widest text-[10px]"
                 onClick={() => {
                   const updateFn = event.status === 'published' 

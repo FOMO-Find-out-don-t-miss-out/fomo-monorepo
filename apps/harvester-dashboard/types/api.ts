@@ -17,18 +17,14 @@ export type PendingEvent = Omit<
 
 /**
  * Venue as returned by the API (backed by PlaceResponse schema).
- * id is always present on fetched records.
- * is_manually_verified is a dashboard-side convenience field; the backend
- * canonical field is verification_status === 'manually_verified'.
+ * id is always present on fetched records. Verification state lives in
+ * verification_status; use isPlaceVerified() from lib/utils to read it.
  */
 export type Venue = Omit<components['schemas']['PlaceResponse'], 'id'> & {
   id: string;
-  is_manually_verified?: boolean;
 };
 export type PendingEventUpdate = components['schemas']['PendingEventUpdate'];
-export type VenueUpdate = components['schemas']['PlaceUpdate'] & {
-  is_manually_verified?: boolean;
-};
+export type VenueUpdate = components['schemas']['PlaceUpdate'];
 /** Merge request shape as sent by the dashboard API client (field names differ from PlaceMergeRequest). */
 export interface VenueMergeRequest {
   source_venue_id: string;

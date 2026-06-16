@@ -1,7 +1,7 @@
 'use client'
 
 import { Badge } from '@/components/ui/badge'
-import { cn } from '@/lib/utils'
+import { cn, isPlaceVerified } from '@/lib/utils'
 import type { Venue } from '@/types/api'
 import { MapPin, CheckCircle2, Building2 } from 'lucide-react'
 
@@ -12,6 +12,7 @@ interface VenueCardProps {
 }
 
 export function VenueCard({ venue, isSelected, onSelect }: VenueCardProps) {
+  const verified = isPlaceVerified(venue)
   return (
     <div
       className={cn(
@@ -44,7 +45,7 @@ export function VenueCard({ venue, isSelected, onSelect }: VenueCardProps) {
               )}>
                 {venue.name}
               </h3>
-              {venue.is_manually_verified && (
+              {verified && (
                 <CheckCircle2 className="w-4 h-4 text-neon-green flex-shrink-0 drop-shadow-[0_0_3px_var(--neon-green)]" />
               )}
             </div>
@@ -52,12 +53,12 @@ export function VenueCard({ venue, isSelected, onSelect }: VenueCardProps) {
               variant="outline"
               className={cn(
                 'text-[10px] uppercase tracking-widest font-black h-5 px-2 flex-shrink-0 transition-all',
-                venue.is_manually_verified 
-                  ? 'badge-neon-green border-neon-green/30' 
+                verified
+                  ? 'badge-neon-green border-neon-green/30'
                   : 'badge-neon-purple border-neon-purple/30 opacity-70'
               )}
             >
-              {venue.is_manually_verified ? 'Verified' : 'Unverified'}
+              {verified ? 'Verified' : 'Unverified'}
             </Badge>
           </div>
 

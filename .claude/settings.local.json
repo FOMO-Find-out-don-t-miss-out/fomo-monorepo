@@ -100,7 +100,10 @@
       "PowerShell(head *)",
       "PowerShell(Get-ChildItem -Path \"C:\\\\fomo-monorepo\\\\apps\\\\harvester-dashboard\\\\app\" -Recurse -Force | Where-Object { $_.Extension -eq \".tsx\" -or $_.Extension -eq \".ts\" })",
       "Bash(sort -k2)",
-      "Bash(echo \"exit:$?\")"
+      "Bash(echo \"exit:$?\")",
+      "Bash(dir C:\\\\fomo-monorepo\\\\docs)",
+      "Bash(NEXT_PUBLIC_API_URL=http://localhost:8000 pnpm --filter @fomo/harvester-dashboard build)",
+      "Bash(NEXT_PUBLIC_API_URL=http://localhost:8000 NEXT_PUBLIC_KEYCLOAK_URL=http://localhost:8080 NEXT_PUBLIC_KEYCLOAK_REALM=fomo NEXT_PUBLIC_KEYCLOAK_CLIENT_ID=harvester-dashboard pnpm build)"
     ]
   }
 }

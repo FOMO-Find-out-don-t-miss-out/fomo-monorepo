@@ -82,7 +82,6 @@ const BASE_VENUE: Venue = {
   full_address: 'Test Street 1, Athens',
   relevance: 0.9,
   verification_status: 'unverified',
-  is_manually_verified: false,
   created_at: '2026-06-01T00:00:00Z',
 }
 

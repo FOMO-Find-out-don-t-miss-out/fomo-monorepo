@@ -18,18 +18,19 @@ import { useAuth } from '@/components/providers/auth-provider'
 import { RequireAuth } from '@/components/auth/require-auth'
 import { RequireRole } from '@/components/auth/require-role'
 import { MODERATOR_AND_ABOVE, hasAdminAccess } from '@/lib/auth'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 const navItems = [
-  { href: '/', label: 'Pending', icon: Calendar },
-  { href: '/published', label: 'Published', icon: CheckCheck },
-  { href: '/venues', label: 'Venues', icon: MapPin },
+  { href: '/', label: 'Pending Signals', icon: Calendar },
+  { href: '/published', label: 'Published Signals', icon: CheckCheck },
+  { href: '/places', label: 'Places', icon: MapPin },
 ]
 
 interface DashboardLayoutProps {
   children: React.ReactNode
 }
 
-const adminNavItem = { href: '/admin/users', label: 'Users', icon: Users }
+const adminNavItem = { href: '/admin/users', label: 'User Management', icon: Users }
 
 function formatRole(role: string): string {
   return role.charAt(0).toUpperCase() + role.slice(1);
@@ -60,48 +61,57 @@ function DashboardContent({ children }: DashboardLayoutProps) {
           {navItems.map((item) => {
             const isActive = pathname === item.href
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  'w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 relative group',
-                  isActive
-                    ? 'bg-neon-blue/20 text-neon-blue neon-border-blue neon-glow-sm'
-                    : 'text-muted-foreground hover:text-neon-blue hover:bg-neon-blue/10'
-                )}
-                title={item.label}
-              >
-                <item.icon className={cn(
-                  "w-6 h-6 transition-transform duration-300 group-hover:scale-110",
-                  isActive && "animate-neon-pulse"
-                )} />
-                {isActive && (
-                  <span className="absolute -left-1 w-1 h-6 bg-neon-blue rounded-r-full shadow-[0_0_10px_var(--neon-blue)]" />
-                )}
-              </Link>
+              <Tooltip key={item.href}>
+                <TooltipTrigger asChild>
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      'w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 relative group',
+                      isActive
+                        ? 'bg-neon-blue/20 text-neon-blue neon-border-blue neon-glow-sm'
+                        : 'text-muted-foreground hover:text-neon-blue hover:bg-neon-blue/10'
+                    )}
+                    title={item.label}
+                  >
+                    <item.icon className={cn(
+                      "w-6 h-6 transition-transform duration-300 group-hover:scale-110",
+                      isActive && "animate-neon-pulse"
+                    )} />
+                    {isActive && (
+                      <span className="absolute -left-1 w-1 h-6 bg-neon-blue rounded-r-full shadow-[0_0_10px_var(--neon-blue)]" />
+                    )}
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">{item.label}</TooltipContent>
+              </Tooltip>
             )
           })}
           {isAdmin && (() => {
             const isActive = pathname === adminNavItem.href
             return (
-              <Link
-                href={adminNavItem.href}
-                className={cn(
-                  'w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 relative group',
-                  isActive
-                    ? 'bg-neon-purple/20 text-neon-purple neon-border-purple neon-glow-sm'
-                    : 'text-muted-foreground hover:text-neon-purple hover:bg-neon-purple/10'
-                )}
-                title={adminNavItem.label}
-              >
-                <adminNavItem.icon className={cn(
-                  "w-6 h-6 transition-transform duration-300 group-hover:scale-110",
-                  isActive && "animate-neon-pulse"
-                )} />
-                {isActive && (
-                  <span className="absolute -left-1 w-1 h-6 bg-neon-purple rounded-r-full shadow-[0_0_10px_var(--neon-purple)]" />
-                )}
-              </Link>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link
+                    href={adminNavItem.href}
+                    className={cn(
+                      'w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 relative group',
+                      isActive
+                        ? 'bg-neon-purple/20 text-neon-purple neon-border-purple neon-glow-sm'
+                        : 'text-muted-foreground hover:text-neon-purple hover:bg-neon-purple/10'
+                    )}
+                    title={adminNavItem.label}
+                  >
+                    <adminNavItem.icon className={cn(
+                      "w-6 h-6 transition-transform duration-300 group-hover:scale-110",
+                      isActive && "animate-neon-pulse"
+                    )} />
+                    {isActive && (
+                      <span className="absolute -left-1 w-1 h-6 bg-neon-purple rounded-r-full shadow-[0_0_10px_var(--neon-purple)]" />
+                    )}
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">{adminNavItem.label}</TooltipContent>
+              </Tooltip>
             )
           })()}
         </nav>
@@ -109,34 +119,49 @@ function DashboardContent({ children }: DashboardLayoutProps) {
         {/* Bottom actions */}
         <div className="mt-auto flex flex-col gap-4 items-center">
           {/* User identity */}
-          <div
-            className="w-12 h-12 rounded-xl flex items-center justify-center text-muted-foreground bg-muted/20 transition-all duration-300"
-            title={userTitle}
-          >
-            <User2 className="w-5 h-5" />
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center text-muted-foreground bg-muted/20 transition-all duration-300"
+                title={userTitle}
+              >
+                <User2 className="w-5 h-5" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="right">{userTitle}</TooltipContent>
+          </Tooltip>
 
           {/* Settings */}
-          <button
-            className="w-12 h-12 rounded-xl flex items-center justify-center text-muted-foreground hover:text-neon-purple hover:bg-neon-purple/10 transition-all duration-300 group"
-            title="Settings"
-          >
-            <Settings className="w-6 h-6 group-hover:rotate-45 transition-transform" />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                className="w-12 h-12 rounded-xl flex items-center justify-center text-muted-foreground hover:text-neon-purple hover:bg-neon-purple/10 transition-all duration-300 group"
+                title="Settings"
+              >
+                <Settings className="w-6 h-6 group-hover:rotate-45 transition-transform" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Settings</TooltipContent>
+          </Tooltip>
 
           {/* Logout */}
-          <button
-            onClick={logout}
-            disabled={isLoggingOut}
-            className="w-12 h-12 rounded-xl flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
-            title={isLoggingOut ? 'Signing out…' : 'Logout'}
-          >
-            {isLoggingOut ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <LogOut className="w-5 h-5" />
-            )}
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={logout}
+                disabled={isLoggingOut}
+                className="w-12 h-12 rounded-xl flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
+                title={isLoggingOut ? 'Signing out…' : 'Logout'}
+              >
+                {isLoggingOut ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <LogOut className="w-5 h-5" />
+                )}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">{isLoggingOut ? 'Signing out…' : 'Logout'}</TooltipContent>
+          </Tooltip>
         </div>
       </aside>
 

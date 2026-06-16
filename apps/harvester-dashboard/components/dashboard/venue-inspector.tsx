@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { cn } from '@/lib/utils'
+import { cn, isPlaceVerified } from '@/lib/utils'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Switch } from '@/components/ui/switch'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -114,15 +114,15 @@ export function VenueInspector({ venue, open, onOpenChange }: VenueInspectorProp
         full_address: v.full_address,
         lat: v.lat,
         lng: v.lng,
-        is_manually_verified: v.is_manually_verified
+        verification_status: v.verification_status
       })
-      
+
       if (applyToAll && v.lat != null && v.lng != null) {
         await moderationApi.batchUpdateLocation({
           target_name: v.name,
           lat: v.lat,
           lng: v.lng,
-          status: v.is_manually_verified ? 'verified' : 'ambiguous',
+          status: isPlaceVerified(v) ? 'verified' : 'ambiguous',
           confidence: 1.0,
           metadata: { source: 'manual_venue_update', full_address: v.full_address, city: v.city }
         })
@@ -181,8 +181,8 @@ export function VenueInspector({ venue, open, onOpenChange }: VenueInspectorProp
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-xl p-0 flex flex-col bg-card/95 backdrop-blur-xl border-l border-neon-blue/20 shadow-[0_0_50px_rgba(0,0,0,0.5)] h-full">
         <SheetHeader className="sr-only">
-          <SheetTitle>Venue Details: {venue.name}</SheetTitle>
-          <SheetDescription>View and edit details for venue {venue.name}</SheetDescription>
+          <SheetTitle>Place Details: {venue.name}</SheetTitle>
+          <SheetDescription>View and edit details for place {venue.name}</SheetDescription>
         </SheetHeader>
         <ScrollArea className="flex-1 min-h-0 scrollbar-neon">
           {/* Map Header */}
@@ -220,10 +220,10 @@ export function VenueInspector({ venue, open, onOpenChange }: VenueInspectorProp
                     variant="outline"
                     className={cn(
                         "uppercase tracking-widest font-black h-5 px-2",
-                        editedVenue.is_manually_verified ? 'badge-neon-green' : 'badge-neon-purple opacity-70'
+                        isPlaceVerified(editedVenue) ? 'badge-neon-green' : 'badge-neon-purple opacity-70'
                     )}
                 >
-                    {editedVenue.is_manually_verified ? 'Verified Node' : 'Unverified Node'}
+                    {isPlaceVerified(editedVenue) ? 'Verified Node' : 'Unverified Node'}
                 </Badge>
               </div>
               <h2 className="text-2xl font-black text-foreground text-neon-glow-blue leading-tight tracking-tight uppercase italic truncate">
@@ -313,14 +313,14 @@ export function VenueInspector({ venue, open, onOpenChange }: VenueInspectorProp
               {/* Manual Verified Toggle */}
               <div className={cn(
                   "flex items-center justify-between p-4 rounded-xl transition-all duration-300 border",
-                  editedVenue.is_manually_verified 
-                    ? "bg-neon-green/5 border-neon-green/20 neon-glow-sm-green" 
+                  isPlaceVerified(editedVenue)
+                    ? "bg-neon-green/5 border-neon-green/20 neon-glow-sm-green"
                     : "bg-muted/10 border-border/50"
               )}>
                 <div className="flex items-center gap-3">
                   <CheckCircle2 className={cn(
                       "w-5 h-5 transition-colors",
-                      editedVenue.is_manually_verified ? "text-neon-green text-neon-glow-green" : "text-muted-foreground"
+                      isPlaceVerified(editedVenue) ? "text-neon-green text-neon-glow-green" : "text-muted-foreground"
                   )} />
                   <div>
                     <Label htmlFor="verified" className="text-xs font-black uppercase tracking-widest cursor-pointer">
@@ -331,8 +331,8 @@ export function VenueInspector({ venue, open, onOpenChange }: VenueInspectorProp
                 </div>
                 <Switch
                   id="verified"
-                  checked={editedVenue.is_manually_verified}
-                  onCheckedChange={(checked) => setEditedVenue({ ...editedVenue, is_manually_verified: checked })}
+                  checked={isPlaceVerified(editedVenue)}
+                  onCheckedChange={(checked) => setEditedVenue({ ...editedVenue, verification_status: checked ? 'manually_verified' : 'unverified' })}
                   className="data-[state=checked]:bg-neon-green"
                 />
               </div>
@@ -350,10 +350,10 @@ export function VenueInspector({ venue, open, onOpenChange }: VenueInspectorProp
                     htmlFor="syncAll"
                     className="text-xs font-black uppercase tracking-wider leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neon-blue"
                   >
-                    Sync Entire Venue Protocol
+                    Sync Entire Place Protocol
                   </label>
                   <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight opacity-60 leading-normal">
-                    Propagate location & status updates to all linked nodes (Published & Pending).
+                    Propagate location & status updates to all linked signals (Published & Pending).
                   </p>
                 </div>
               </div>
@@ -441,7 +441,7 @@ export function VenueInspector({ venue, open, onOpenChange }: VenueInspectorProp
               )}
             </div>
 
-            {/* Merge Venue */}
+            {/* Merge Place */}
             <div className="space-y-5 pt-4 pb-8 border-t border-neon-pink/10">
               <div className="flex items-center gap-3 ml-1">
                 <GitMerge className="w-5 h-5 text-neon-pink animate-pulse" />

@@ -50,9 +50,9 @@ describe('DashboardLayout', () => {
 
     render(<DashboardLayout><div>content</div></DashboardLayout>)
 
-    expect(screen.getByTitle('Pending')).toBeInTheDocument()
-    expect(screen.getByTitle('Published')).toBeInTheDocument()
-    expect(screen.getByTitle('Venues')).toBeInTheDocument()
+    expect(screen.getByTitle('Pending Signals')).toBeInTheDocument()
+    expect(screen.getByTitle('Published Signals')).toBeInTheDocument()
+    expect(screen.getByTitle('Places')).toBeInTheDocument()
   })
 
   it('does NOT render admin nav item for moderator', () => {
@@ -63,7 +63,7 @@ describe('DashboardLayout', () => {
 
     render(<DashboardLayout><div>content</div></DashboardLayout>)
 
-    expect(screen.queryByTitle('Users')).not.toBeInTheDocument()
+    expect(screen.queryByTitle('User Management')).not.toBeInTheDocument()
   })
 
   it('does NOT render admin nav item for manager', () => {
@@ -74,7 +74,7 @@ describe('DashboardLayout', () => {
 
     render(<DashboardLayout><div>content</div></DashboardLayout>)
 
-    expect(screen.queryByTitle('Users')).not.toBeInTheDocument()
+    expect(screen.queryByTitle('User Management')).not.toBeInTheDocument()
   })
 
   it('renders admin nav item for admin', () => {
@@ -85,7 +85,7 @@ describe('DashboardLayout', () => {
 
     render(<DashboardLayout><div>content</div></DashboardLayout>)
 
-    expect(screen.getByTitle('Users')).toBeInTheDocument()
+    expect(screen.getByTitle('User Management')).toBeInTheDocument()
   })
 
   it('admin nav item links to /admin/users', () => {
@@ -96,7 +96,7 @@ describe('DashboardLayout', () => {
 
     render(<DashboardLayout><div>content</div></DashboardLayout>)
 
-    const adminLink = screen.getByTitle('Users').closest('a')
+    const adminLink = screen.getByTitle('User Management').closest('a')
     expect(adminLink).toHaveAttribute('href', '/admin/users')
   })
 
