@@ -7,11 +7,12 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlmodel import Session, select
 
 from app.core.security.rbac import require_service
-from app.db.session import get_db
+from app.db.session import engine, get_db
 from app.schemas.event import EventIngest, IngestSummary
 from app.services.harvester.ingestor import IngestionService
 from app.services.harvester.location.geocoder import GeocoderService
 from app.services.harvester.orchestrator import HarvesterOrchestrator
+from app.services.harvester.reconciliation_service import ReconciliationService
 from packages.domain.models import (
     Event,
     EventProvenance,
@@ -190,3 +191,27 @@ async def trigger_batch_geocode(
 
     background_tasks.add_task(_run_batch_geocode)
     return {"message": "Batch geocoding started in background", "batch_size": batch_size}
+
+
+@router.post("/reconcile-pending", status_code=status.HTTP_202_ACCEPTED)
+async def trigger_reconciliation(
+    background_tasks: BackgroundTasks, batch_size: int = 100, dry_run: bool = False
+) -> dict[str, Any]:
+    """Historical self-healing pass over pending events with weak/failed location data.
+
+    Idempotent and safe to re-run (FOMO-163); never touches rejected/published events.
+    """
+
+    def _run_reconciliation() -> None:
+        with Session(engine) as session:
+            stats = ReconciliationService(session).reconcile_historical(
+                batch_size=batch_size, dry_run=dry_run
+            )
+            logger.info(f"Reconciliation completed: {stats}")
+
+    background_tasks.add_task(_run_reconciliation)
+    return {
+        "message": "Reconciliation started in background",
+        "batch_size": batch_size,
+        "dry_run": dry_run,
+    }

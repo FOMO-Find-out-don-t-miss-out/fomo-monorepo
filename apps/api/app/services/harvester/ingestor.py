@@ -181,7 +181,19 @@ class IngestionService:
 
             pending_status = "published" if is_auto_approved else "pending"
 
-            if existing_pending:
+            # FOMO-163: a moderator's rejected/published decision is protected — a
+            # repeated scrape of the same event must not silently overwrite it.
+            protected = existing_pending is not None and existing_pending.status in (
+                "rejected",
+                "published",
+            )
+            if protected:
+                logger.info(
+                    "[INGEST] Skipping update for protected pending event (status=%s): '%s'",
+                    existing_pending.status,
+                    event_data.title,
+                )
+            elif existing_pending:
                 existing_pending.end_time = event_data.end_time
                 existing_pending.category = event_data.category
                 existing_pending.sub_category = event_data.sub_category
@@ -253,7 +265,7 @@ class IngestionService:
                 db.add(new_pending)
                 added_count += 1
 
-            if is_auto_approved:
+            if is_auto_approved and not protected:
                 existing_live = db.exec(
                     select(Event).where(
                         Event.title == event_data.title, Event.start_time == event_data.start_time

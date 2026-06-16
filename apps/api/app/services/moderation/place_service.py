@@ -46,6 +46,10 @@ class PlaceModerationService:
 
         self.session.add(place)
 
+        # FOMO-163: pending events synced to a now-verified place are candidates
+        # for reconciliation once this update commits.
+        reconciliation_candidate_ids: list[UUID] = []
+
         if any(k in kwargs for k in ["lat", "lng", "name", "full_address", "verification_status"]):
             lat = kwargs.get("lat", place.lat)
             lng = kwargs.get("lng", place.lng)
@@ -66,12 +70,16 @@ class PlaceModerationService:
                     ev.location_name = new_name
                     ev.location = WKTElement(wkt_str, srid=4326)
                     ev.geocoding_status = status
+                    if status == "verified":
+                        ev.confidence_score = 1.0
                     ev.geocoding_metadata = {
                         "source": "manual_sync",
                         "full_address": kwargs.get("full_address", place.full_address),
                         "city": kwargs.get("city", place.city),
                     }
                     self.session.add(ev)
+                    if status == "verified":
+                        reconciliation_candidate_ids.append(ev.id)
 
                 statement_events = select(Event).where(Event.location_name == old_name)
                 for ev in self.session.exec(statement_events).all():
@@ -93,6 +101,16 @@ class PlaceModerationService:
 
         self.session.commit()
         self.session.refresh(place)
+
+        if reconciliation_candidate_ids:
+            from app.services.harvester.reconciliation_service import ReconciliationService
+
+            reconciler = ReconciliationService(self.session)
+            for pending_id in reconciliation_candidate_ids:
+                candidate = self.session.get(PendingEvent, pending_id)
+                if candidate and candidate.status == "pending":
+                    reconciler.reconcile_pending_event(candidate)
+
         return place
 
     def get_places(
@@ -123,10 +141,14 @@ class PlaceModerationService:
         has_coords = target.lat is not None and target.lng is not None
         target_wkt = f"POINT({target.lng} {target.lat})" if has_coords else None
         geocoding_status = (
-            "verified"
-            if target.verification_status == PlaceVerificationStatus.manually_verified
-            else "ambiguous"
-        ) if has_coords else "failed"
+            (
+                "verified"
+                if target.verification_status == PlaceVerificationStatus.manually_verified
+                else "ambiguous"
+            )
+            if has_coords
+            else "failed"
+        )
 
         for ev in self.session.exec(
             select(PendingEvent).where(PendingEvent.location_name == source_name)

@@ -236,6 +236,23 @@ async def test_trigger_scraper(client: AsyncClient) -> None:
     assert "Scraper started in background" in response.json()["message"]
 
 
+@pytest.mark.asyncio
+async def test_trigger_reconciliation(client: AsyncClient) -> None:
+    """FOMO-163: triggering the historical reconciliation background task."""
+    with patch(
+        "app.services.harvester.reconciliation_service.ReconciliationService.reconcile_historical",
+    ) as mock_reconcile:
+        mock_reconcile.return_value = {"scanned": 0}
+        response = await client.post(
+            "/api/v1/ingestion/reconcile-pending", params={"batch_size": 25, "dry_run": "true"}
+        )
+    assert response.status_code == 202
+    data = response.json()
+    assert "Reconciliation started in background" in data["message"]
+    assert data["batch_size"] == 25
+    assert data["dry_run"] is True
+
+
 def test_detect_country_from_url() -> None:
     """Test country detection from URL."""
     from packages.domain.utils.url_utils import detect_country_from_url
@@ -661,6 +678,7 @@ async def test_ingest_geocoder_failure_creates_unresolved_place(session: Session
     assert place.lng is None
     assert place.source_provider == "more.com"
     from packages.domain.models.place import PlaceVerificationStatus
+
     assert place.verification_status == PlaceVerificationStatus.unverified
 
 
@@ -691,9 +709,7 @@ async def test_ingest_geocoder_failure_reuses_existing_place(session: Session) -
         await IngestionService.ingest_events(session, [_make_event("Event A")])
         await IngestionService.ingest_events(session, [_make_event("Event B")])
 
-    places = session.exec(
-        select(Place).where(Place.name == "Recurring Mystery Venue")
-    ).all()
+    places = session.exec(select(Place).where(Place.name == "Recurring Mystery Venue")).all()
     assert len(places) == 1
 
     event_a = session.exec(select(PendingEvent).where(PendingEvent.title == "Event A")).first()
@@ -813,6 +829,50 @@ async def test_ingest_resolved_cache_hit_preserves_auto_approve_eligibility(
 
     live = session.exec(select(Event).where(Event.title == "Verified Concert")).first()
     assert live is not None
+
+
+@pytest.mark.asyncio
+async def test_ingest_does_not_overwrite_rejected_pending_event(session: Session) -> None:
+    """FOMO-163: a repeated scrape of an event a moderator already rejected must not
+    silently flip it back to pending/published or overwrite its fields."""
+    from app.services.harvester.ingestor import IngestionService
+
+    from packages.domain.schemas.extracted_event import ExtractedEvent
+
+    start_time = datetime.now(UTC).replace(microsecond=0)
+    rejected = PendingEvent(
+        title="Rejected Show",
+        location_name="Some Venue",
+        start_time=start_time,
+        category="Old Category",
+        status="rejected",
+        geocoding_status="failed",
+    )
+    session.add(rejected)
+    session.commit()
+
+    events = [
+        ExtractedEvent(
+            title="Rejected Show",
+            location_name="Some Venue",
+            start_time=start_time,
+            category="New Category",
+            ingestion_method="json_ld",
+            geocoding_status="verified",
+            confidence_score=0.95,
+            lat=1.0,
+            lng=1.0,
+        )
+    ]
+
+    summary = await IngestionService.ingest_events(session, events)
+    assert summary.added == 0
+    assert summary.updated == 0
+
+    session.refresh(rejected)
+    assert rejected.status == "rejected"
+    assert rejected.category == "Old Category"
+    assert session.exec(select(Event).where(Event.title == "Rejected Show")).first() is None
 
 
 @pytest.mark.asyncio

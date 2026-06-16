@@ -68,7 +68,10 @@ class TrustEngine:
             return False
 
         # 3. Future Gate
-        if event_data.start_time <= datetime.now(UTC):
+        start_time = event_data.start_time
+        if start_time.tzinfo is None:
+            start_time = start_time.replace(tzinfo=UTC)
+        if start_time <= datetime.now(UTC):
             return False
 
         # 4. Distance Guard (15km radius check)
