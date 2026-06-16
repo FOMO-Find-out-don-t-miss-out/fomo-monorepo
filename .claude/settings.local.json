@@ -108,7 +108,9 @@
       "Bash(python3 *)",
       "Bash(NEXT_PUBLIC_API_URL=https://api.example.com pnpm --filter @fomo/harvester-dashboard build)",
       "Bash(NEXT_PUBLIC_API_URL=https://api.example.com NEXT_PUBLIC_KEYCLOAK_URL=https://kc.example.com NEXT_PUBLIC_KEYCLOAK_REALM=fomo NEXT_PUBLIC_KEYCLOAK_CLIENT_ID=dashboard pnpm --filter @fomo/harvester-dashboard build)",
-      "Bash(git checkout *)"
+      "Bash(git checkout *)",
+      "Bash(grep -n \"Pending Signal\\\\|pending-signal\\\\|/$\\\\|page.tsx\" components/dashboard/dashboard-layout.tsx)",
+      "Bash(NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1 NEXT_PUBLIC_KEYCLOAK_URL=http://localhost:8080 NEXT_PUBLIC_KEYCLOAK_REALM=fomo NEXT_PUBLIC_KEYCLOAK_CLIENT_ID=fomo-dashboard pnpm build)"
     ]
   }
 }

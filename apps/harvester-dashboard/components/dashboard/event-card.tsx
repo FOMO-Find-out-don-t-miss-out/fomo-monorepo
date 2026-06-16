@@ -3,12 +3,13 @@
 import Image from 'next/image'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
-import { cn } from '@/lib/utils'
+import { cn, dedupeStatusLabel } from '@/lib/utils'
 import type { PendingEvent } from '@/types/api'
-import { MapPin, Calendar, CheckCircle2, AlertCircle, XCircle, ImageOff, Code, Sparkles, Database } from 'lucide-react'
+import { MapPin, Calendar, CheckCircle2, AlertCircle, XCircle, ImageOff, Code, Sparkles, Database, Copy, ShieldQuestion, Link2 } from 'lucide-react'
 import { format } from 'date-fns'
 
 interface EventCardProps {
+  mode: 'pending' | 'published'
   event: PendingEvent
   isSelected: boolean
   isChecked: boolean
@@ -37,6 +38,21 @@ const statusConfig: Record<string, { icon: React.ElementType, color: string, neo
   }
 }
 
+const dedupeBadgeConfig: Record<string, { icon: React.ElementType, className: string }> = {
+  not_checked: {
+    icon: ShieldQuestion,
+    className: 'border-border/50 text-muted-foreground bg-muted/10'
+  },
+  possible_match: {
+    icon: AlertCircle,
+    className: 'border-warning/30 text-warning bg-warning/5'
+  },
+  duplicate_confirmed: {
+    icon: Copy,
+    className: 'border-destructive/30 text-destructive bg-destructive/5'
+  }
+}
+
 const ingestionConfig: Record<string, { icon: React.ElementType, label: string, color: string }> = {
   json_ld: {
     icon: Code,
@@ -60,11 +76,13 @@ const ingestionConfig: Record<string, { icon: React.ElementType, label: string, 
   }
 }
 
-export function EventCard({ event, isSelected, isChecked, onSelect, onToggleCheck }: EventCardProps) {
+export function EventCard({ mode, event, isSelected, isChecked, onSelect, onToggleCheck }: EventCardProps) {
   const status = statusConfig[event.geocoding_status] || statusConfig.failed
   const StatusIcon = status.icon
   const Ingestion = ingestionConfig[event.ingestion_method] || ingestionConfig.manual
   const IngestionIcon = Ingestion.icon
+  const dedupe = dedupeBadgeConfig[event.dedupe_status] || dedupeBadgeConfig.not_checked
+  const DedupeIcon = dedupe.icon
 
   return (
     <div
@@ -77,19 +95,21 @@ export function EventCard({ event, isSelected, isChecked, onSelect, onToggleChec
       onClick={onSelect}
     >
       <div className="flex gap-4 p-4">
-        {/* Checkbox */}
-        <div
-          className="flex-shrink-0 pt-1"
-          onClick={(e) => {
-            e.stopPropagation()
-            onToggleCheck()
-          }}
-        >
-          <Checkbox
-            checked={isChecked}
-            className="checkbox-neon"
-          />
-        </div>
+        {/* Checkbox - only for Pending, since Published has no bulk action to select for */}
+        {mode === 'pending' && (
+          <div
+            className="flex-shrink-0 pt-1"
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleCheck()
+            }}
+          >
+            <Checkbox
+              checked={isChecked}
+              className="checkbox-neon"
+            />
+          </div>
+        )}
 
         {/* Thumbnail */}
         <div className="relative w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-muted/30 border border-border/50 group-hover:border-neon-blue/30 transition-colors">
@@ -136,7 +156,28 @@ export function EventCard({ event, isSelected, isChecked, onSelect, onToggleChec
                 {event.category}
               </Badge>
             </div>
-            
+
+            <div className="flex items-center gap-2 mt-1.5">
+              <Badge
+                variant="outline"
+                className={cn('text-[9px] uppercase tracking-wider h-5 px-2 gap-1.5 font-bold flex-shrink-0', dedupe.className)}
+                title={`Dedupe status: ${dedupeStatusLabel(event.dedupe_status)}`}
+              >
+                <DedupeIcon className="w-3 h-3" />
+                {dedupeStatusLabel(event.dedupe_status)}
+              </Badge>
+              {event.candidate_event_id && (
+                <Badge
+                  variant="outline"
+                  className="text-[9px] uppercase tracking-wider h-5 px-2 gap-1.5 font-bold flex-shrink-0 border-neon-blue/30 text-neon-blue bg-neon-blue/5"
+                  title={`Linked to existing event ${event.candidate_event_id}`}
+                >
+                  <Link2 className="w-3 h-3" />
+                  Candidate linked
+                </Badge>
+              )}
+            </div>
+
             <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
               <MapPin className="w-3.5 h-3.5 text-neon-blue/60" />
               <span className="truncate group-hover:text-foreground/80 transition-colors">{event.location_name}</span>

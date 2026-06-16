@@ -14,7 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { CheckCircle2, AlertCircle, XCircle, Filter, Search, MapPin, Database } from 'lucide-react'
+import { CheckCircle2, AlertCircle, XCircle, Filter, Search, MapPin, Database, Copy, ShieldQuestion } from 'lucide-react'
 import { moderationApi } from '@/lib/api'
 import type { GeocodeSuggestion } from '@/types/api'
 import { cn } from '@/lib/utils'
@@ -27,10 +27,18 @@ interface FilterSidebarProps {
   setSelectedStatus: (status: string | 'all') => void
   selectedSource: string | 'all'
   setSelectedSource: (source: string | 'all') => void
+  selectedDedupeStatus?: string | 'all'
+  setSelectedDedupeStatus?: (status: string | 'all') => void
   eventCounts: {
     verified: number
     ambiguous: number
     failed: number
+    total: number
+  }
+  dedupeCounts?: {
+    not_checked: number
+    duplicate_confirmed: number
+    possible_match: number
     total: number
   }
   onSuggestionSelect?: (suggestion: GeocodeSuggestion) => void
@@ -47,7 +55,10 @@ export function FilterSidebar({
   setSelectedStatus,
   selectedSource,
   setSelectedSource,
+  selectedDedupeStatus = 'all',
+  setSelectedDedupeStatus,
   eventCounts,
+  dedupeCounts,
   onSuggestionSelect
 }: FilterSidebarProps) {
   const [locationSearch, setLocationSearch] = useState('')
@@ -239,6 +250,86 @@ export function FilterSidebar({
                     </div>
                     <Badge variant="outline" className="h-5 px-2 text-[10px] font-bold border-destructive/30 text-destructive bg-destructive/5">
                       {eventCounts.failed}
+                    </Badge>
+                  </div>
+                </RadioGroup>
+              </div>
+            </>
+          )}
+
+          {/* Dedupe Status Filter - Only for Pending */}
+          {mode === 'pending' && setSelectedDedupeStatus && dedupeCounts && (
+            <>
+              <Separator className="bg-neon-blue/10" />
+              <div className="space-y-4">
+                <Label className="text-[10px] font-black text-neon-blue uppercase tracking-[0.2em] ml-1">
+                  Collision Status
+                </Label>
+                <RadioGroup
+                  value={selectedDedupeStatus}
+                  onValueChange={(value) => setSelectedDedupeStatus(value)}
+                  className="space-y-2"
+                >
+                  <div className={cn(
+                    "flex items-center justify-between p-3 rounded-xl border transition-all",
+                    selectedDedupeStatus === 'all' ? "bg-neon-blue/5 border-neon-blue/30" : "bg-transparent border-transparent"
+                  )}>
+                    <div className="flex items-center space-x-3">
+                      <RadioGroupItem value="all" id="dedupe-all" className="border-neon-blue text-neon-blue" />
+                      <Label htmlFor="dedupe-all" className="text-xs font-black uppercase tracking-widest cursor-pointer">
+                        All Signals
+                      </Label>
+                    </div>
+                    <Badge variant="outline" className="badge-neon h-5 px-2 text-[10px] font-bold">
+                      {dedupeCounts.total}
+                    </Badge>
+                  </div>
+
+                  <div className={cn(
+                    "flex items-center justify-between p-3 rounded-xl border transition-all",
+                    selectedDedupeStatus === 'not_checked' ? "bg-neon-blue/5 border-neon-blue/30" : "bg-transparent border-transparent"
+                  )}>
+                    <div className="flex items-center space-x-3">
+                      <RadioGroupItem value="not_checked" id="dedupe-not-checked" className="border-neon-blue text-neon-blue" />
+                      <Label htmlFor="dedupe-not-checked" className="text-xs font-black uppercase tracking-widest cursor-pointer flex items-center gap-2">
+                        <ShieldQuestion className="w-4 h-4 text-muted-foreground" />
+                        Not Checked
+                      </Label>
+                    </div>
+                    <Badge variant="outline" className="badge-neon h-5 px-2 text-[10px] font-bold">
+                      {dedupeCounts.not_checked}
+                    </Badge>
+                  </div>
+
+                  <div className={cn(
+                    "flex items-center justify-between p-3 rounded-xl border transition-all",
+                    selectedDedupeStatus === 'possible_match' ? "bg-warning/5 border-warning/30" : "bg-transparent border-transparent"
+                  )}>
+                    <div className="flex items-center space-x-3">
+                      <RadioGroupItem value="possible_match" id="dedupe-possible" className="border-warning text-warning" />
+                      <Label htmlFor="dedupe-possible" className="text-xs font-black uppercase tracking-widest cursor-pointer flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 text-warning" />
+                        Possible Match
+                      </Label>
+                    </div>
+                    <Badge variant="outline" className="h-5 px-2 text-[10px] font-bold border-warning/30 text-warning bg-warning/5">
+                      {dedupeCounts.possible_match}
+                    </Badge>
+                  </div>
+
+                  <div className={cn(
+                    "flex items-center justify-between p-3 rounded-xl border transition-all",
+                    selectedDedupeStatus === 'duplicate_confirmed' ? "bg-destructive/5 border-destructive/30" : "bg-transparent border-transparent"
+                  )}>
+                    <div className="flex items-center space-x-3">
+                      <RadioGroupItem value="duplicate_confirmed" id="dedupe-confirmed" className="border-destructive text-destructive" />
+                      <Label htmlFor="dedupe-confirmed" className="text-xs font-black uppercase tracking-widest cursor-pointer flex items-center gap-2">
+                        <Copy className="w-4 h-4 text-destructive" />
+                        Duplicate Confirmed
+                      </Label>
+                    </div>
+                    <Badge variant="outline" className="h-5 px-2 text-[10px] font-bold border-destructive/30 text-destructive bg-destructive/5">
+                      {dedupeCounts.duplicate_confirmed}
                     </Badge>
                   </div>
                 </RadioGroup>

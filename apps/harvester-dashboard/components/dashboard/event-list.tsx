@@ -84,43 +84,44 @@ export function EventList({
             />
           </div>
 
-          <div className="flex items-center gap-4">
-              {/* Select All */}
-              <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-card/40 border border-border/50 hover:border-neon-blue/30 transition-all cursor-pointer group" onClick={onSelectAll}>
-                <Checkbox
-                  checked={allSelected}
-                  onCheckedChange={onSelectAll}
-                  className="checkbox-neon"
-                />
-                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest group-hover:text-neon-blue">Sync Selection</span>
-              </div>
-
-              {/* Bulk Actions */}
-              {someSelected && (
-                <div className="flex items-center gap-3 border-l border-neon-blue/20 pl-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                  <div className="flex items-center gap-2">
-                    <Button
-                        variant="neon-green"
-                        size="sm"
-                        className="h-9 px-4 font-black uppercase tracking-widest text-[10px]"
-                        onClick={onBulkApprove}
-                    >
-                        <Check className="w-4 h-4 mr-2" />
-                        Execute ({selectedEventIds.length})
-                    </Button>
-                    <Button
-                        variant="neon-red"
-                        size="sm"
-                        className="h-9 px-4 font-black uppercase tracking-widest text-[10px]"
-                        onClick={onBulkReject}
-                    >
-                        <X className="w-4 h-4 mr-2" />
-                        Abort
-                    </Button>
-                  </div>
+          {/* Select All / Bulk Actions - only for Pending. Published has no bulk approve/reject/unpublish endpoint to wire these to. */}
+          {mode === 'pending' && (
+            <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-card/40 border border-border/50 hover:border-neon-blue/30 transition-all cursor-pointer group" onClick={onSelectAll}>
+                  <Checkbox
+                    checked={allSelected}
+                    onCheckedChange={onSelectAll}
+                    className="checkbox-neon"
+                  />
+                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest group-hover:text-neon-blue">Sync Selection</span>
                 </div>
-              )}
-          </div>
+
+                {someSelected && (
+                  <div className="flex items-center gap-3 border-l border-neon-blue/20 pl-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                    <div className="flex items-center gap-2">
+                      <Button
+                          variant="neon-green"
+                          size="sm"
+                          className="h-9 px-4 font-black uppercase tracking-widest text-[10px]"
+                          onClick={onBulkApprove}
+                      >
+                          <Check className="w-4 h-4 mr-2" />
+                          Execute ({selectedEventIds.length})
+                      </Button>
+                      <Button
+                          variant="neon-red"
+                          size="sm"
+                          className="h-9 px-4 font-black uppercase tracking-widest text-[10px]"
+                          onClick={onBulkReject}
+                      >
+                          <X className="w-4 h-4 mr-2" />
+                          Abort
+                      </Button>
+                    </div>
+                  </div>
+                )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -139,6 +140,7 @@ export function EventList({
             events.map((event) => (
               <EventCard
                 key={event.id}
+                mode={mode}
                 event={event}
                 isSelected={selectedEvent?.id === event.id}
                 isChecked={selectedEventIds.includes(event.id)}

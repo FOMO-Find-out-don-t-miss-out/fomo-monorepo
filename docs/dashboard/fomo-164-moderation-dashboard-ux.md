@@ -107,3 +107,61 @@ unchanged:
 - No automated tests were added for `app/admin/users/page.tsx` (none existed
   before this change either). Consider adding component tests if this page
   sees further changes.
+
+## FOMO-16 follow-up: dedupe status in Pending Signals
+
+FOMO-16 added collision detection on the backend
+(`dedupe_status`/`candidate_event_id` on `PendingEventResponse`, plus a
+`dedupe_status` query filter on `GET /api/v1/moderation/pending-events`). This
+follow-up surfaces that data in the Pending Signals view (`app/page.tsx`) —
+it does not add any merge or collision-resolution workflow.
+
+### Where it appears
+
+- **Sidebar filter** (`components/dashboard/filter-sidebar.tsx`) — a new
+  "Collision Status" radio group, shown only in `mode="pending"`, alongside
+  the existing "Verification Protocol" (geocoding status) filter. Options:
+  All Signals, Not Checked, Possible Match, Duplicate Confirmed. The count
+  badge next to each option reflects only the currently loaded result set
+  for the active filters — it is **not** a global database count.
+- **Event card** (`components/dashboard/event-card.tsx`) — every pending
+  signal card shows a small dedupe status badge under the title (label via
+  `dedupeStatusLabel()` in `lib/utils.ts`), plus a "Candidate linked" badge
+  when `candidate_event_id` is set.
+- **Event inspector** (`components/dashboard/event-inspector.tsx`) — the
+  Source Info panel shows the same dedupe status label/icon and, if present,
+  a "Candidate linked" badge (hover title shows the linked event id). This
+  is read-only; there is no action to act on the linked candidate from here.
+
+### Filter behavior
+
+The radio selection drives a new optional third parameter on
+`moderationApi.getPendingEvents(locationName?, geocodingStatus?, dedupeStatus?)`
+(`lib/api.ts`), which appends `dedupe_status` query params exactly like the
+existing `geocoding_status` filter does. It is wired into the same
+`useQuery` key as the other Pending Signals filters in `app/page.tsx`, so
+switching it re-fetches from the backend rather than filtering client-side.
+
+### What each status means for moderators
+
+| `dedupe_status`         | Meaning                                                                 |
+|--------------------------|--------------------------------------------------------------------------|
+| `not_checked`            | No collision was detected against another live/pending event.          |
+| `possible_match`         | Some signal (place/time/title) overlaps with another event, but not enough to auto-merge. Needs a manual look — approve/reject as normal, but check it isn't a duplicate first. |
+| `duplicate_confirmed`    | High-confidence or exact-source match against another record. Ingestion already claimed/linked this row instead of creating a duplicate; this status is informational, not an action item. |
+
+`no_match`/`merged` are valid backend enum values not currently produced by
+ingestion's collision detector, but `dedupeStatusLabel()` has a readable
+fallback for any value it doesn't explicitly know about (title-cases the
+raw enum string), so the UI never shows a raw/blank value if the backend
+adds a new status later.
+
+### Known follow-up
+
+This is intentionally a small surfacing change, not a collision-resolution
+UI. There is still no way to act on a `possible_match`/`duplicate_confirmed`
+row beyond the existing approve/reject actions, and no merge UI for events
+(only Places have one). A richer review flow — e.g. showing the linked
+candidate event's own details inline, or a dedicated moderator action for
+confirming/dismissing a possible match — is a reasonable next step if dedupe
+volume warrants it, but is out of scope here.

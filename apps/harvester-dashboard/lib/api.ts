@@ -63,11 +63,18 @@ export const moderationApi = {
   /**
    * Fetches pending events with optional filters
    */
-  getPendingEvents: (locationName?: string, geocodingStatus?: string[]): Promise<PendingEvent[]> => {
+  getPendingEvents: (
+    locationName?: string,
+    geocodingStatus?: string[],
+    dedupeStatus?: string[]
+  ): Promise<PendingEvent[]> => {
     const params = new URLSearchParams();
     if (locationName) params.append("location_name", locationName);
     if (geocodingStatus) {
       geocodingStatus.forEach(status => params.append("geocoding_status", status));
+    }
+    if (dedupeStatus) {
+      dedupeStatus.forEach(status => params.append("dedupe_status", status));
     }
     const query = params.toString();
     return request<PendingEvent[]>(`/moderation/pending-events${query ? `?${query}` : ""}`);

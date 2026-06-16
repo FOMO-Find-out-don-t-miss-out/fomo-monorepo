@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { cn } from '@/lib/utils'
+import { cn, dedupeStatusLabel } from '@/lib/utils'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Select,
@@ -21,6 +21,17 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { Calendar } from '@/components/ui/calendar'
 import type { PendingEvent, GeocodeSuggestion } from '@/types/api'
 import { moderationApi } from '@/lib/api'
@@ -37,7 +48,11 @@ import {
   Plus,
   Code,
   Sparkles,
-  Database
+  Database,
+  Copy,
+  ShieldQuestion,
+  AlertCircle,
+  Link2
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
@@ -74,6 +89,12 @@ const ingestionConfig: Record<string, { icon: React.ElementType, label: string, 
     label: 'Manual',
     color: 'text-muted-foreground'
   }
+}
+
+const dedupeIconConfig: Record<string, { icon: React.ElementType, color: string }> = {
+  not_checked: { icon: ShieldQuestion, color: 'text-muted-foreground' },
+  possible_match: { icon: AlertCircle, color: 'text-warning' },
+  duplicate_confirmed: { icon: Copy, color: 'text-destructive' }
 }
 
 function DateTimePicker({ 
@@ -430,6 +451,24 @@ export function EventInspector({ event, open, onOpenChange, onApprove, onReject 
                   })()}
                 </Badge>
               </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {(() => {
+                    const Dedupe = dedupeIconConfig[event.dedupe_status] || dedupeIconConfig.not_checked
+                    const Icon = Dedupe.icon
+                    return <Icon className={cn("w-4 h-4", Dedupe.color)} />
+                  })()}
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80">
+                    Dedupe: {dedupeStatusLabel(event.dedupe_status)}
+                  </span>
+                </div>
+                {event.candidate_event_id && (
+                  <Badge variant="outline" className="h-5 px-2 gap-2 font-bold uppercase tracking-tighter border-neon-blue/30 text-neon-blue bg-neon-blue/5">
+                    <Link2 className="w-3 h-3" />
+                    Candidate linked
+                  </Badge>
+                )}
+              </div>
               <Button variant="neon" size="sm" className="w-full font-bold uppercase tracking-widest text-[10px]" asChild>
                 <a href={event.source_url || '#'} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="w-3.5 h-3.5 mr-2" />
@@ -518,14 +557,36 @@ export function EventInspector({ event, open, onOpenChange, onApprove, onReject 
         <div className="p-6 border-t border-neon-blue/20 bg-card/90 backdrop-blur-xl sticky bottom-0 z-30 space-y-3 shadow-[0_-10px_30px_rgba(0,0,0,0.3)]">
           <div className="grid grid-cols-2 gap-3">
             {event.status === 'published' ? (
-              <Button
-                variant="neon-red"
-                className="col-span-2 h-11 font-black uppercase tracking-[0.2em]"
-                onClick={() => onReject(editedEvent)}
-              >
-                <X className="w-5 h-5 mr-3" />
-                Unpublish Event
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="neon-red"
+                    className="col-span-2 h-11 font-black uppercase tracking-[0.2em]"
+                  >
+                    <X className="w-5 h-5 mr-3" />
+                    Unpublish Event
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="bg-card border-neon-red/40">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="text-neon-red uppercase font-black tracking-tighter">Unpublish this event?</AlertDialogTitle>
+                    <AlertDialogDescription className="text-muted-foreground font-medium">
+                      &quot;{event.title}&quot; will be removed from the live feed immediately. If a
+                      matching pending signal still exists it will return to Pending Signals for
+                      re-review; otherwise this record is gone for good.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="bg-card border-border uppercase font-bold tracking-widest text-[10px]">Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-neon-red hover:bg-neon-red/80 text-white font-black uppercase tracking-[0.2em] text-[10px]"
+                      onClick={() => onReject(editedEvent)}
+                    >
+                      Confirm Unpublish
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             ) : (
               <>
                 <Button

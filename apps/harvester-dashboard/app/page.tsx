@@ -28,13 +28,15 @@ function EventsDashboard() {
   const [selectedCategory, setSelectedCategory] = useState('All Categories')
   const [selectedStatus, setSelectedStatus] = useState<string | 'all'>('all')
   const [selectedSource, setSelectedSource] = useState<string | 'all'>('all')
+  const [selectedDedupeStatus, setSelectedDedupeStatus] = useState<string | 'all'>('all')
 
   // Queries
   const { data: events = [], isLoading: eventsLoading } = useQuery({
-    queryKey: ['pending-events', selectedLocation, selectedStatus],
+    queryKey: ['pending-events', selectedLocation, selectedStatus, selectedDedupeStatus],
     queryFn: () => moderationApi.getPendingEvents(
       selectedLocation === 'All Locations' ? undefined : selectedLocation,
-      selectedStatus === 'all' ? undefined : [selectedStatus]
+      selectedStatus === 'all' ? undefined : [selectedStatus],
+      selectedDedupeStatus === 'all' ? undefined : [selectedDedupeStatus]
     )
   })
 
@@ -132,6 +134,14 @@ function EventsDashboard() {
     total: events.length
   }), [events])
 
+  // Counts reflect only the currently loaded result set, not global DB totals.
+  const dedupeCounts = useMemo(() => ({
+    not_checked: events.filter((e) => e.dedupe_status === 'not_checked').length,
+    duplicate_confirmed: events.filter((e) => e.dedupe_status === 'duplicate_confirmed').length,
+    possible_match: events.filter((e) => e.dedupe_status === 'possible_match').length,
+    total: events.length
+  }), [events])
+
   return (
     <DashboardLayout>
       <div className="h-full flex">
@@ -143,7 +153,10 @@ function EventsDashboard() {
           setSelectedStatus={setSelectedStatus}
           selectedSource={selectedSource}
           setSelectedSource={setSelectedSource}
+          selectedDedupeStatus={selectedDedupeStatus}
+          setSelectedDedupeStatus={setSelectedDedupeStatus}
           eventCounts={eventCounts}
+          dedupeCounts={dedupeCounts}
           onSuggestionSelect={handleSuggestionSelect}
         />
 

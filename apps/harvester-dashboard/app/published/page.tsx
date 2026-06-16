@@ -57,7 +57,7 @@ function PublishedEventsDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['published-events'] })
       queryClient.invalidateQueries({ queryKey: ['pending-events'] })
-      toast.success('Event moved to pending')
+      toast.success('Event unpublished')
       setInspectorOpen(false)
       setSelectedEvent(null)
     }

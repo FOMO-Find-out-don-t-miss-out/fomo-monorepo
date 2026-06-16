@@ -24,6 +24,8 @@ export type Venue = Omit<components['schemas']['PlaceResponse'], 'id'> & {
   id: string;
 };
 export type PendingEventUpdate = components['schemas']['PendingEventUpdate'];
+/** FOMO-16 collision-detection bucket persisted on a pending event. */
+export type DedupeStatus = components['schemas']['DedupeStatus'];
 export type VenueUpdate = components['schemas']['PlaceUpdate'];
 /** Merge request shape as sent by the dashboard API client (field names differ from PlaceMergeRequest). */
 export interface VenueMergeRequest {
