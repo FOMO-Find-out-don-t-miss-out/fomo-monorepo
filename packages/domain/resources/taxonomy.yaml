@@ -19,9 +19,9 @@ categories:
         keywords: ["laiko", "λαϊκό", "μπουζούκια"]
       Pop:
         keywords: ["pop", "synth-pop", "dance-pop"]
-    keywords: ["concert", "συναυλία", "μουσική", "live", "tour", "περιοδεία", "βραδιά", "guest", "performance"]
+    keywords: ["concert", "συναυλία", "μουσική", "live", "tour", "περιοδεία", "βραδιά", "guest", "performance", "gig", "band", "dj"]
 
-  Arts:
+  Art:
     sub_categories:
       Theater:
         keywords: ["theater", "theatre", "θέατρο", "παράσταση", "drama", "comedy"]

@@ -127,6 +127,8 @@ class PendingEventResponse(EventBaseResponse):
     geocoding_metadata: dict[str, Any] = {}
     dedupe_status: DedupeStatus = DedupeStatus.not_checked
     candidate_event_id: UUID | None = None
+    place_candidate_id: UUID | None = None
+    place_id: UUID | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -148,6 +150,8 @@ class PendingEventResponse(EventBaseResponse):
                 },
                 "dedupe_status": getattr(data, "dedupe_status", DedupeStatus.not_checked),
                 "candidate_event_id": getattr(data, "candidate_event_id", None),
+                "place_candidate_id": getattr(data, "place_candidate_id", None),
+                "place_id": getattr(data, "place_id", None),
             }
         return data
 

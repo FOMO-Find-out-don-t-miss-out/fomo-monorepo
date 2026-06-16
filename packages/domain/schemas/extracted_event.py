@@ -3,6 +3,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from packages.domain.services.category_normalizer import normalize_category
 from packages.domain.utils.datetime_utils import DateTimeHelper
 
 
@@ -105,9 +106,12 @@ class ExtractedEvent(BaseModel):
     @field_validator("category", mode="before")
     @classmethod
     def ensure_category(cls, v: str | None) -> str:
-        if not v:
-            return "Other"
-        return str(v)
+        """
+        Normalizes any source/AI-provided category (e.g. lowercase "music",
+        "Live Music") to the canonical EventCategory value, so a miscased or
+        aliased category never bypasses downstream classifier overrides.
+        """
+        return normalize_category(str(v) if v else None)
 
 
 class IterableExtractedEvent(BaseModel):

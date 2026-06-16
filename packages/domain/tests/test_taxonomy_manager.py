@@ -26,9 +26,9 @@ def test_taxonomy_manager_find_match_music_category_only(taxonomy_manager: Taxon
     assert sub_category is None
 
 
-def test_taxonomy_manager_find_match_arts(taxonomy_manager: TaxonomyManager) -> None:
+def test_taxonomy_manager_find_match_art(taxonomy_manager: TaxonomyManager) -> None:
     category, sub_category, _tags = taxonomy_manager.find_match("Theater Performance")
-    assert category == "Arts"
+    assert category == "Art"
     assert sub_category == "Theater"
 
 

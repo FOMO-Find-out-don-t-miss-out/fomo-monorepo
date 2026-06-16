@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { DashboardLayout } from '@/components/dashboard/dashboard-layout'
 import { VenueList, type PlaceVerificationFilter, type PlaceSort } from '@/components/dashboard/venue-list'
 import { VenueInspector } from '@/components/dashboard/venue-inspector'
@@ -9,7 +10,8 @@ import type { Venue } from '@/types/api'
 import { isPlaceVerified } from '@/lib/utils'
 import { useQuery } from '@tanstack/react-query'
 
-export default function PlacesPage() {
+function PlacesDashboard() {
+  const searchParams = useSearchParams()
   const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null)
   const [inspectorOpen, setInspectorOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -22,6 +24,27 @@ export default function PlacesPage() {
     queryKey: ['venues', searchQuery],
     queryFn: () => moderationApi.getVenues(searchQuery || undefined),
   })
+
+  // Deep-link support from event cards/inspectors: /places?placeId=<id> opens that
+  // place directly; /places?search=<name> falls back to a name search when no id
+  // is available (e.g. a pending event's place candidate hasn't resolved yet).
+  useEffect(() => {
+    const search = searchParams.get('search')
+    if (search) {
+      setSearchQuery(search)
+    }
+  }, [searchParams])
+
+  useEffect(() => {
+    const placeId = searchParams.get('placeId')
+    if (placeId && venues.length > 0) {
+      const venue = venues.find((v) => v.id === placeId)
+      if (venue) {
+        setSelectedVenue(venue)
+        setInspectorOpen(true)
+      }
+    }
+  }, [searchParams, venues])
 
   const filteredVenues = useMemo(() => {
     const filtered = venues.filter((venue) => {
@@ -73,5 +96,17 @@ export default function PlacesPage() {
         />
       </div>
     </DashboardLayout>
+  )
+}
+
+export default function PlacesPage() {
+  return (
+    <Suspense fallback={
+      <div className="h-screen w-full flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    }>
+      <PlacesDashboard />
+    </Suspense>
   )
 }

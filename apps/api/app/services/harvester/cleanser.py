@@ -6,6 +6,7 @@ from app.services.harvester.cleansing.ai_extractor import AiExtractor
 from app.services.harvester.cleansing.json_ld_extractor import JsonLdExtractor
 from app.services.harvester.location.geocoder import GeocoderService
 from app.services.harvester.utils.text_sanitizer import TextSanitizer
+from packages.domain.models.event import EventCategory
 from packages.domain.schemas.extracted_event import ExtractedEvent
 from packages.domain.services.event_classifier import EventClassifier
 
@@ -75,9 +76,11 @@ class CleansingService:
                 event.title, event.description, event.event_metadata
             )
 
-            # We prioritize AI's primary category if it found something,
-            # but allow domain logic to override "Other"
-            if event.category == "Other":
+            # event.category was already normalized to a canonical EventCategory
+            # value by ExtractedEvent's validator (e.g. AI's "music" -> "Music"),
+            # so this equality check reliably catches "no real category found"
+            # instead of silently keeping a miscased AI value.
+            if event.category == EventCategory.Other.value:
                 event.category = category
 
             # Prefer AI's sub_category if it's more specific

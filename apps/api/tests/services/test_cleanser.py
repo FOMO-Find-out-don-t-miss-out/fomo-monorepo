@@ -213,3 +213,111 @@ async def test_clean_html_fallback_client_none() -> None:
             "Some long enough text to pass the check"
         )
         assert result == []
+
+
+# ── FOMO-166: category normalization scenarios ─────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_clean_json_ld_concert_maps_to_music(session: Session) -> None:
+    """A More.com-style concert event with no explicit category resolves to Music."""
+    data = {
+        "@type": "Event",
+        "name": "Coldplay Live in Athens",
+        "startDate": "2026-06-20T21:00:00Z",
+        "location": {"name": "OAKA", "address": {"addressLocality": "Athens"}},
+    }
+    with patch("app.services.harvester.location.geocoder.engine", session.get_bind()):
+        with patch("app.repositories.venue_repository.Session", return_value=session):
+            result = await CleansingService.clean_json_ld(data)
+            assert result is not None
+            assert result.category == "Music"
+
+
+@pytest.mark.asyncio
+async def test_clean_json_ld_greek_music_event_maps_to_music(session: Session) -> None:
+    data = {
+        "@type": "Event",
+        "name": "Μεγάλη Συναυλία στο Ωδείο Ηρώδου Αττικού",
+        "startDate": "2026-07-15T21:00:00Z",
+        "location": {"name": "Odeon of Herodes Atticus"},
+    }
+    with patch("app.services.harvester.location.geocoder.engine", session.get_bind()):
+        with patch("app.repositories.venue_repository.Session", return_value=session):
+            result = await CleansingService.clean_json_ld(data)
+            assert result is not None
+            assert result.category == "Music"
+
+
+@pytest.mark.asyncio
+async def test_clean_json_ld_unrelated_event_remains_other(session: Session) -> None:
+    """An event with no music/art/tech signal anywhere conservatively stays Other."""
+    data = {
+        "@type": "Event",
+        "name": "Annual Neighborhood Cleanup Day",
+        "startDate": "2026-05-01T10:00:00Z",
+        "location": {"name": "Town Square"},
+    }
+    with patch("app.services.harvester.location.geocoder.engine", session.get_bind()):
+        with patch("app.repositories.venue_repository.Session", return_value=session):
+            result = await CleansingService.clean_json_ld(data)
+            assert result is not None
+            assert result.category == "Other"
+
+
+@pytest.mark.asyncio
+async def test_clean_html_fallback_lowercase_ai_category_normalized_to_music(
+    session: Session,
+) -> None:
+    """Regression test: the DeepSeek AI path previously returned a lowercase
+    "music" category which bypassed the domain classifier override (the
+    cleanser only re-classified when category was exactly "Other"). Category
+    values are now normalized at the ExtractedEvent schema boundary, so the
+    canonical "Music" value is kept end to end."""
+    html = (
+        "<html><body>This is a sufficiently long text to pass the 50 character "
+        "minimum check for a live concert at Technopolis tonight.</body></html>"
+    )
+    mock_event = ExtractedEvent(
+        title="Live Concert at Technopolis", start_time="2026-01-01T00:00:00Z", category="music"
+    )
+    assert mock_event.category == "Music"
+
+    mock_response = MagicMock()
+    mock_response.tasks = [mock_event]
+
+    with patch("app.services.harvester.cleansing.ai_extractor._client") as mock_client:
+        mock_client.chat.completions.create.return_value = mock_response
+        with patch("app.services.harvester.location.geocoder.engine", session.get_bind()):
+            with patch("app.repositories.venue_repository.Session", return_value=session):
+                result = await CleansingService.clean_html_fallback(html)
+                assert len(result) == 1
+                assert result[0].category == "Music"
+
+
+@pytest.mark.asyncio
+async def test_clean_html_fallback_unrecognized_ai_category_falls_back_to_classifier(
+    session: Session,
+) -> None:
+    """When the AI's category doesn't resolve to any canonical value, it
+    normalizes to "Other" at the schema boundary, allowing the domain
+    classifier's own (conservative) result to take over."""
+    html = (
+        "<html><body>This is a sufficiently long text to pass the 50 character "
+        "minimum check for an AI conference happening downtown.</body></html>"
+    )
+    mock_event = ExtractedEvent(
+        title="AI Conference", start_time="2026-01-01T00:00:00Z", category="not-a-real-category"
+    )
+    assert mock_event.category == "Other"
+
+    mock_response = MagicMock()
+    mock_response.tasks = [mock_event]
+
+    with patch("app.services.harvester.cleansing.ai_extractor._client") as mock_client:
+        mock_client.chat.completions.create.return_value = mock_response
+        with patch("app.services.harvester.location.geocoder.engine", session.get_bind()):
+            with patch("app.repositories.venue_repository.Session", return_value=session):
+                result = await CleansingService.clean_html_fallback(html)
+                assert len(result) == 1
+                assert result[0].category == "Tech"

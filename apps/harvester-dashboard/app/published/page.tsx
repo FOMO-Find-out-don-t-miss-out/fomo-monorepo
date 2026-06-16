@@ -84,13 +84,8 @@ function PublishedEventsDashboard() {
     })
   }, [events, searchQuery, selectedCategory, selectedSource])
 
-  // Stats for published events (they don't have geocoding_status in the same way usually, but let's keep the object shape)
-  const eventCounts = useMemo(() => ({
-    verified: events.length,
-    ambiguous: 0,
-    failed: 0,
-    total: events.length
-  }), [events])
+  // total reflects only the currently loaded result set, not a global DB count.
+  const eventCounts = useMemo(() => ({ total: events.length }), [events])
 
   return (
     <DashboardLayout>

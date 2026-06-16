@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { cn, dedupeStatusLabel } from '@/lib/utils'
+import { cn, dedupeStatusLabel, relatedPlaceId, categoryLabel, EVENT_CATEGORIES } from '@/lib/utils'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Select,
@@ -67,7 +68,9 @@ interface EventInspectorProps {
   onReject: (event: PendingEvent) => void
 }
 
-const categories = ['Live Music', 'Theater', 'Art', 'Food & Drink', 'Nightlife', 'Sports', 'Other']
+// FOMO-166: edited values are canonical backend EventCategory values — see
+// categoryLabel() for the friendly text shown in the UI.
+const categories = EVENT_CATEGORIES
 
 const ingestionConfig: Record<string, { icon: React.ElementType, label: string, color: string }> = {
   json_ld: {
@@ -230,6 +233,7 @@ export function EventInspector({ mode, event, open, onOpenChange, onApprove, onR
   }
 
   const fullAddress = editedEvent.geocoding_metadata?.full_address || editedEvent.event_metadata?.full_address || null;
+  const placeId = relatedPlaceId(event, mode);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -257,7 +261,7 @@ export function EventInspector({ mode, event, open, onOpenChange, onApprove, onR
             <div className="absolute inset-0 bg-gradient-to-t from-card via-card/40 to-transparent" />
             <div className="absolute bottom-6 left-6 right-6">
               <Badge variant="outline" className="badge-neon-purple mb-3 uppercase tracking-widest font-bold">
-                {event.category}
+                {categoryLabel(event.category)}
               </Badge>
               <h2 className="text-2xl font-black text-foreground text-neon-glow-blue leading-tight tracking-tight uppercase italic">{event.title}</h2>
             </div>
@@ -324,7 +328,7 @@ export function EventInspector({ mode, event, open, onOpenChange, onApprove, onR
                     <SelectContent className="bg-card border-neon-blue/20">
                       {categories.map((cat) => (
                         <SelectItem key={cat} value={cat}>
-                          {cat}
+                          {categoryLabel(cat)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -470,12 +474,22 @@ export function EventInspector({ mode, event, open, onOpenChange, onApprove, onR
                   </Badge>
                 )}
               </div>
-              <Button variant="neon" size="sm" className="w-full font-bold uppercase tracking-widest text-[10px]" asChild>
-                <a href={event.source_url || '#'} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="w-3.5 h-3.5 mr-2" />
-                  Inspect Original Source
-                </a>
-              </Button>
+              <div className="grid grid-cols-1 gap-2">
+                {placeId && (
+                  <Button variant="outline" size="sm" className="w-full font-bold uppercase tracking-widest text-[10px] border-neon-blue/30 text-neon-blue hover:bg-neon-blue/10" asChild>
+                    <Link href={`/places?placeId=${placeId}`}>
+                      <MapPin className="w-3.5 h-3.5 mr-2" />
+                      View Place
+                    </Link>
+                  </Button>
+                )}
+                <Button variant="neon" size="sm" className="w-full font-bold uppercase tracking-widest text-[10px]" asChild>
+                  <a href={event.source_url || '#'} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="w-3.5 h-3.5 mr-2" />
+                    Inspect Original Source
+                  </a>
+                </Button>
+              </div>
             </div>
 
             {/* Map Section */}

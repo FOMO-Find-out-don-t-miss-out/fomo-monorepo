@@ -1,5 +1,7 @@
 from typing import Any, ClassVar
 
+from packages.domain.models.event import EventCategory
+from packages.domain.services.category_normalizer import normalize_category
 from packages.domain.services.taxonomy_manager import TaxonomyManager
 
 
@@ -34,11 +36,11 @@ class EventClassifier:
         type_str = " ".join([str(t).lower() for t in item_types])
 
         if "music" in type_str or "concert" in type_str:
-            category = "Music"
+            category = EventCategory.Music.value
         elif "art" in type_str:
-            category = "Arts"
+            category = EventCategory.Art.value
         elif "theater" in type_str:
-            category = "Arts"
+            category = EventCategory.Art.value
             sub_category = "Theater"
 
         # 3. Metadata-based refinement
@@ -50,17 +52,17 @@ class EventClassifier:
             organizer_name = organizer.lower()
 
         if any(kw in organizer_name for kw in ["festival", "productions", "music"]):
-            category = "Music"
+            category = EventCategory.Music.value
 
         if "festival" in combined_text or "φεστιβάλ" in combined_text:
             if "Festival" not in tags:
                 tags.append("Festival")
-            if category == "Other":
-                category = "Music"
+            if category == EventCategory.Other.value:
+                category = EventCategory.Music.value
 
         # 4. Source-based hint
         source_domain = metadata.get("source_domain")
         if source_domain and "/music/" in str(source_domain).lower():
-            category = "Music"
+            category = EventCategory.Music.value
 
-        return category, sub_category, list(set(tags))
+        return normalize_category(category), sub_category, list(set(tags))

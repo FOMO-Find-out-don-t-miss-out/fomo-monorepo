@@ -110,7 +110,7 @@ _DEEPSEEK_JSON_EXAMPLE = (
     ' "location_name": "Technopolis City of Athens",'
     ' "search_term": "Technopolis City of Athens Athens GR",'
     ' "country_code": "GR",'
-    ' "category": "music",'
+    ' "category": "Music",'
     ' "sub_category": "jazz",'
     ' "tags": ["jazz", "live music"]}'
     "]}"
@@ -207,7 +207,8 @@ class AiExtractor:
             "- location_name: venue name\n"
             "- search_term: venue name + city for geocoding\n"
             "- country_code: ISO 2-letter code\n"
-            "- category: music / art / sports / tech / food / other\n"
+            "- category: Music / Art / Tech / Food / Nightlife / Sports / "
+            "Business / Community / Other (use these exact values)\n"
             "- sub_category: specific genre or style\n"
             f"- tags: 2-5 tags from: {', '.join(_GLOBAL_TAGS)}\n\n"
             f"Text:\n{cleaned_text}"

@@ -986,6 +986,10 @@ export interface components {
             dedupe_status: components["schemas"]["DedupeStatus"];
             /** Candidate Event Id */
             candidate_event_id?: string | null;
+            /** Place Candidate Id */
+            place_candidate_id?: string | null;
+            /** Place Id */
+            place_id?: string | null;
         };
         /** PendingEventUpdate */
         PendingEventUpdate: {

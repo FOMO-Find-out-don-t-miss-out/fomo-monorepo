@@ -12,12 +12,11 @@ import {
 } from '@/components/ui/select'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
-import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { CheckCircle2, AlertCircle, XCircle, Filter, Search, MapPin, Database, Copy, ShieldQuestion } from 'lucide-react'
 import { moderationApi } from '@/lib/api'
 import type { GeocodeSuggestion } from '@/types/api'
-import { cn } from '@/lib/utils'
+import { cn, categoryLabel, EVENT_CATEGORIES } from '@/lib/utils'
 
 interface FilterSidebarProps {
   mode: 'pending' | 'published'
@@ -29,22 +28,20 @@ interface FilterSidebarProps {
   setSelectedSource: (source: string | 'all') => void
   selectedDedupeStatus?: string | 'all'
   setSelectedDedupeStatus?: (status: string | 'all') => void
+  /** total reflects only the currently loaded result set, not a global DB count. */
   eventCounts: {
-    verified: number
-    ambiguous: number
-    failed: number
     total: number
   }
+  /** Presence (not contents) of this object gates whether the Collision Status filter renders. */
   dedupeCounts?: {
-    not_checked: number
-    duplicate_confirmed: number
-    possible_match: number
     total: number
   }
   onSuggestionSelect?: (suggestion: GeocodeSuggestion) => void
 }
 
-const categories = ['All Categories', 'Live Music', 'Theater', 'Art', 'Food & Drink', 'Nightlife', 'Sports', 'Other']
+// FOMO-166: filter values are the canonical backend EventCategory values, not
+// display labels — see categoryLabel() for the friendly text shown in the UI.
+const categories = ['All Categories', ...EVENT_CATEGORIES]
 const sources = ['all', 'more.com', 'ticketmaster.com', 'manual', 'unknown']
 
 export function FilterSidebar({
@@ -93,8 +90,8 @@ export function FilterSidebar({
         </div>
         <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-neon-blue animate-neon-pulse shadow-[0_0_5px_var(--neon-blue)]" />
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">
-                {eventCounts.total} active signals
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]" title="Count reflects the currently loaded result set, not the total in the database">
+                Showing {eventCounts.total} loaded signals
             </p>
         </div>
       </div>
@@ -150,7 +147,7 @@ export function FilterSidebar({
               <SelectContent className="bg-card border-neon-purple/20">
                 {categories.map((category) => (
                   <SelectItem key={category} value={category} className="text-[10px] font-bold uppercase tracking-widest">
-                    {category}
+                    {category === 'All Categories' ? category : categoryLabel(category)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -191,7 +188,7 @@ export function FilterSidebar({
                   className="space-y-2"
                 >
                   <div className={cn(
-                    "flex items-center justify-between p-3 rounded-xl border transition-all",
+                    "flex items-center p-3 rounded-xl border transition-all",
                     selectedStatus === 'all' ? "bg-neon-blue/5 border-neon-blue/30" : "bg-transparent border-transparent"
                   )}>
                     <div className="flex items-center space-x-3">
@@ -200,13 +197,10 @@ export function FilterSidebar({
                         All Signals
                       </Label>
                     </div>
-                    <Badge variant="outline" className="badge-neon h-5 px-2 text-[10px] font-bold">
-                      {eventCounts.total}
-                    </Badge>
                   </div>
 
                   <div className={cn(
-                    "flex items-center justify-between p-3 rounded-xl border transition-all",
+                    "flex items-center p-3 rounded-xl border transition-all",
                     selectedStatus === 'verified' ? "bg-neon-green/5 border-neon-green/30" : "bg-transparent border-transparent"
                   )}>
                     <div className="flex items-center space-x-3">
@@ -216,13 +210,10 @@ export function FilterSidebar({
                         Verified
                       </Label>
                     </div>
-                    <Badge variant="outline" className="badge-neon-green h-5 px-2 text-[10px] font-bold border-neon-green/30">
-                      {eventCounts.verified}
-                    </Badge>
                   </div>
 
                   <div className={cn(
-                    "flex items-center justify-between p-3 rounded-xl border transition-all",
+                    "flex items-center p-3 rounded-xl border transition-all",
                     selectedStatus === 'ambiguous' ? "bg-warning/5 border-warning/30" : "bg-transparent border-transparent"
                   )}>
                     <div className="flex items-center space-x-3">
@@ -232,13 +223,10 @@ export function FilterSidebar({
                         Ambiguous
                       </Label>
                     </div>
-                    <Badge variant="outline" className="h-5 px-2 text-[10px] font-bold border-warning/30 text-warning bg-warning/5">
-                      {eventCounts.ambiguous}
-                    </Badge>
                   </div>
 
                   <div className={cn(
-                    "flex items-center justify-between p-3 rounded-xl border transition-all",
+                    "flex items-center p-3 rounded-xl border transition-all",
                     selectedStatus === 'failed' ? "bg-destructive/5 border-destructive/30" : "bg-transparent border-transparent"
                   )}>
                     <div className="flex items-center space-x-3">
@@ -248,9 +236,6 @@ export function FilterSidebar({
                         Failed
                       </Label>
                     </div>
-                    <Badge variant="outline" className="h-5 px-2 text-[10px] font-bold border-destructive/30 text-destructive bg-destructive/5">
-                      {eventCounts.failed}
-                    </Badge>
                   </div>
                 </RadioGroup>
               </div>
@@ -271,7 +256,7 @@ export function FilterSidebar({
                   className="space-y-2"
                 >
                   <div className={cn(
-                    "flex items-center justify-between p-3 rounded-xl border transition-all",
+                    "flex items-center p-3 rounded-xl border transition-all",
                     selectedDedupeStatus === 'all' ? "bg-neon-blue/5 border-neon-blue/30" : "bg-transparent border-transparent"
                   )}>
                     <div className="flex items-center space-x-3">
@@ -280,13 +265,10 @@ export function FilterSidebar({
                         All Signals
                       </Label>
                     </div>
-                    <Badge variant="outline" className="badge-neon h-5 px-2 text-[10px] font-bold">
-                      {dedupeCounts.total}
-                    </Badge>
                   </div>
 
                   <div className={cn(
-                    "flex items-center justify-between p-3 rounded-xl border transition-all",
+                    "flex items-center p-3 rounded-xl border transition-all",
                     selectedDedupeStatus === 'not_checked' ? "bg-neon-blue/5 border-neon-blue/30" : "bg-transparent border-transparent"
                   )}>
                     <div className="flex items-center space-x-3">
@@ -296,13 +278,10 @@ export function FilterSidebar({
                         Not Checked
                       </Label>
                     </div>
-                    <Badge variant="outline" className="badge-neon h-5 px-2 text-[10px] font-bold">
-                      {dedupeCounts.not_checked}
-                    </Badge>
                   </div>
 
                   <div className={cn(
-                    "flex items-center justify-between p-3 rounded-xl border transition-all",
+                    "flex items-center p-3 rounded-xl border transition-all",
                     selectedDedupeStatus === 'possible_match' ? "bg-warning/5 border-warning/30" : "bg-transparent border-transparent"
                   )}>
                     <div className="flex items-center space-x-3">
@@ -312,13 +291,10 @@ export function FilterSidebar({
                         Possible Match
                       </Label>
                     </div>
-                    <Badge variant="outline" className="h-5 px-2 text-[10px] font-bold border-warning/30 text-warning bg-warning/5">
-                      {dedupeCounts.possible_match}
-                    </Badge>
                   </div>
 
                   <div className={cn(
-                    "flex items-center justify-between p-3 rounded-xl border transition-all",
+                    "flex items-center p-3 rounded-xl border transition-all",
                     selectedDedupeStatus === 'duplicate_confirmed' ? "bg-destructive/5 border-destructive/30" : "bg-transparent border-transparent"
                   )}>
                     <div className="flex items-center space-x-3">
@@ -328,9 +304,6 @@ export function FilterSidebar({
                         Duplicate Confirmed
                       </Label>
                     </div>
-                    <Badge variant="outline" className="h-5 px-2 text-[10px] font-bold border-destructive/30 text-destructive bg-destructive/5">
-                      {dedupeCounts.duplicate_confirmed}
-                    </Badge>
                   </div>
                 </RadioGroup>
               </div>

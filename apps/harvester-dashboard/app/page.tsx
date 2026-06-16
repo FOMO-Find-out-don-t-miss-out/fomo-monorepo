@@ -127,20 +127,11 @@ function EventsDashboard() {
     })
   }, [events, searchQuery, selectedCategory, selectedSource])
 
-  const eventCounts = useMemo(() => ({
-    verified: events.filter((e) => e.geocoding_status === 'verified').length,
-    ambiguous: events.filter((e) => e.geocoding_status === 'ambiguous').length,
-    failed: events.filter((e) => e.geocoding_status === 'failed').length,
-    total: events.length
-  }), [events])
-
-  // Counts reflect only the currently loaded result set, not global DB totals.
-  const dedupeCounts = useMemo(() => ({
-    not_checked: events.filter((e) => e.dedupe_status === 'not_checked').length,
-    duplicate_confirmed: events.filter((e) => e.dedupe_status === 'duplicate_confirmed').length,
-    possible_match: events.filter((e) => e.dedupe_status === 'possible_match').length,
-    total: events.length
-  }), [events])
+  // total reflects only the currently loaded/filtered result set, not a global DB
+  // count — per-option breakdown counts were removed because they were computed
+  // from the same already-filtered set and became misleading once a filter was applied.
+  const eventCounts = useMemo(() => ({ total: events.length }), [events])
+  const dedupeCounts = useMemo(() => ({ total: events.length }), [events])
 
   return (
     <DashboardLayout>

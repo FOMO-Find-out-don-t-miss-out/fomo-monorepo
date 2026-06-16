@@ -102,7 +102,7 @@ async def test_ingest_events_update(client: AsyncClient, session: Session) -> No
                 "lng": None,
                 "start_time": start_time,
                 "end_time": "2026-04-01T23:00:00Z",
-                "category": "Old Category",
+                "category": "Tech",
                 "source_url": "http://example.com/old",
             }
         ]
@@ -120,7 +120,7 @@ async def test_ingest_events_update(client: AsyncClient, session: Session) -> No
                 "lng": None,
                 "start_time": start_time,
                 "end_time": "2026-04-02T01:00:00Z",
-                "category": "New Category",
+                "category": "Sports",
                 "source_url": "http://example.com/updated",
             }
         ]
@@ -135,7 +135,7 @@ async def test_ingest_events_update(client: AsyncClient, session: Session) -> No
         select(PendingEvent).where(PendingEvent.title == "Duplicate Event")
     ).first()
     assert updated is not None
-    assert updated.category == "New Category"
+    assert updated.category == "Sports"
 
 
 @pytest.mark.asyncio

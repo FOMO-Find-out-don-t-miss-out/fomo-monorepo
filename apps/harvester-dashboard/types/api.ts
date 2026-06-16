@@ -7,7 +7,11 @@ import type { components } from './api.generated';
 
 // ── Core domain types ────────────────────────────────────────────────────────
 
-/** Pending event as returned by the moderation API. */
+/**
+ * Pending or published event as returned by the moderation API (both endpoints
+ * share PendingEventResponse). place_candidate_id is the FOMO-16 collision match
+ * for pending signals; place_id is the confirmed place once an event is published.
+ */
 export type PendingEvent = Omit<
   components['schemas']['PendingEventResponse'],
   'status'

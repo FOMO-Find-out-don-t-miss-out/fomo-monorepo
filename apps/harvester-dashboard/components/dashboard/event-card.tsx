@@ -1,9 +1,10 @@
 'use client'
 
 import Image from 'next/image'
+import Link from 'next/link'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
-import { cn, dedupeStatusLabel } from '@/lib/utils'
+import { cn, dedupeStatusLabel, relatedPlaceId, categoryLabel } from '@/lib/utils'
 import type { PendingEvent } from '@/types/api'
 import { MapPin, Calendar, CheckCircle2, AlertCircle, XCircle, ImageOff, Code, Sparkles, Database, Copy, ShieldQuestion, Link2 } from 'lucide-react'
 import { format } from 'date-fns'
@@ -83,6 +84,7 @@ export function EventCard({ mode, event, isSelected, isChecked, onSelect, onTogg
   const IngestionIcon = Ingestion.icon
   const dedupe = dedupeBadgeConfig[event.dedupe_status] || dedupeBadgeConfig.not_checked
   const DedupeIcon = dedupe.icon
+  const placeId = relatedPlaceId(event, mode)
 
   return (
     <div
@@ -153,7 +155,7 @@ export function EventCard({ mode, event, isSelected, isChecked, onSelect, onTogg
                 {event.title}
               </h3>
               <Badge variant="outline" className="badge-neon-purple text-[10px] uppercase tracking-wider h-5 px-2 flex-shrink-0">
-                {event.category}
+                {categoryLabel(event.category)}
               </Badge>
             </div>
 
@@ -181,6 +183,15 @@ export function EventCard({ mode, event, isSelected, isChecked, onSelect, onTogg
             <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
               <MapPin className="w-3.5 h-3.5 text-neon-blue/60" />
               <span className="truncate group-hover:text-foreground/80 transition-colors">{event.location_name}</span>
+              {placeId && (
+                <Link
+                  href={`/places?placeId=${placeId}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex-shrink-0 text-[9px] font-bold uppercase tracking-wider text-neon-blue hover:text-neon-blue/80 hover:underline"
+                >
+                  View Place
+                </Link>
+              )}
             </div>
 
             <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">

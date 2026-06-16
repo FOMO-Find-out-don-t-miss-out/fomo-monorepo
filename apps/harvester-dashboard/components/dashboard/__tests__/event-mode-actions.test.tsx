@@ -12,6 +12,11 @@ vi.mock('next/navigation', () => ({
   useRouter: vi.fn(() => ({ replace: vi.fn() })),
   usePathname: vi.fn(() => '/'),
 }))
+vi.mock('next/link', () => ({
+  default: ({ children, href }: { children: React.ReactNode; href: string }) => (
+    <a href={href}>{children}</a>
+  ),
+}))
 
 // ── TanStack Query ───────────────────────────────────────────────────────────
 vi.mock('@tanstack/react-query', () => ({
@@ -41,9 +46,10 @@ vi.mock('date-fns', () => ({
 }))
 
 import { EventInspector } from '../event-inspector'
+import { EventCard } from '../event-card'
 import { EventList } from '../event-list'
 import { FilterSidebar } from '../filter-sidebar'
-import { dedupeStatusLabel } from '@/lib/utils'
+import { dedupeStatusLabel, relatedPlaceId } from '@/lib/utils'
 
 const noop = vi.fn()
 
@@ -147,7 +153,7 @@ describe('FilterSidebar — Collision Status filter', () => {
     setSelectedStatus: noop,
     selectedSource: 'all' as const,
     setSelectedSource: noop,
-    eventCounts: { verified: 0, ambiguous: 0, failed: 0, total: 0 },
+    eventCounts: { total: 0 },
   }
 
   it('renders the Collision Status filter in pending mode', () => {
@@ -157,7 +163,7 @@ describe('FilterSidebar — Collision Status filter', () => {
         {...baseProps}
         selectedDedupeStatus="all"
         setSelectedDedupeStatus={noop}
-        dedupeCounts={{ not_checked: 0, duplicate_confirmed: 0, possible_match: 0, total: 0 }}
+        dedupeCounts={{ total: 0 }}
       />,
     )
 
@@ -168,6 +174,136 @@ describe('FilterSidebar — Collision Status filter', () => {
     render(<FilterSidebar mode="published" {...baseProps} />)
 
     expect(screen.queryByText('Collision Status')).not.toBeInTheDocument()
+  })
+})
+
+describe('FilterSidebar — honest result count', () => {
+  it('shows a single loaded-results indicator instead of per-option counts', () => {
+    render(
+      <FilterSidebar
+        mode="pending"
+        selectedCategory="All Categories"
+        setSelectedCategory={noop}
+        selectedStatus="all"
+        setSelectedStatus={noop}
+        selectedSource="all"
+        setSelectedSource={noop}
+        eventCounts={{ total: 53 }}
+      />,
+    )
+
+    expect(screen.getByText('Showing 53 loaded signals')).toBeInTheDocument()
+  })
+})
+
+describe('Place deep-link', () => {
+  const PLACE_EVENT: PendingEvent = { ...BASE_EVENT, place_candidate_id: 'place-1' }
+  const PUBLISHED_PLACE_EVENT: PendingEvent = {
+    ...BASE_EVENT,
+    id: 'evt-3',
+    status: 'published',
+    place_id: 'place-2',
+  }
+
+  it('relatedPlaceId reads place_candidate_id for pending and place_id for published', () => {
+    expect(relatedPlaceId(PLACE_EVENT, 'pending')).toBe('place-1')
+    expect(relatedPlaceId(PUBLISHED_PLACE_EVENT, 'published')).toBe('place-2')
+    expect(relatedPlaceId(BASE_EVENT, 'pending')).toBeNull()
+  })
+
+  it('EventCard shows a View Place link when a related place exists', () => {
+    render(
+      <EventCard
+        mode="pending"
+        event={PLACE_EVENT}
+        isSelected={false}
+        isChecked={false}
+        onSelect={noop}
+        onToggleCheck={noop}
+      />,
+    )
+
+    const link = screen.getByText('View Place').closest('a')
+    expect(link).toHaveAttribute('href', '/places?placeId=place-1')
+  })
+
+  it('EventCard hides the View Place link when no related place exists', () => {
+    render(
+      <EventCard
+        mode="pending"
+        event={BASE_EVENT}
+        isSelected={false}
+        isChecked={false}
+        onSelect={noop}
+        onToggleCheck={noop}
+      />,
+    )
+
+    expect(screen.queryByText('View Place')).not.toBeInTheDocument()
+  })
+
+  it('EventInspector shows a View Place link using place_id in published mode', () => {
+    render(
+      <EventInspector
+        mode="published"
+        event={PUBLISHED_PLACE_EVENT}
+        open
+        onOpenChange={noop}
+        onApprove={noop}
+        onReject={noop}
+      />,
+    )
+
+    const link = screen.getByText('View Place').closest('a')
+    expect(link).toHaveAttribute('href', '/places?placeId=place-2')
+  })
+
+  it('EventInspector hides the View Place link when no related place exists', () => {
+    render(
+      <EventInspector
+        mode="pending"
+        event={BASE_EVENT}
+        open
+        onOpenChange={noop}
+        onApprove={noop}
+        onReject={noop}
+      />,
+    )
+
+    expect(screen.queryByText('View Place')).not.toBeInTheDocument()
+  })
+})
+
+describe('FOMO-166: category label vs canonical value', () => {
+  it('EventCard shows the friendly "Live Music" label for a "Music" category event', () => {
+    render(
+      <EventCard
+        mode="pending"
+        event={BASE_EVENT}
+        isSelected={false}
+        isChecked={false}
+        onSelect={noop}
+        onToggleCheck={noop}
+      />,
+    )
+
+    expect(screen.getByText('Live Music')).toBeInTheDocument()
+    expect(screen.queryByText('Music')).not.toBeInTheDocument()
+  })
+
+  it('EventInspector shows the friendly "Live Music" label for a "Music" category event', () => {
+    render(
+      <EventInspector
+        mode="pending"
+        event={BASE_EVENT}
+        open
+        onOpenChange={noop}
+        onApprove={noop}
+        onReject={noop}
+      />,
+    )
+
+    expect(screen.getAllByText('Live Music').length).toBeGreaterThan(0)
   })
 })
 
