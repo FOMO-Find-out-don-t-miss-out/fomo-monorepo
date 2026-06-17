@@ -11,7 +11,7 @@ import {
   DEFAULT_DISCOVERY_RADIUS,
 } from '../../utils/location-config';
 import type { UiEvent } from '../../types/ui';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -38,6 +38,8 @@ const CARD_GAP   = 16;
 export default function DiscoveryScreen() {
   const [selectedEvent, setSelectedEvent] = useState<UiEvent | null>(null);
   const [isCalendarView, setIsCalendarView] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [activeCategories, setActiveCategories] = useState<string[]>([]);
 
   const { events, loading, error, refetch } = useDiscovery({
     lat: DEFAULT_DISCOVERY_LAT,
@@ -45,33 +47,67 @@ export default function DiscoveryScreen() {
     radiusKm: DEFAULT_DISCOVERY_RADIUS,
   });
 
+  // Client-side filter: text matches title or venue; categories match UiEventCategory (lowercase).
+  const filteredEvents = useMemo(() => {
+    let result = events;
+    const q = searchText.trim().toLowerCase();
+    if (q) {
+      result = result.filter(
+        (e) =>
+          e.title.toLowerCase().includes(q) ||
+          e.venue.toLowerCase().includes(q),
+      );
+    }
+    if (activeCategories.length > 0) {
+      result = result.filter((e) =>
+        activeCategories.includes(e.category.toLowerCase()),
+      );
+    }
+    return result;
+  }, [events, searchText, activeCategories]);
+
+  const handleFilterChange = useCallback((filters: string[]) => {
+    setActiveCategories(filters);
+  }, []);
+
   const carouselPadding = (SCREEN_WIDTH - CARD_WIDTH) / 2;
 
+  // Fade in the carousel only when *returning* from Calendar view, not on initial mount.
+  // On Android, useNativeDriver animations fail silently when the native view has not been
+  // laid out yet. Setting opacity to 0 on mount leaves the carousel invisible until the
+  // next effect cycle, which only triggers after a Calendar ↔ Map toggle.
   const carouselOpacity = useRef(new Animated.Value(1)).current;
+  const prevCalendar = useRef(false);
   useEffect(() => {
-    if (isCalendarView) return;
-    carouselOpacity.setValue(0);
-    Animated.timing(carouselOpacity, {
-      toValue: 1,
-      duration: 240,
-      useNativeDriver: true,
-    }).start();
+    const wasCalendar = prevCalendar.current;
+    prevCalendar.current = isCalendarView;
+
+    if (!isCalendarView && wasCalendar) {
+      carouselOpacity.setValue(0);
+      Animated.timing(carouselOpacity, {
+        toValue: 1,
+        duration: 240,
+        useNativeDriver: true,
+      }).start();
+    }
   }, [isCalendarView, carouselOpacity]);
 
   return (
     <View style={styles.screen}>
 
-      {/* Layer 0: Mapbox — bottom-most; shares the same staging defaults as discovery */}
+      {/* Layer 0: Mapbox — bottom-most; shares staging defaults as discovery */}
       <FomoMap centerLat={DEFAULT_DISCOVERY_LAT} centerLng={DEFAULT_DISCOVERY_LNG} />
 
       {/* Layer 1: neon grid overlay */}
       <NeonGrid />
 
-      {/* Layer 2: SearchBar */}
+      {/* Layer 2: SearchBar — text search + category chips + view toggle */}
       <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
         <SearchBar
           isCalendarView={isCalendarView}
           onViewToggle={() => setIsCalendarView((v) => !v)}
+          onSearchChange={setSearchText}
+          onFilterChange={handleFilterChange}
         />
       </View>
 
@@ -89,9 +125,11 @@ export default function DiscoveryScreen() {
                 <Text style={styles.retryText}>Retry</Text>
               </Pressable>
             </View>
-          ) : events.length === 0 ? (
+          ) : filteredEvents.length === 0 ? (
             <View style={styles.feedbackContainer}>
-              <Text style={styles.feedbackText}>No events nearby</Text>
+              <Text style={styles.feedbackText}>
+                {events.length === 0 ? 'No events nearby' : 'No events match your search'}
+              </Text>
             </View>
           ) : (
             <ScrollView
@@ -105,7 +143,7 @@ export default function DiscoveryScreen() {
                 { paddingHorizontal: carouselPadding },
               ]}
             >
-              {events.map((event) => (
+              {filteredEvents.map((event) => (
                 <EventCard
                   key={event.id}
                   event={event}
@@ -120,7 +158,7 @@ export default function DiscoveryScreen() {
 
       {/* Layer 3b: Calendar view */}
       {isCalendarView && (
-        <CalendarView events={events} onEventPress={setSelectedEvent} />
+        <CalendarView events={filteredEvents} onEventPress={setSelectedEvent} />
       )}
 
       {/* Layer 4: details modal */}

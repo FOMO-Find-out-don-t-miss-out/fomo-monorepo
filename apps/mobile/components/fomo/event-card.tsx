@@ -141,7 +141,7 @@ export function EventCard({ event, isActive = false, onPress }: EventCardProps) 
           style={styles.ctaBtn}
         >
           <Ticket size={12} color="#fff" strokeWidth={1.5} />
-          <Text style={styles.ctaText}>View Tickets</Text>
+          <Text style={styles.ctaText}>View Details</Text>
         </LinearGradient>
 
       </Pressable>

@@ -18,6 +18,10 @@ class EventDiscoveryResponse(BaseModel):
     location_name: str | None = Field(None, serialization_alias="locationName")
     lat: float
     lng: float
+    category: str = Field(default="Other")
+    hype_score: int = Field(default=0, serialization_alias="hypeScore")
+    photo_url: str | None = Field(None, serialization_alias="photoUrl")
+    ticket_url: str | None = Field(None, serialization_alias="ticketUrl")
     source_url: str | None = Field(None, serialization_alias="sourceUrl")
     provenance: str
     trust_level: str

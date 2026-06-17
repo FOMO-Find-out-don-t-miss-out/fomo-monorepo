@@ -3,22 +3,21 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {
   Calendar,
   Clock,
-  Heart,
   MapPin,
-  Navigation,
   Share2,
   Star,
   Ticket,
-  Users,
   X,
 } from 'lucide-react-native';
 import React, { useEffect, useRef } from 'react';
 import {
   Animated,
   Dimensions,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   View,
@@ -28,12 +27,7 @@ import type { Event, EventCategory } from '../../types/ui';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const { height: SCREEN_H } = Dimensions.get('window');
-
-// v0 default sheet height: 40vh → we use 42% to include safe area buffer
 const SHEET_HEIGHT = SCREEN_H * 0.42;
-
-// ─── Design tokens ────────────────────────────────────────────────────────────
-
 const CTA_GRADIENT: [string, string] = ['#BC13FE', '#9333EA'];
 
 // ─── Category colour map ──────────────────────────────────────────────────────
@@ -47,6 +41,35 @@ const CATEGORY_COLORS: Record<EventCategory, { border: string; text: string }> =
   Festival: { border: 'rgba(34,  211, 238, 0.5)', text: '#22D3EE' },
 };
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function ctaUrl(event: Event): string | null {
+  return event.ticketUrl ?? event.sourceUrl ?? null;
+}
+
+async function openUrl(url: string): Promise<void> {
+  try {
+    const supported = await Linking.canOpenURL(url);
+    if (supported) await Linking.openURL(url);
+  } catch {
+    // silently ignore — user will see nothing happen, not a crash
+  }
+}
+
+async function shareEvent(event: Event): Promise<void> {
+  const url = ctaUrl(event);
+  try {
+    await Share.share({
+      title: event.title,
+      message: url ? `${event.title} — ${url}` : event.title,
+      url: url ?? undefined,
+    });
+  } catch {
+    // dismissed or unsupported
+  }
+}
+
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface EventDetailsProps {
@@ -55,11 +78,6 @@ interface EventDetailsProps {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-//
-// Matches v0 event-bottom-sheet.tsx with Premium Glassmorphism:
-//   • BlurView background (intensity: 20, tint: 'dark')
-//   • LinearGradient CTA button (#BC13FE → #9333EA)
-//   • Inter font family integration
 
 export function EventDetails({ event, onClose }: EventDetailsProps) {
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -80,6 +98,8 @@ export function EventDetails({ event, onClose }: EventDetailsProps) {
     ? CATEGORY_COLORS[event.category]
     : CATEGORY_COLORS.Music;
 
+  const url = event ? ctaUrl(event) : null;
+
   return (
     <Modal
       visible={event !== null}
@@ -90,35 +110,30 @@ export function EventDetails({ event, onClose }: EventDetailsProps) {
     >
       <View style={styles.overlay}>
 
-        {/* ── Backdrop ───────────────────────────────────────────────── */}
+        {/* Backdrop */}
         <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         </Animated.View>
 
-        {/* ── Bottom sheet ───────────────────────────────────────────── */}
-        {/* Outer container handles rounded corners and clipping for BlurView */}
+        {/* Bottom sheet */}
         <View style={styles.sheet}>
           <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
 
           {event && (
             <>
-              {/* Handle bar */}
               <View style={styles.handleBar} />
 
-              {/* Close button */}
               <Pressable style={styles.closeBtn} onPress={onClose} hitSlop={8}>
                 <X size={16} color="rgba(255,255,255,0.7)" strokeWidth={1.5} />
               </Pressable>
 
-              {/* ── Scrollable body ─────────────────────────────────── */}
               <ScrollView
                 style={styles.scroll}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
                 bounces={false}
               >
-
-                {/* Header row — category badge + High Hype */}
+                {/* Header: category badge + hype badge (only when high) */}
                 <View style={styles.badgeRow}>
                   <View style={[styles.categoryBadge, { borderColor: catColors.border }]}>
                     <Text style={[styles.categoryText, { color: catColors.text }]}>
@@ -136,22 +151,16 @@ export function EventDetails({ event, onClose }: EventDetailsProps) {
                 {/* Title */}
                 <Text style={styles.title}>{event.title}</Text>
 
-                {/* Venue + Directions */}
+                {/* Venue — Directions deferred to FOMO-168 (needs device location) */}
                 <View style={styles.venueRow}>
-                  <View style={styles.venueLeft}>
-                    <MapPin size={14} color="rgba(255,255,255,0.6)" strokeWidth={1.5} />
-                    <Text style={styles.venueText} numberOfLines={1}>{event.venue}</Text>
-                    {event.distance != null && (
-                      <Text style={styles.distanceText}>({event.distance})</Text>
-                    )}
-                  </View>
-                  <View style={styles.directionsChip}>
-                    <Navigation size={12} color="#3B82F6" strokeWidth={1.5} />
-                    <Text style={styles.directionsText}>Directions</Text>
-                  </View>
+                  <MapPin size={14} color="rgba(255,255,255,0.6)" strokeWidth={1.5} />
+                  <Text style={styles.venueText} numberOfLines={1}>{event.venue}</Text>
+                  {event.distance != null && (
+                    <Text style={styles.distanceText}>({event.distance})</Text>
+                  )}
                 </View>
 
-                {/* Date / Time / Attendees pills */}
+                {/* Date / Time pills */}
                 <View style={styles.pillRow}>
                   <View style={styles.pill}>
                     <Calendar size={14} color="#22D3EE" strokeWidth={1.5} />
@@ -161,49 +170,38 @@ export function EventDetails({ event, onClose }: EventDetailsProps) {
                     <Clock size={14} color="#22D3EE" strokeWidth={1.5} />
                     <Text style={styles.pillCyan}>{event.time}</Text>
                   </View>
-                  <View style={styles.pill}>
-                    <Users size={14} color="#A855F7" strokeWidth={1.5} />
-                    <Text style={styles.pillPurple}>
-                      {event.attendeesCount ? `${event.attendeesCount} going` : '2.4K going'}
-                    </Text>
-                  </View>
                 </View>
 
-                {/* Action row */}
+                {/* Action row — Share only (Heart/Save deferred to post-auth) */}
                 <View style={styles.actionRow}>
-                  <Pressable style={styles.actionBtn}>
-                    <Heart size={16} color="#EC4899" strokeWidth={1.5} />
-                  </Pressable>
-                  <Pressable style={styles.actionBtn}>
+                  <Pressable style={styles.actionBtn} onPress={() => shareEvent(event)}>
                     <Share2 size={16} color="rgba(255,255,255,0.6)" strokeWidth={1.5} />
                   </Pressable>
-                  <Text style={styles.swipeHint}>Swipe up for details</Text>
                 </View>
 
               </ScrollView>
 
-              {/* ── Get Tickets CTA ─────────────────────────────────── */}
-              <View style={styles.ctaWrapper}>
-                <LinearGradient
-                  colors={CTA_GRADIENT}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.ctaBtn}
-                >
-                  <Pressable 
-                    style={styles.ctaPressable}
-                    onPress={onClose}
+              {/* Get Tickets CTA — only shown when a URL exists */}
+              {url && (
+                <View style={styles.ctaWrapper}>
+                  <LinearGradient
+                    colors={CTA_GRADIENT}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.ctaBtn}
                   >
-                    <Ticket size={16} color="#fff" strokeWidth={1.5} />
-                    <Text style={styles.ctaText}>Get Tickets</Text>
-                    {event.price != null && (
-                      <View style={styles.pricePill}>
-                        <Text style={styles.priceText}>{event.price}</Text>
-                      </View>
-                    )}
-                  </Pressable>
-                </LinearGradient>
-              </View>
+                    <Pressable
+                      style={styles.ctaPressable}
+                      onPress={() => openUrl(url)}
+                    >
+                      <Ticket size={16} color="#fff" strokeWidth={1.5} />
+                      <Text style={styles.ctaText}>
+                        {event.ticketUrl ? 'Get Tickets' : 'View Source'}
+                      </Text>
+                    </Pressable>
+                  </LinearGradient>
+                </View>
+              )}
             </>
           )}
         </View>
@@ -216,8 +214,6 @@ export function EventDetails({ event, onClose }: EventDetailsProps) {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-
-  // ── Modal overlay ─────────────────────────────────────────────────────────
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -226,11 +222,9 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.55)',
   },
-
-  // ── Sheet — BlurView inside View with borderRadius + overflow:hidden
   sheet: {
     height: SHEET_HEIGHT,
-    backgroundColor: 'rgba(12, 12, 18, 0.88)', // Fallback
+    backgroundColor: 'rgba(12, 12, 18, 0.88)',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     borderTopWidth: 1,
@@ -257,8 +251,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.10)',
     zIndex: 1,
   },
-
-  // ── Scrollable body ───────────────────────────────────────────────────────
   scroll: {
     flex: 1,
   },
@@ -266,8 +258,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 12,
   },
-
-  // ── Badges ────────────────────────────────────────────────────────────────
   badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -298,8 +288,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#A855F7',
   },
-
-  // ── Title ─────────────────────────────────────────────────────────────────
   title: {
     fontFamily: 'Inter_800ExtraBold',
     fontSize: 20,
@@ -307,19 +295,10 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     marginBottom: 10,
   },
-
-  // ── Venue ─────────────────────────────────────────────────────────────────
   venueRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     marginBottom: 12,
-    gap: 8,
-  },
-  venueLeft: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 5,
   },
   venueText: {
@@ -333,22 +312,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(255,255,255,0.4)',
   },
-  directionsChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 8,
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-  },
-  directionsText: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 11,
-    color: '#3B82F6',
-  },
-
-  // ── Info pills ────────────────────────────────────────────────────────────
   pillRow: {
     flexDirection: 'row',
     gap: 8,
@@ -370,13 +333,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#22D3EE',
   },
-  pillPurple: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 11,
-    color: '#A855F7',
-  },
-
-  // ── Action row ────────────────────────────────────────────────────────────
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -388,14 +344,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
-  swipeHint: {
-    marginLeft: 'auto',
-    fontFamily: 'Inter_400Regular',
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
-  },
-
-  // ── CTA ───────────────────────────────────────────────────────────────────
   ctaWrapper: {
     paddingHorizontal: 20,
     paddingVertical: 14,
@@ -424,16 +372,4 @@ const styles = StyleSheet.create({
     color: '#fff',
     letterSpacing: 0.2,
   },
-  pricePill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
-  },
-  priceText: {
-    fontFamily: 'Inter_700Bold',
-    fontSize: 11,
-    color: '#fff',
-  },
-
 });

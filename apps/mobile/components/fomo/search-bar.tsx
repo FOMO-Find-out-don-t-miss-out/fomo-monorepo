@@ -68,6 +68,7 @@ function springPress(value: Animated.Value, toValue: number) {
 
 interface SearchBarProps {
   onFilterChange?: (filters: string[]) => void;
+  onSearchChange?: (text: string) => void;
   isCalendarView?: boolean;
   onViewToggle?: () => void;
 }
@@ -76,6 +77,7 @@ interface SearchBarProps {
 
 export function SearchBar({
   onFilterChange,
+  onSearchChange,
   isCalendarView,
   onViewToggle,
 }: SearchBarProps) {
@@ -196,6 +198,9 @@ export function SearchBar({
             placeholderTextColor="rgba(255,255,255,0.4)"
             onFocus={handleFocus}
             onBlur={handleBlur}
+            onChangeText={onSearchChange}
+            returnKeyType="search"
+            autoCorrect={false}
           />
         </Animated.View>
 

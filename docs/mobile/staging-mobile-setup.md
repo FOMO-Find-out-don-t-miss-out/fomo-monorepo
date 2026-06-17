@@ -93,7 +93,7 @@ pnpm --filter @fomo/mobile start:clear
 
 **Conclusion: a dev build is required.** Expo Go will render a dark placeholder instead of the Mapbox map but all other screens (Search, Saved, Profile) and the event carousel work.
 
-## What the App Does on Staging
+## What Discover V1 Supports
 
 On boot the Discover tab calls:
 ```
@@ -103,24 +103,51 @@ Coordinates are read from `EXPO_PUBLIC_DEFAULT_LAT/LNG/RADIUS_KM` at Metro bundl
 via `apps/mobile/utils/location-config.ts`. The map initial camera uses the **same values**,
 so the map and the API query always point to the same city.
 Staging defaults to central Athens (37.9838, 23.7275, 50 km) where current events live.
-Device location permission is a follow-up (see Known Limitations).
 
-- Loading: spinner in the card carousel area
-- Events found: horizontal scroll carousel of event cards
-- Empty: "No events nearby" message
-- Error: "Could not load events" + Retry button
+| Feature | Status | Notes |
+|---|---|---|
+| Event card carousel (map view) | ✅ Real data | Title, venue, date/time, category, cover image |
+| Calendar date strip + event list | ✅ Real data | Filtered by selected date |
+| Event details bottom sheet | ✅ Real data | Category badge, hype badge (when score ≥ 70) |
+| "Get Tickets" / "View Source" CTA | ✅ Real | Opens `ticket_url ?? source_url` in browser; hidden when absent |
+| Share button | ✅ Real | Native share sheet with event title + source URL |
+| Text search | ✅ Client-side | Filters loaded events by title or venue name |
+| Category chips | ✅ Client-side | Filters events by real API category |
+| Loading / error / empty states | ✅ | Spinner, retry button, contextual messages |
+| Map camera | ✅ | Centered on same coords as API query |
+| Directions | ❌ Deferred | FOMO-168: needs device location origin for meaningful routing |
+| Map event pins | ❌ Deferred | FOMO-168 |
+| Device location | ❌ Deferred | FOMO-168: `expo-location` + permission flow |
+| Search results list | ❌ Deferred | FOMO-172: real-time search with server-side query |
+| Auth / saved events / profile | ❌ Deferred | Requires OIDC flow |
+| Heart / Save action | ❌ Deferred | Requires auth + backend endpoint |
+| Attendee count | ❌ Not shown | No API field |
+| Price | ❌ Not shown | No API field |
+| FOMO-owned deep links | ❌ Deferred | Share currently uses raw source URL; app-owned event URLs TBD |
+
+## Intentionally Hidden / Deferred UI
+
+- **Attendees count**: removed — the API has no attendee data.
+- **Heart/Save button**: removed — no backend endpoint or auth yet.
+- **"High Hype" badge**: only shown when `hype_score ≥ 70`. Most ingested events have score 0 — correct behaviour.
+- **Price**: not shown — no price field on `EventDiscoveryResponse`.
+- **Card label**: "View Tickets" → "View Details" — the card CTA opens the detail sheet, not a ticket URL.
+- **Map pins / clustering**: deferred to FOMO-168. The map is a styled backdrop.
+- **Directions**: removed from detail sheet. The Directions action would open Google Maps at the event's raw coordinates, but without a device location origin it is just "show on map" rather than directions. Routing is deferred to FOMO-168 once device location is available.
+- **Share**: uses `ticket_url ?? source_url` as the share URL. Once FOMO-owned public event detail pages exist, Share should use those app-owned URLs instead of raw scraper sources.
+- **Search results list**: the current search input filters the already-loaded carousel in-place. A real-time query against the API with a results list belongs to FOMO-172 Mobile Search and Filters.
 
 ## Known Limitations
 
 | # | Limitation | Follow-up |
 |---|---|---|
-| 1 | Discovery uses configurable env-var coords (Athens default) — not real device location | Add `expo-location` + permission flow |
-| 2 | `EventDiscoveryResponse` has no `category` or `hype_score` | Extend backend schema in domain layer |
-| 3 | All events show category "Music" | Blocked on #2 |
-| 4 | No auth wiring | FOMO-147/151 patterns can be ported from dashboard |
-| 5 | Mapbox token in `.env` is currently `sk.*` (wrong) | Replace with `pk.*` token from Mapbox dashboard |
-| 6 | Search, Saved, Profile tabs are placeholder screens | Future iterations |
-| 7 | No pagination on discovery endpoint | Backend + mobile work required |
+| 1 | Discovery uses configurable env-var coords (Athens default) — not real device location | FOMO-168: `expo-location` + permission flow |
+| 2 | Map is a static backdrop — no event pins or clustering | FOMO-168 |
+| 3 | No auth wiring | Port FOMO-147/151 patterns from dashboard |
+| 4 | Mapbox token in `.env` should be `pk.*` not `sk.*` | Replace in local `.env`; never commit |
+| 5 | Search/Saved/Profile tabs are stub screens | Future iterations |
+| 6 | No pagination on discovery endpoint | Backend + mobile work required |
+| 7 | Calendar date matching uses local timezone — UTC events near midnight may appear on wrong date | Fix date parsing to use UTC display |
 
 ## Troubleshooting
 

@@ -779,6 +779,20 @@ export interface components {
             lat: number;
             /** Lng */
             lng: number;
+            /**
+             * Category
+             * @default Other
+             */
+            category: string;
+            /**
+             * Hypescore
+             * @default 0
+             */
+            hypeScore: number;
+            /** Photourl */
+            photoUrl?: string | null;
+            /** Ticketurl */
+            ticketUrl?: string | null;
             /** Sourceurl */
             sourceUrl?: string | null;
             /** Provenance */

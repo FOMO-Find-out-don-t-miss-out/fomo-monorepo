@@ -72,14 +72,20 @@ export interface UiEventFields {
   time: string;
   /** Intensity bucket. Derived from API's hype_score (high ≥ 70, medium ≥ 40, low otherwise). */
   hypeLevel: 'high' | 'medium' | 'low';
-  /** Formatted price string. Placeholder — no API field yet. */
-  price?: string;
-  /** Human-readable distance. Computed client-side from lat/lng. */
-  distance?: string;
   /** Image URI. Maps to API's photo_url. */
-  imageUri?: string;
-  /** Formatted attendee count. Placeholder — no API field yet. */
-  attendeesCount?: string;
+  imageUri?: string | null;
+  /** Specific ticket purchase URL. Maps to API's ticket_url. */
+  ticketUrl?: string | null;
+  /** Original event source URL. Maps to API's source_url. */
+  sourceUrl?: string | null;
+  /** Latitude from the geocoded event location. Used for directions. */
+  lat?: number;
+  /** Longitude from the geocoded event location. Used for directions. */
+  lng?: number;
+  /** Human-readable distance. Computed client-side — requires device location (not yet implemented). */
+  distance?: string;
+  /** Formatted price string. Not available from the API — reserved for future use. */
+  price?: string;
 }
 
 /**
