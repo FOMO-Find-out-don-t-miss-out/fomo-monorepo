@@ -4,6 +4,7 @@ import {
   Calendar,
   Clock,
   MapPin,
+  Navigation,
   Share2,
   Star,
   Ticket,
@@ -45,6 +46,27 @@ const CATEGORY_COLORS: Record<EventCategory, { border: string; text: string }> =
 
 function ctaUrl(event: Event): string | null {
   return event.ticketUrl ?? event.sourceUrl ?? null;
+}
+
+function hasValidCoordinates(event: Event): boolean {
+  const { lat, lng } = event;
+  return (
+    typeof lat === 'number' &&
+    typeof lng === 'number' &&
+    !Number.isNaN(lat) &&
+    !Number.isNaN(lng) &&
+    !(lat === 0 && lng === 0)
+  );
+}
+
+async function openDirections(event: Event): Promise<void> {
+  if (!hasValidCoordinates(event)) return;
+  const url = `https://www.google.com/maps/search/?api=1&query=${event.lat},${event.lng}`;
+  try {
+    await Linking.openURL(url);
+  } catch {
+    // silently ignore — openURL failures are non-fatal
+  }
 }
 
 async function openUrl(url: string): Promise<void> {
@@ -99,6 +121,7 @@ export function EventDetails({ event, onClose }: EventDetailsProps) {
     : CATEGORY_COLORS.Music;
 
   const url = event ? ctaUrl(event) : null;
+  const canOpenDirections = event ? hasValidCoordinates(event) : false;
 
   return (
     <Modal
@@ -172,8 +195,13 @@ export function EventDetails({ event, onClose }: EventDetailsProps) {
                   </View>
                 </View>
 
-                {/* Action row — Share only (Heart/Save deferred to post-auth) */}
+                {/* Action row — Directions (when coords valid) + Share (Heart/Save deferred to post-auth) */}
                 <View style={styles.actionRow}>
+                  {canOpenDirections && (
+                    <Pressable style={styles.actionBtn} onPress={() => openDirections(event)}>
+                      <Navigation size={16} color="rgba(255,255,255,0.6)" strokeWidth={1.5} />
+                    </Pressable>
+                  )}
                   <Pressable style={styles.actionBtn} onPress={() => shareEvent(event)}>
                     <Share2 size={16} color="rgba(255,255,255,0.6)" strokeWidth={1.5} />
                   </Pressable>

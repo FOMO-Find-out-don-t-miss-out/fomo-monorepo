@@ -115,7 +115,7 @@ Staging defaults to central Athens (37.9838, 23.7275, 50 km) where current event
 | Category chips | ✅ Client-side | Filters events by real API category |
 | Loading / error / empty states | ✅ | Spinner, retry button, contextual messages |
 | Map camera | ✅ | Centered on same coords as API query |
-| Directions | ❌ Deferred | FOMO-168: needs device location origin for meaningful routing |
+| Directions | ✅ Real | Opens Google Maps at event lat/lng; hidden when coordinates are missing or invalid |
 | Map event pins | ❌ Deferred | FOMO-168 |
 | Device location | ❌ Deferred | FOMO-168: `expo-location` + permission flow |
 | Search results list | ❌ Deferred | FOMO-172: real-time search with server-side query |
@@ -133,7 +133,7 @@ Staging defaults to central Athens (37.9838, 23.7275, 50 km) where current event
 - **Price**: not shown — no price field on `EventDiscoveryResponse`.
 - **Card label**: "View Tickets" → "View Details" — the card CTA opens the detail sheet, not a ticket URL.
 - **Map pins / clustering**: deferred to FOMO-168. The map is a styled backdrop.
-- **Directions**: removed from detail sheet. The Directions action would open Google Maps at the event's raw coordinates, but without a device location origin it is just "show on map" rather than directions. Routing is deferred to FOMO-168 once device location is available.
+- **Directions**: available in the detail sheet when the event has valid coordinates (both lat/lng present, neither NaN, not both zero). Opens `https://www.google.com/maps/search/?api=1&query=<lat>,<lng>` — shows the venue on Google Maps, not a routed turn-by-turn from device location. Turn-by-turn routing (using device origin) is deferred to FOMO-168.
 - **Share**: uses `ticket_url ?? source_url` as the share URL. Once FOMO-owned public event detail pages exist, Share should use those app-owned URLs instead of raw scraper sources.
 - **Search results list**: the current search input filters the already-loaded carousel in-place. A real-time query against the API with a results list belongs to FOMO-172 Mobile Search and Filters.
 
@@ -142,12 +142,13 @@ Staging defaults to central Athens (37.9838, 23.7275, 50 km) where current event
 | # | Limitation | Follow-up |
 |---|---|---|
 | 1 | Discovery uses configurable env-var coords (Athens default) — not real device location | FOMO-168: `expo-location` + permission flow |
-| 2 | Map is a static backdrop — no event pins or clustering | FOMO-168 |
-| 3 | No auth wiring | Port FOMO-147/151 patterns from dashboard |
-| 4 | Mapbox token in `.env` should be `pk.*` not `sk.*` | Replace in local `.env`; never commit |
-| 5 | Search/Saved/Profile tabs are stub screens | Future iterations |
-| 6 | No pagination on discovery endpoint | Backend + mobile work required |
-| 7 | Calendar date matching uses local timezone — UTC events near midnight may appear on wrong date | Fix date parsing to use UTC display |
+| 2 | Directions shows venue on map, not turn-by-turn from device location | FOMO-168: routing once device location is available |
+| 3 | Map is a static backdrop — no event pins or clustering | FOMO-168 |
+| 4 | No auth wiring | Port FOMO-147/151 patterns from dashboard |
+| 5 | Mapbox token in `.env` should be `pk.*` not `sk.*` | Replace in local `.env`; never commit |
+| 6 | Search/Saved/Profile tabs are stub screens | Future iterations |
+| 7 | No pagination on discovery endpoint | Backend + mobile work required |
+| 8 | Calendar date matching uses local timezone — UTC events near midnight may appear on wrong date | Fix date parsing to use UTC display |
 
 ## Troubleshooting
 
