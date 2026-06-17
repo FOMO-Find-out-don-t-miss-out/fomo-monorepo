@@ -151,13 +151,26 @@ The permission dialog appears on **first launch** (or when "Never ask again" was
 
 ## Locate-Me Button
 
-A circular floating button sits bottom-right, above the carousel (map view only).
+A circular floating button sits **top-right** inside the map, just below the SearchBar (map view only).
 
-| Icon color | Meaning |
+| State | Icon | Tapping does |
+|---|---|---|
+| `granted` | Purple `#A855F7` | Fly camera to real device coords immediately |
+| `denied` / `unavailable` / `error` | Dim white | Request permission; fly to real coords once granted |
+| `pending` / awaiting grant | Spinner | No-op while request in flight |
+
+**Locate Me flyTo is deferred**: if permission is not yet granted when the button is tapped,
+the camera does **not** fly to the default/Athens coords. Instead a `pendingLocate` flag is
+set and the flyTo fires only after `locationStatus` transitions to `'granted'` with real coords.
+
+## Location Mode Indicator
+
+A small non-intrusive pill sits **bottom-left above the carousel** (map view only, hidden while pending).
+
+| Text | Meaning |
 |---|---|
-| Purple (`#A855F7`) | Permission granted; tapping flies camera to real device location |
-| Dim white | Permission pending or denied; tapping requests / re-requests permission |
-| Spinner | Location request in flight |
+| `· Your location` (purple dot) | Real device GPS in use |
+| `· Default location` (dim dot) | Fallback coords (env defaults) active |
 
 ## Map Pins Behavior
 

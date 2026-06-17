@@ -116,7 +116,9 @@
       "Bash(git status *)",
       "PowerShell(New-Item *)",
       "Bash(git -C C:\\\\fomo-monorepo status -uall)",
-      "PowerShell(git *)"
+      "PowerShell(git *)",
+      "Bash(echo \"TSC_EXIT:$?\")",
+      "Bash(adb devices *)"
     ]
   }
 }

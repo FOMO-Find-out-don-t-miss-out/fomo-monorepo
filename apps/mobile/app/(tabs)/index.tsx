@@ -20,6 +20,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -35,6 +36,8 @@ export default function DiscoveryScreen() {
   const [searchText, setSearchText] = useState('');
   const [activeCategories, setActiveCategories] = useState<string[]>([]);
 
+  const insets = useSafeAreaInsets();
+
   // Device location — falls back to env defaults when denied/unavailable.
   const { location, status: locationStatus, requestLocation } = useDeviceLocation();
 
@@ -46,6 +49,20 @@ export default function DiscoveryScreen() {
       return () => clearTimeout(t);
     }
   }, [locateMe]);
+
+  // pendingLocate: the user tapped Locate Me while permission was not yet granted.
+  // We defer the flyTo until the permission flow completes with 'granted'.
+  // Clear on any terminal status so the spinner doesn't hang when denied again.
+  const [pendingLocate, setPendingLocate] = useState(false);
+  useEffect(() => {
+    if (!pendingLocate) return;
+    if (locationStatus === 'granted') {
+      setPendingLocate(false);
+      setLocateMe(true);
+    } else if (locationStatus !== 'pending') {
+      setPendingLocate(false);
+    }
+  }, [pendingLocate, locationStatus]);
 
   // Discovery fetches from the real API using device coords (or defaults).
   // Re-fetches automatically when location.lat/lng change (default → real).
@@ -101,11 +118,14 @@ export default function DiscoveryScreen() {
     [eventsWithDistance],
   );
 
-  // Locate-me: clear selection, trigger animated camera fly-to, re-request location if needed.
+  // Locate-me: fly to real device coords when already granted; otherwise request
+  // permission and defer the flyTo until locationStatus transitions to 'granted'.
   function handleLocateMe() {
     setSelectedEvent(null);
-    setLocateMe(true);
-    if (locationStatus !== 'granted') {
+    if (locationStatus === 'granted') {
+      setLocateMe(true);
+    } else {
+      setPendingLocate(true);
       requestLocation();
     }
   }
@@ -164,19 +184,47 @@ export default function DiscoveryScreen() {
         />
       </View>
 
-      {/* Layer 2: Locate-me button (map view only) */}
+      {/* Layer 2: Locate-me button — top-right, below SearchBar (map view only) */}
       {!isCalendarView && (
         <Pressable
-          style={styles.locateBtn}
+          style={[styles.locateBtn, { top: insets.top + 68 }]}
           onPress={handleLocateMe}
           hitSlop={8}
         >
-          {locationStatus === 'pending' ? (
+          {locationStatus === 'pending' || pendingLocate ? (
             <ActivityIndicator size="small" color="rgba(255,255,255,0.5)" />
           ) : (
             <LocateFixed size={18} color={locateIconColor} strokeWidth={1.8} />
           )}
         </Pressable>
+      )}
+
+      {/* Location mode label — bottom-left above carousel; hidden while in-flight */}
+      {!isCalendarView && locationStatus !== 'pending' && !pendingLocate && (
+        <View style={styles.locationLabel}>
+          <View
+            style={[
+              styles.locationDot,
+              {
+                backgroundColor:
+                  locationStatus === 'granted'
+                    ? '#A855F7'
+                    : locationStatus === 'unavailable'
+                      ? '#F97316'
+                      : 'rgba(255,255,255,0.22)',
+              },
+            ]}
+          />
+          <Text style={styles.locationLabelText}>
+            {locationStatus === 'granted'
+              ? 'Your location'
+              : locationStatus === 'denied'
+                ? 'Location denied'
+                : locationStatus === 'unavailable'
+                  ? 'Location unavailable'
+                  : 'Default location'}
+          </Text>
+        </View>
       )}
 
       {/* Layer 3a: Map-view carousel */}
@@ -246,10 +294,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0B0B0F',
   },
-  // Locate-me button — bottom-right, above the carousel
+  // Locate-me button — top-right map control; `top` is set inline via insets
   locateBtn: {
     position: 'absolute',
-    bottom: 116 + 200 + 20, // 20px above carousel top
     right: 16,
     width: 40,
     height: 40,
@@ -259,6 +306,33 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 10,
+  },
+  // Small pill showing whether real or default location is active
+  locationLabel: {
+    position: 'absolute',
+    bottom: 116 + 200 + 8,
+    left: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: 'rgba(10, 10, 16, 0.70)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  locationDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  locationLabelText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.45)',
+    letterSpacing: 0.3,
   },
   carouselAnchor: {
     position: 'absolute',

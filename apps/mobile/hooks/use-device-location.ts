@@ -69,9 +69,16 @@ export function useDeviceLocation(): UseDeviceLocationResult {
           return;
         }
 
-        const pos = await ExpoLocation!.getCurrentPositionAsync({
-          accuracy: ExpoLocation!.Accuracy.Balanced,
-        });
+        // getLastKnownPositionAsync is instant (OS cache from any app).
+        // Falls back to a fresh reading only when the cache is empty.
+        // This prevents the common failure where getCurrentPositionAsync
+        // times out right after a fresh permission grant before GPS warms up.
+        const lastPos = await ExpoLocation!.getLastKnownPositionAsync({});
+        const pos =
+          lastPos ??
+          (await ExpoLocation!.getCurrentPositionAsync({
+            accuracy: ExpoLocation!.Accuracy.Balanced,
+          }));
 
         if (!cancelled) {
           setLocation({
