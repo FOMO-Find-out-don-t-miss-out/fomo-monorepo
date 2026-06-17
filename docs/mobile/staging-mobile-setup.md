@@ -120,12 +120,15 @@ Coordinates come from `useDeviceLocation` (real or default). The map camera alwa
 | Device location permission | ✅ FOMO-168 | Foreground permission request on first open |
 | Location fallback | ✅ FOMO-168 | Falls back to env defaults when denied/unavailable |
 | Map camera | ✅ FOMO-168 | Follows device location (or default); animates to selected event |
-| Event pins on map | ✅ FOMO-168 | Purple circle per event with valid coordinates |
-| Selected event pin | ✅ FOMO-168 | Magenta highlight; camera zooms to event |
+| Event pins on map | ✅ FOMO-168 | Purple circle per event with valid coordinates; tappable |
+| Pin tap → event selection | ✅ FOMO-168 | Tapping a pin selects event; syncs carousel + detail sheet |
+| Selected event pin | ✅ FOMO-168 | Magenta highlight; camera eases to event |
 | User location dot | ✅ FOMO-168 | Mapbox native blue dot; only shown when permission granted |
 | Distance computation | ✅ FOMO-168 | Haversine km from origin; shown on cards when available |
+| Locate-me button | ✅ FOMO-168 | Floating button; flies camera to current location; re-requests permission if denied |
 | Map pin clustering | ❌ Deferred | Future task |
 | Map-area search / pan-to-load | ❌ Deferred | Future task |
+| City/date explore search | ❌ Deferred | FOMO-172/FOMO-174: "show events in Thessaloniki next Friday" type queries |
 | Search results list | ❌ Deferred | FOMO-172: real-time search with server-side query |
 | Auth / saved events / profile | ❌ Deferred | Requires OIDC flow |
 | Heart / Save action | ❌ Deferred | Requires auth + backend endpoint |
@@ -142,13 +145,26 @@ Coordinates come from `useDeviceLocation` (real or default). The map camera alwa
 | `denied` | default (env) | default | hidden | from default origin |
 | `unavailable` / `error` | default (env) | default | hidden | from default origin |
 
-The permission dialog appears on **first launch** only. The app remains fully usable in all states — denial just means Athens-default discovery until the user grants permission.
+The permission dialog appears on **first launch** (or when "Never ask again" was not selected). The app remains fully usable in all states — denial just means Athens-default discovery.
+
+**Note on re-prompting**: Android caches the permission decision. If permission was previously granted, `requestForegroundPermissionsAsync` returns immediately without a dialog. If denied with "ask again" possible, the locate-me button re-prompts. If "Never ask again" was selected, the locate button will not show a dialog; the user must grant permission in Android Settings manually.
+
+## Locate-Me Button
+
+A circular floating button sits bottom-right, above the carousel (map view only).
+
+| Icon color | Meaning |
+|---|---|
+| Purple (`#A855F7`) | Permission granted; tapping flies camera to real device location |
+| Dim white | Permission pending or denied; tapping requests / re-requests permission |
+| Spinner | Location request in flight |
 
 ## Map Pins Behavior
 
-- One purple circle (`#A855F7`) per event with valid lat/lng
-- Events with missing, NaN, or both-zero coordinates get no pin
-- Selected event gets a larger magenta circle (`#BC13FE`) on a separate layer (renders on top)
+- Only real events from the discovery API render as pins — no decorative or mock markers
+- One purple circle (`#A855F7`, r=8) per event with valid, non-null-island coordinates
+- Tapping a pin selects the event: syncs the carousel and opens the detail sheet
+- Selected event: larger magenta circle (`#BC13FE`, r=12) on a separate top layer; also tappable
 - No clustering in this iteration (future task)
 
 ## Directions Behavior
@@ -166,8 +182,10 @@ Opens `https://www.google.com/maps/dir/?api=1&destination=<lat>,<lng>`.
 - **"High Hype" badge**: only shown when `hype_score ≥ 70`. Most ingested events have score 0 — correct behaviour.
 - **Price**: not shown — no price field on `EventDiscoveryResponse`.
 - **Card label**: "View Tickets" → "View Details" — the card CTA opens the detail sheet, not a ticket URL.
+- **NeonGrid / decorative overlay**: removed. The Mapbox dark map is the visual backdrop. The neon road grid and fake pulsing marker dots that existed as decorative UI in earlier iterations are gone. Only real API event pins appear on the map.
 - **Map pin clustering**: deferred. Events render individually; high-density areas will overlap.
 - **Map-area search / pan-to-load**: deferred. Discovery only fetches once per origin; panning the map does not trigger a new query.
+- **City/date explore search**: deferred to FOMO-172/FOMO-174. "Show me events in Thessaloniki next Friday" type queries require a separate search flow.
 - **Share**: uses `ticket_url ?? source_url` as the share URL. Once FOMO-owned public event detail pages exist, Share should use those app-owned URLs instead of raw scraper sources.
 - **Search results list**: the current search input filters the already-loaded carousel in-place. A real-time query against the API with a results list belongs to FOMO-172 Mobile Search and Filters.
 

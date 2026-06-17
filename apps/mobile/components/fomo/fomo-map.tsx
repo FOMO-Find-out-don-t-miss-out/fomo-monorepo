@@ -25,12 +25,12 @@ try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const mod = require('@rnmapbox/maps');
   const Mapbox = mod.default ?? mod;
-  MapViewComp       = (mod.MapView       ?? Mapbox.MapView)       as MaybeComponent;
-  CameraComp        = (mod.Camera        ?? Mapbox.Camera)        as MaybeComponent;
-  ShapeSourceComp   = (mod.ShapeSource   ?? Mapbox.ShapeSource)   as MaybeComponent;
-  CircleLayerComp   = (mod.CircleLayer   ?? Mapbox.CircleLayer)   as MaybeComponent;
-  UserLocationComp  = (mod.UserLocation  ?? Mapbox.UserLocation)  as MaybeComponent;
-  nativeAvailable   = typeof MapViewComp === 'function' || typeof MapViewComp === 'object';
+  MapViewComp      = (mod.MapView      ?? Mapbox.MapView)      as MaybeComponent;
+  CameraComp       = (mod.Camera       ?? Mapbox.Camera)       as MaybeComponent;
+  ShapeSourceComp  = (mod.ShapeSource  ?? Mapbox.ShapeSource)  as MaybeComponent;
+  CircleLayerComp  = (mod.CircleLayer  ?? Mapbox.CircleLayer)  as MaybeComponent;
+  UserLocationComp = (mod.UserLocation ?? Mapbox.UserLocation) as MaybeComponent;
+  nativeAvailable  = typeof MapViewComp === 'function' || typeof MapViewComp === 'object';
   if (nativeAvailable && ACCESS_TOKEN) {
     Mapbox.setAccessToken(ACCESS_TOKEN);
   }
@@ -50,6 +50,11 @@ type PointFeature = {
 type FeatureCollection = {
   type: 'FeatureCollection';
   features: PointFeature[];
+};
+
+// Minimal shape of the onPress event from @rnmapbox/maps ShapeSource
+type PinPressEvent = {
+  features?: { properties?: Record<string, unknown> | null }[];
 };
 
 function buildGeoJSON(events: UiEvent[]): FeatureCollection {
@@ -77,6 +82,13 @@ interface FomoMapProps {
   selectedEventId?: string | null;
   /** Show the native user-location dot (only when location permission is granted). */
   showUserLocation?: boolean;
+  /** Called when a real event pin is tapped; receives the event's ID. */
+  onPinPress?: (eventId: string) => void;
+  /**
+   * When true, animate camera to centerLat/centerLng with flyTo.
+   * Screen resets this to false after a short delay.
+   */
+  locateMe?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -87,6 +99,8 @@ export function FomoMap({
   events = [],
   selectedEventId,
   showUserLocation = false,
+  onPinPress,
+  locateMe = false,
 }: FomoMapProps = {}) {
   const defaultCenter: [number, number] = [
     centerLng ?? DEFAULT_DISCOVERY_LNG,
@@ -103,7 +117,10 @@ export function FomoMap({
       ? [selectedEvent.lng!, selectedEvent.lat!]
       : defaultCenter;
 
-  const cameraZoom = selectedEvent ? SELECTED_ZOOM : DEFAULT_ZOOM;
+  // locateMe overrides selection zoom/animation so the locate button always feels responsive.
+  const cameraZoom = selectedEvent && !locateMe ? SELECTED_ZOOM : DEFAULT_ZOOM;
+  const animationMode = locateMe ? 'flyTo' : selectedEvent ? 'easeTo' : 'none';
+  const animationDuration = locateMe || selectedEvent ? 400 : 0;
 
   // GeoJSON for all event pins (excluding invalid coords).
   const allGeojson = useMemo(() => buildGeoJSON(events), [events]);
@@ -128,6 +145,14 @@ export function FomoMap({
       ],
     };
   }, [selectedEvent]);
+
+  // ── Pin press handler shared by both sources ──────────────────────────────
+
+  function handlePinPress(e: unknown): void {
+    const pressed = e as PinPressEvent;
+    const id = pressed.features?.[0]?.properties?.['id'];
+    if (typeof id === 'string') onPinPress?.(id);
+  }
 
   // ── Expo Go / no native module fallback ──────────────────────────────────
 
@@ -157,12 +182,11 @@ export function FomoMap({
         rotateEnabled={false}
         pitchEnabled={false}
       >
-        {/* Camera — snaps on initial/origin changes, animates on event selection */}
         <Camera
           zoomLevel={cameraZoom}
           centerCoordinate={cameraCenter}
-          animationMode={selectedEvent ? 'easeTo' : 'none'}
-          animationDuration={selectedEvent ? 400 : 0}
+          animationMode={animationMode}
+          animationDuration={animationDuration}
         />
 
         {/* User location blue dot — only shown when permission granted */}
@@ -170,37 +194,39 @@ export function FomoMap({
           <UserLocation visible={true} />
         )}
 
-        {/* All event pins: small purple circles */}
+        {/* All event pins: purple circles; tapping fires onPinPress */}
         {ShapeSource && CircleLayer && (
           <ShapeSource
             id="fomo-events-source"
             shape={allGeojson as unknown as Record<string, unknown>}
+            onPress={handlePinPress}
           >
             <CircleLayer
               id="fomo-events-circles"
               style={{
-                circleRadius: 6,
+                circleRadius: 8,
                 circleColor: '#A855F7',
-                circleStrokeWidth: 1.5,
+                circleStrokeWidth: 2,
                 circleStrokeColor: '#ffffff',
-                circleOpacity: 0.85,
+                circleOpacity: 0.9,
               }}
             />
           </ShapeSource>
         )}
 
-        {/* Selected-event pin: larger magenta circle on top */}
+        {/* Selected-event pin: larger magenta circle on top; also tappable */}
         {ShapeSource && CircleLayer && (
           <ShapeSource
             id="fomo-selected-source"
             shape={selectedGeojson as unknown as Record<string, unknown>}
+            onPress={handlePinPress}
           >
             <CircleLayer
               id="fomo-selected-circle"
               style={{
-                circleRadius: 10,
+                circleRadius: 12,
                 circleColor: '#BC13FE',
-                circleStrokeWidth: 2,
+                circleStrokeWidth: 2.5,
                 circleStrokeColor: '#ffffff',
                 circleOpacity: 1,
               }}

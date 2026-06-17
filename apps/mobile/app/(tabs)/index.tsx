@@ -2,13 +2,13 @@ import { CalendarView } from '../../components/fomo/calendar-view';
 import { EventCard } from '../../components/fomo/event-card';
 import { EventDetails } from '../../components/fomo/event-details';
 import { FomoMap } from '../../components/fomo/fomo-map';
-import { NeonGrid } from '../../components/fomo/neon-grid';
 import { SearchBar } from '../../components/fomo/search-bar';
 import { useDeviceLocation } from '../../hooks/use-device-location';
 import { useDiscovery } from '../../hooks/use-discovery';
 import { DEFAULT_DISCOVERY_RADIUS } from '../../utils/location-config';
 import { haversineKm, formatDistanceKm, hasValidCoords } from '../../utils/geo';
 import type { UiEvent } from '../../types/ui';
+import { LocateFixed } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -36,7 +36,16 @@ export default function DiscoveryScreen() {
   const [activeCategories, setActiveCategories] = useState<string[]>([]);
 
   // Device location — falls back to env defaults when denied/unavailable.
-  const { location, status: locationStatus } = useDeviceLocation();
+  const { location, status: locationStatus, requestLocation } = useDeviceLocation();
+
+  // locateMe triggers an animated fly-to in FomoMap; reset after animation starts.
+  const [locateMe, setLocateMe] = useState(false);
+  useEffect(() => {
+    if (locateMe) {
+      const t = setTimeout(() => setLocateMe(false), 600);
+      return () => clearTimeout(t);
+    }
+  }, [locateMe]);
 
   // Discovery fetches from the real API using device coords (or defaults).
   // Re-fetches automatically when location.lat/lng change (default → real).
@@ -51,12 +60,11 @@ export default function DiscoveryScreen() {
     () =>
       events.map((e) => ({
         ...e,
-        distance:
-          hasValidCoords(e.lat, e.lng)
-            ? formatDistanceKm(
-                haversineKm(location.lat, location.lng, e.lat!, e.lng!),
-              )
-            : undefined,
+        distance: hasValidCoords(e.lat, e.lng)
+          ? formatDistanceKm(
+              haversineKm(location.lat, location.lng, e.lat!, e.lng!),
+            )
+          : undefined,
       })),
     [events, location.lat, location.lng],
   );
@@ -84,6 +92,24 @@ export default function DiscoveryScreen() {
     setActiveCategories(filters);
   }, []);
 
+  // Pin tap: find matching event and select it (syncs carousel + detail sheet).
+  const handlePinPress = useCallback(
+    (eventId: string) => {
+      const found = eventsWithDistance.find((e) => e.id === eventId);
+      if (found) setSelectedEvent(found);
+    },
+    [eventsWithDistance],
+  );
+
+  // Locate-me: clear selection, trigger animated camera fly-to, re-request location if needed.
+  function handleLocateMe() {
+    setSelectedEvent(null);
+    setLocateMe(true);
+    if (locationStatus !== 'granted') {
+      requestLocation();
+    }
+  }
+
   const carouselPadding = (SCREEN_WIDTH - CARD_WIDTH) / 2;
 
   // Fade in the carousel only when *returning* from Calendar view, not on initial mount.
@@ -106,22 +132,29 @@ export default function DiscoveryScreen() {
     }
   }, [isCalendarView, carouselOpacity]);
 
+  // ── Location status icon color for the locate button ─────────────────────
+  const locateIconColor =
+    locationStatus === 'granted'
+      ? '#A855F7'
+      : locationStatus === 'pending'
+        ? 'rgba(255,255,255,0.5)'
+        : 'rgba(255,255,255,0.3)';
+
   return (
     <View style={styles.screen}>
 
-      {/* Layer 0: Mapbox — uses same coords as discovery; shows event pins + user dot */}
+      {/* Layer 0: Mapbox map with real event pins */}
       <FomoMap
         centerLat={location.lat}
         centerLng={location.lng}
         events={eventsWithDistance}
         selectedEventId={selectedEvent?.id ?? null}
         showUserLocation={locationStatus === 'granted'}
+        onPinPress={handlePinPress}
+        locateMe={locateMe}
       />
 
-      {/* Layer 1: neon grid overlay */}
-      <NeonGrid />
-
-      {/* Layer 2: SearchBar — text search + category chips + view toggle */}
+      {/* Layer 1: SearchBar — text search + category chips + view toggle */}
       <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
         <SearchBar
           isCalendarView={isCalendarView}
@@ -130,6 +163,21 @@ export default function DiscoveryScreen() {
           onFilterChange={handleFilterChange}
         />
       </View>
+
+      {/* Layer 2: Locate-me button (map view only) */}
+      {!isCalendarView && (
+        <Pressable
+          style={styles.locateBtn}
+          onPress={handleLocateMe}
+          hitSlop={8}
+        >
+          {locationStatus === 'pending' ? (
+            <ActivityIndicator size="small" color="rgba(255,255,255,0.5)" />
+          ) : (
+            <LocateFixed size={18} color={locateIconColor} strokeWidth={1.8} />
+          )}
+        </Pressable>
+      )}
 
       {/* Layer 3a: Map-view carousel */}
       {!isCalendarView && (
@@ -197,6 +245,20 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: '#0B0B0F',
+  },
+  // Locate-me button — bottom-right, above the carousel
+  locateBtn: {
+    position: 'absolute',
+    bottom: 116 + 200 + 20, // 20px above carousel top
+    right: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(12, 12, 18, 0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   carouselAnchor: {
     position: 'absolute',

@@ -5,11 +5,11 @@ import {
 } from '../utils/location-config';
 
 export type LocationStatus =
-  | 'pending'    // permission not yet requested
-  | 'granted'    // real device location available
-  | 'denied'     // user refused; using defaults
-  | 'unavailable'// location services off; using defaults
-  | 'error';     // unexpected error; using defaults
+  | 'pending'     // permission request in flight
+  | 'granted'     // real device location available
+  | 'denied'      // user refused; using defaults
+  | 'unavailable' // location services off or Expo Go; using defaults
+  | 'error';      // unexpected error; using defaults
 
 export interface DeviceLocation {
   lat: number;
@@ -21,6 +21,8 @@ export interface DeviceLocation {
 export interface UseDeviceLocationResult {
   location: DeviceLocation;
   status: LocationStatus;
+  /** Re-request location / permission — safe to call multiple times. */
+  requestLocation: () => void;
 }
 
 const DEFAULT_LOCATION: DeviceLocation = {
@@ -42,6 +44,8 @@ try {
 export function useDeviceLocation(): UseDeviceLocationResult {
   const [status, setStatus] = useState<LocationStatus>('pending');
   const [location, setLocation] = useState<DeviceLocation>(DEFAULT_LOCATION);
+  // Incrementing this re-runs the location effect (used by requestLocation).
+  const [triggerCount, setTriggerCount] = useState(0);
 
   useEffect(() => {
     if (!ExpoLocation) {
@@ -51,6 +55,7 @@ export function useDeviceLocation(): UseDeviceLocationResult {
     }
 
     let cancelled = false;
+    setStatus('pending');
 
     async function request(): Promise<void> {
       try {
@@ -86,7 +91,14 @@ export function useDeviceLocation(): UseDeviceLocationResult {
     return () => {
       cancelled = true;
     };
-  }, []);
+  // triggerCount drives both the initial run and any manual retriggers.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [triggerCount]);
 
-  return { location, status };
+  return {
+    location,
+    status,
+    // useState setters are stable references — this inline fn is safe to use as a handler.
+    requestLocation: () => setTriggerCount((n) => n + 1),
+  };
 }
