@@ -22,7 +22,8 @@
       "adaptiveIcon": {
         "backgroundColor": "#000000"
       },
-      "package": "com.fomo.mobile"
+      "package": "com.fomo.mobile",
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
     },
     "web": {
       "bundler": "metro",
@@ -35,6 +36,12 @@
         "@rnmapbox/maps",
         {
           "RNMapboxMapsImpl": "mapbox"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow FOMO to use your location to show events near you."
         }
       ]
     ],

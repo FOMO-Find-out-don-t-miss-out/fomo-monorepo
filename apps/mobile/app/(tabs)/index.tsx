@@ -4,12 +4,10 @@ import { EventDetails } from '../../components/fomo/event-details';
 import { FomoMap } from '../../components/fomo/fomo-map';
 import { NeonGrid } from '../../components/fomo/neon-grid';
 import { SearchBar } from '../../components/fomo/search-bar';
+import { useDeviceLocation } from '../../hooks/use-device-location';
 import { useDiscovery } from '../../hooks/use-discovery';
-import {
-  DEFAULT_DISCOVERY_LAT,
-  DEFAULT_DISCOVERY_LNG,
-  DEFAULT_DISCOVERY_RADIUS,
-} from '../../utils/location-config';
+import { DEFAULT_DISCOVERY_RADIUS } from '../../utils/location-config';
+import { haversineKm, formatDistanceKm, hasValidCoords } from '../../utils/geo';
 import type { UiEvent } from '../../types/ui';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -29,10 +27,6 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = 260;
 const CARD_GAP   = 16;
 
-// Coordinates come from utils/location-config (reads EXPO_PUBLIC_DEFAULT_* env vars).
-// Athens defaults are used for staging; swap via .env for other cities.
-// TODO: replace with real device location once expo-location is wired up.
-
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function DiscoveryScreen() {
@@ -41,15 +35,35 @@ export default function DiscoveryScreen() {
   const [searchText, setSearchText] = useState('');
   const [activeCategories, setActiveCategories] = useState<string[]>([]);
 
+  // Device location — falls back to env defaults when denied/unavailable.
+  const { location, status: locationStatus } = useDeviceLocation();
+
+  // Discovery fetches from the real API using device coords (or defaults).
+  // Re-fetches automatically when location.lat/lng change (default → real).
   const { events, loading, error, refetch } = useDiscovery({
-    lat: DEFAULT_DISCOVERY_LAT,
-    lng: DEFAULT_DISCOVERY_LNG,
+    lat: location.lat,
+    lng: location.lng,
     radiusKm: DEFAULT_DISCOVERY_RADIUS,
   });
 
+  // Attach computed distance to every event based on current origin.
+  const eventsWithDistance = useMemo(
+    () =>
+      events.map((e) => ({
+        ...e,
+        distance:
+          hasValidCoords(e.lat, e.lng)
+            ? formatDistanceKm(
+                haversineKm(location.lat, location.lng, e.lat!, e.lng!),
+              )
+            : undefined,
+      })),
+    [events, location.lat, location.lng],
+  );
+
   // Client-side filter: text matches title or venue; categories match UiEventCategory (lowercase).
   const filteredEvents = useMemo(() => {
-    let result = events;
+    let result = eventsWithDistance;
     const q = searchText.trim().toLowerCase();
     if (q) {
       result = result.filter(
@@ -64,7 +78,7 @@ export default function DiscoveryScreen() {
       );
     }
     return result;
-  }, [events, searchText, activeCategories]);
+  }, [eventsWithDistance, searchText, activeCategories]);
 
   const handleFilterChange = useCallback((filters: string[]) => {
     setActiveCategories(filters);
@@ -95,8 +109,14 @@ export default function DiscoveryScreen() {
   return (
     <View style={styles.screen}>
 
-      {/* Layer 0: Mapbox — bottom-most; shares staging defaults as discovery */}
-      <FomoMap centerLat={DEFAULT_DISCOVERY_LAT} centerLng={DEFAULT_DISCOVERY_LNG} />
+      {/* Layer 0: Mapbox — uses same coords as discovery; shows event pins + user dot */}
+      <FomoMap
+        centerLat={location.lat}
+        centerLng={location.lng}
+        events={eventsWithDistance}
+        selectedEventId={selectedEvent?.id ?? null}
+        showUserLocation={locationStatus === 'granted'}
+      />
 
       {/* Layer 1: neon grid overlay */}
       <NeonGrid />

@@ -93,37 +93,71 @@ pnpm --filter @fomo/mobile start:clear
 
 **Conclusion: a dev build is required.** Expo Go will render a dark placeholder instead of the Mapbox map but all other screens (Search, Saved, Profile) and the event carousel work.
 
-## What Discover V1 Supports
+## What Discover V1 + FOMO-168 Map/Location Foundation Supports
 
-On boot the Discover tab calls:
+On boot the Discover tab:
+1. Requests foreground location permission via `expo-location`
+2. If **granted**: uses real device coordinates for discovery API and map camera
+3. If **denied/unavailable**: falls back to `EXPO_PUBLIC_DEFAULT_LAT/LNG` (Athens for staging)
+
+Discovery endpoint:
 ```
 GET /api/v1/events/discovery?lat=<LAT>&lng=<LNG>&radius_km=<RADIUS>
 ```
-Coordinates are read from `EXPO_PUBLIC_DEFAULT_LAT/LNG/RADIUS_KM` at Metro bundle time
-via `apps/mobile/utils/location-config.ts`. The map initial camera uses the **same values**,
-so the map and the API query always point to the same city.
-Staging defaults to central Athens (37.9838, 23.7275, 50 km) where current events live.
+Coordinates come from `useDeviceLocation` (real or default). The map camera always uses the same origin. Distance from origin is computed client-side (Haversine) and shown on cards/detail sheets.
 
 | Feature | Status | Notes |
 |---|---|---|
-| Event card carousel (map view) | ✅ Real data | Title, venue, date/time, category, cover image |
+| Event card carousel (map view) | ✅ Real data | Title, venue, date/time, category, cover image, distance |
 | Calendar date strip + event list | ✅ Real data | Filtered by selected date |
-| Event details bottom sheet | ✅ Real data | Category badge, hype badge (when score ≥ 70) |
+| Event details bottom sheet | ✅ Real data | Category badge, hype badge (when score ≥ 70), distance |
 | "Get Tickets" / "View Source" CTA | ✅ Real | Opens `ticket_url ?? source_url` in browser; hidden when absent |
 | Share button | ✅ Real | Native share sheet with event title + source URL |
+| Directions | ✅ Real | `maps/dir/?destination=<lat>,<lng>`; hidden when coords missing/invalid |
 | Text search | ✅ Client-side | Filters loaded events by title or venue name |
 | Category chips | ✅ Client-side | Filters events by real API category |
 | Loading / error / empty states | ✅ | Spinner, retry button, contextual messages |
-| Map camera | ✅ | Centered on same coords as API query |
-| Directions | ✅ Real | Opens Google Maps at event lat/lng; hidden when coordinates are missing or invalid |
-| Map event pins | ❌ Deferred | FOMO-168 |
-| Device location | ❌ Deferred | FOMO-168: `expo-location` + permission flow |
+| Device location permission | ✅ FOMO-168 | Foreground permission request on first open |
+| Location fallback | ✅ FOMO-168 | Falls back to env defaults when denied/unavailable |
+| Map camera | ✅ FOMO-168 | Follows device location (or default); animates to selected event |
+| Event pins on map | ✅ FOMO-168 | Purple circle per event with valid coordinates |
+| Selected event pin | ✅ FOMO-168 | Magenta highlight; camera zooms to event |
+| User location dot | ✅ FOMO-168 | Mapbox native blue dot; only shown when permission granted |
+| Distance computation | ✅ FOMO-168 | Haversine km from origin; shown on cards when available |
+| Map pin clustering | ❌ Deferred | Future task |
+| Map-area search / pan-to-load | ❌ Deferred | Future task |
 | Search results list | ❌ Deferred | FOMO-172: real-time search with server-side query |
 | Auth / saved events / profile | ❌ Deferred | Requires OIDC flow |
 | Heart / Save action | ❌ Deferred | Requires auth + backend endpoint |
 | Attendee count | ❌ Not shown | No API field |
 | Price | ❌ Not shown | No API field |
 | FOMO-owned deep links | ❌ Deferred | Share currently uses raw source URL; app-owned event URLs TBD |
+
+## Location Permission Behavior
+
+| State | Discovery coords | Map camera | User dot | Distance |
+|---|---|---|---|---|
+| `pending` | default (env) | default | hidden | from default origin |
+| `granted` | real device | real device → refetches | shown | from device |
+| `denied` | default (env) | default | hidden | from default origin |
+| `unavailable` / `error` | default (env) | default | hidden | from default origin |
+
+The permission dialog appears on **first launch** only. The app remains fully usable in all states — denial just means Athens-default discovery until the user grants permission.
+
+## Map Pins Behavior
+
+- One purple circle (`#A855F7`) per event with valid lat/lng
+- Events with missing, NaN, or both-zero coordinates get no pin
+- Selected event gets a larger magenta circle (`#BC13FE`) on a separate layer (renders on top)
+- No clustering in this iteration (future task)
+
+## Directions Behavior
+
+Opens `https://www.google.com/maps/dir/?api=1&destination=<lat>,<lng>`.
+
+- Uses the device's current location as origin in Google Maps (no origin parameter needed)
+- Hidden when event has no valid coordinates
+- Not routed turn-by-turn from our app — Google Maps handles routing from device location
 
 ## Intentionally Hidden / Deferred UI
 
@@ -132,8 +166,8 @@ Staging defaults to central Athens (37.9838, 23.7275, 50 km) where current event
 - **"High Hype" badge**: only shown when `hype_score ≥ 70`. Most ingested events have score 0 — correct behaviour.
 - **Price**: not shown — no price field on `EventDiscoveryResponse`.
 - **Card label**: "View Tickets" → "View Details" — the card CTA opens the detail sheet, not a ticket URL.
-- **Map pins / clustering**: deferred to FOMO-168. The map is a styled backdrop.
-- **Directions**: available in the detail sheet when the event has valid coordinates (both lat/lng present, neither NaN, not both zero). Opens `https://www.google.com/maps/search/?api=1&query=<lat>,<lng>` — shows the venue on Google Maps, not a routed turn-by-turn from device location. Turn-by-turn routing (using device origin) is deferred to FOMO-168.
+- **Map pin clustering**: deferred. Events render individually; high-density areas will overlap.
+- **Map-area search / pan-to-load**: deferred. Discovery only fetches once per origin; panning the map does not trigger a new query.
 - **Share**: uses `ticket_url ?? source_url` as the share URL. Once FOMO-owned public event detail pages exist, Share should use those app-owned URLs instead of raw scraper sources.
 - **Search results list**: the current search input filters the already-loaded carousel in-place. A real-time query against the API with a results list belongs to FOMO-172 Mobile Search and Filters.
 
@@ -141,14 +175,15 @@ Staging defaults to central Athens (37.9838, 23.7275, 50 km) where current event
 
 | # | Limitation | Follow-up |
 |---|---|---|
-| 1 | Discovery uses configurable env-var coords (Athens default) — not real device location | FOMO-168: `expo-location` + permission flow |
-| 2 | Directions shows venue on map, not turn-by-turn from device location | FOMO-168: routing once device location is available |
-| 3 | Map is a static backdrop — no event pins or clustering | FOMO-168 |
-| 4 | No auth wiring | Port FOMO-147/151 patterns from dashboard |
-| 5 | Mapbox token in `.env` should be `pk.*` not `sk.*` | Replace in local `.env`; never commit |
-| 6 | Search/Saved/Profile tabs are stub screens | Future iterations |
-| 7 | No pagination on discovery endpoint | Backend + mobile work required |
-| 8 | Calendar date matching uses local timezone — UTC events near midnight may appear on wrong date | Fix date parsing to use UTC display |
+| 1 | Staging events are in Athens; if device location is in another city, events list will be empty | Use env defaults or grant permission while in Athens |
+| 2 | Directions uses device location as Google Maps origin, but app has no turn-by-turn routing | Future: compute route from device coords in-app |
+| 3 | Map pins do not cluster — overlapping events in dense areas are hard to tap | Future clustering task |
+| 4 | Map-area panning does not refetch events for new area | Future: pan-to-load |
+| 5 | No auth wiring | Port FOMO-147/151 patterns from dashboard |
+| 6 | Mapbox token in `.env` should be `pk.*` not `sk.*` | Replace in local `.env`; never commit |
+| 7 | Search/Saved/Profile tabs are stub screens | Future iterations |
+| 8 | No pagination on discovery endpoint | Backend + mobile work required |
+| 9 | Calendar date matching uses local timezone — UTC events near midnight may appear on wrong date | Fix date parsing to use UTC display |
 
 ## Troubleshooting
 

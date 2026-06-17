@@ -23,6 +23,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { hasValidCoords } from '../../utils/geo';
 import type { Event, EventCategory } from '../../types/ui';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -48,20 +49,10 @@ function ctaUrl(event: Event): string | null {
   return event.ticketUrl ?? event.sourceUrl ?? null;
 }
 
-function hasValidCoordinates(event: Event): boolean {
-  const { lat, lng } = event;
-  return (
-    typeof lat === 'number' &&
-    typeof lng === 'number' &&
-    !Number.isNaN(lat) &&
-    !Number.isNaN(lng) &&
-    !(lat === 0 && lng === 0)
-  );
-}
-
 async function openDirections(event: Event): Promise<void> {
-  if (!hasValidCoordinates(event)) return;
-  const url = `https://www.google.com/maps/search/?api=1&query=${event.lat},${event.lng}`;
+  if (!hasValidCoords(event.lat, event.lng)) return;
+  // dir/ with destination uses device location as origin — better than search/ which just plots the pin.
+  const url = `https://www.google.com/maps/dir/?api=1&destination=${event.lat},${event.lng}`;
   try {
     await Linking.openURL(url);
   } catch {
@@ -121,7 +112,7 @@ export function EventDetails({ event, onClose }: EventDetailsProps) {
     : CATEGORY_COLORS.Music;
 
   const url = event ? ctaUrl(event) : null;
-  const canOpenDirections = event ? hasValidCoordinates(event) : false;
+  const canOpenDirections = event ? hasValidCoords(event.lat, event.lng) : false;
 
   return (
     <Modal
