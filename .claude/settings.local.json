@@ -118,7 +118,26 @@
       "Bash(git -C C:\\\\fomo-monorepo status -uall)",
       "PowerShell(git *)",
       "Bash(echo \"TSC_EXIT:$?\")",
-      "Bash(adb devices *)"
+      "Bash(adb devices *)",
+      "Bash(findstr -E \"\\(event|schema\\)\")",
+      "Bash(grep -A 20 '\"\\\\/api\\\\/v1\\\\/events\\\\/{event_id}\"' C:/fomo-monorepo/packages/api-spec/openapi.json)",
+      "Bash(git push *)",
+      "Skill(run)",
+      "Bash(adb logcat *)",
+      "Bash(adb shell *)",
+      "Bash(adb install *)",
+      "Bash(xargs -I {} sh -c 'jar tf \"$1\" 2>/dev/null | grep -q CryptoModule && echo \"$1\"' _ {})",
+      "Bash(xargs -I '{}' python -c ' *)",
+      "Bash(grep -v \"^#\\\\|//\\\\|Binary\\\\|buildscript\")",
+      "PowerShell(\\(Get-Item C:\\\\fomo-monorepo\\\\apps\\\\mobile\\\\node_modules\\\\expo-auth-session\\).Target; \\(Get-Item C:\\\\fomo-monorepo\\\\apps\\\\mobile\\\\node_modules\\\\expo-secure-store\\).Target; \\(Get-Item C:\\\\fomo-monorepo\\\\apps\\\\mobile\\\\node_modules\\\\expo-web-browser\\).Target)",
+      "PowerShell(Remove-Item *)",
+      "PowerShell(Read-Host *)",
+      "PowerShell(adb install *)",
+      "PowerShell(adb shell *)",
+      "PowerShell(adb logcat -d --pid=$\\(adb shell pidof com.fomo.mobile\\) 2>$null | Select-String \"FATAL|AndroidRuntime|NoClassDef|AnyTypeCache|CryptoModule|Error\" | Select-Object -First 20)",
+      "PowerShell(Select-String *)",
+      "PowerShell(Start-Sleep -Seconds 3; adb logcat -d --pid=$\\(adb shell pidof com.fomo.mobile\\) 2>$null | Select-String \"ReactNativeJS|Error|WARN\" | Select-String -NotMatch \"SchedAssist|Oplus|Mapbox|nativeloader|jni_lib|Dynamite|OplusActivity|OplusApp|OplusPredic|OplusScroll|VMRuntime|BridgelessReact|Packager connection\" | Select-Object -First 20)",
+      "PowerShell(cd C:\\\\fomo-monorepo; git add apps/mobile/.env.example apps/mobile/app.json apps/mobile/app/\\(tabs\\)/profile.tsx apps/mobile/app/_layout.tsx apps/mobile/package.json pnpm-lock.yaml apps/mobile/hooks/use-auth.ts apps/mobile/providers/ apps/mobile/utils/auth-client.ts docs/mobile/mobile-auth-keycloak.md)"
     ]
   }
 }

@@ -28,19 +28,26 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   const segments = useSegments();
   const router = useRouter();
 
+  const onLoginScreen = segments[0] === 'login';
+
   useEffect(() => {
     if (isLoading) return;
-    const onLoginScreen = segments[0] === 'login';
     if (!isAuthenticated && !onLoginScreen) {
       router.replace('/login');
     } else if (isAuthenticated && onLoginScreen) {
       router.replace('/');
     }
-  }, [isAuthenticated, isLoading, segments, router]);
+  }, [isAuthenticated, isLoading, onLoginScreen, router]);
 
-  // Hold a loading view until session restore completes — prevents any flash
-  // of tab content before the auth state is known.
-  if (isLoading) {
+  // Hold the spinner while loading OR while a redirect is still pending.
+  // Without this, children render for one frame before the useEffect redirect
+  // fires — enough to mount a MapView that then immediately unmounts, which
+  // causes Mapbox ViewTagResolver errors.
+  const redirectPending =
+    !isLoading &&
+    ((!isAuthenticated && !onLoginScreen) || (isAuthenticated && onLoginScreen));
+
+  if (isLoading || redirectPending) {
     return (
       <View style={{ flex: 1, backgroundColor: '#0B0B0F', alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color="#A855F7" size="large" />

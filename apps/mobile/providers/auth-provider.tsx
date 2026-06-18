@@ -74,13 +74,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Keycloak OIDC discovery (fetches /.well-known/openid-configuration)
   const discovery = AuthSession.useAutoDiscovery(ISSUER);
 
-  const redirectUri = AuthSession.makeRedirectUri({ scheme: REDIRECT_SCHEME });
+  // Must match Keycloak fomo-mobile client's valid redirect URI.
+  // Provisioned in fomo-platform: fomo://auth/callback
+  const redirectUri = AuthSession.makeRedirectUri({ scheme: REDIRECT_SCHEME, path: 'auth/callback' });
 
-  // Log redirect URI in dev to confirm Keycloak config — NEVER log tokens.
-  if (__DEV__) {
-    // eslint-disable-next-line no-console
-    console.log('[auth] redirect URI:', redirectUri);
-  }
+  useEffect(() => {
+    if (__DEV__) console.log('[auth] redirect URI:', redirectUri);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [request, , promptAsync] = AuthSession.useAuthRequest(
     {
