@@ -10,10 +10,11 @@ import {
   Ticket,
   X,
 } from 'lucide-react-native';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
+  Easing,
   Linking,
   Modal,
   Pressable,
@@ -45,43 +46,29 @@ const CATEGORY_COLORS: Record<EventCategory, { border: string; text: string }> =
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function ctaUrl(event: Event): string | null {
-  return event.ticketUrl ?? event.sourceUrl ?? null;
-}
-
 async function openDirections(event: Event): Promise<void> {
   if (!hasValidCoords(event.lat, event.lng)) return;
-  // dir/ with destination uses device location as origin — better than search/ which just plots the pin.
   const url = `https://www.google.com/maps/dir/?api=1&destination=${event.lat},${event.lng}`;
-  try {
-    await Linking.openURL(url);
-  } catch {
-    // silently ignore — openURL failures are non-fatal
-  }
+  try { await Linking.openURL(url); } catch {}
 }
 
 async function openUrl(url: string): Promise<void> {
   try {
     const supported = await Linking.canOpenURL(url);
     if (supported) await Linking.openURL(url);
-  } catch {
-    // silently ignore — user will see nothing happen, not a crash
-  }
+  } catch {}
 }
 
 async function shareEvent(event: Event): Promise<void> {
-  const url = ctaUrl(event);
+  const url = event.ticketUrl ?? event.sourceUrl ?? null;
   try {
     await Share.share({
       title: event.title,
       message: url ? `${event.title} — ${url}` : event.title,
       url: url ?? undefined,
     });
-  } catch {
-    // dismissed or unsupported
-  }
+  } catch {}
 }
-
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -93,51 +80,88 @@ interface EventDetailsProps {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function EventDetails({ event, onClose }: EventDetailsProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const isClosingRef = useRef(false);
+
   const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const sheetTranslateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
+
+  // Keep content visible during the exit animation even when event becomes null.
+  const prevEventRef = useRef<Event | null>(null);
+  if (event) prevEventRef.current = event;
+  const displayEvent = event ?? prevEventRef.current;
+
+  function animateOut(callback?: () => void) {
+    if (isClosingRef.current) return;
+    isClosingRef.current = true;
+    Animated.parallel([
+      Animated.timing(backdropOpacity, { toValue: 0, duration: 180, useNativeDriver: true }),
+      Animated.timing(sheetTranslateY, {
+        toValue: SHEET_HEIGHT,
+        duration: 220,
+        easing: Easing.in(Easing.poly(3)),
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      isClosingRef.current = false;
+      setIsOpen(false);
+      callback?.();
+    });
+  }
+
+  function handleClose() {
+    animateOut(onClose);
+  }
 
   useEffect(() => {
-    if (event) {
-      Animated.timing(backdropOpacity, {
-        toValue: 1,
-        duration: 220,
-        useNativeDriver: true,
-      }).start();
-    } else {
+    if (event && !isOpen && !isClosingRef.current) {
+      setIsOpen(true);
+      sheetTranslateY.setValue(SHEET_HEIGHT);
       backdropOpacity.setValue(0);
+      Animated.parallel([
+        Animated.timing(backdropOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.timing(sheetTranslateY, {
+          toValue: 0,
+          duration: 300,
+          easing: Easing.out(Easing.poly(4)),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else if (!event && isOpen && !isClosingRef.current) {
+      animateOut();
     }
-  }, [event, backdropOpacity]);
+  }, [event, isOpen]);
 
-  const catColors = event
-    ? CATEGORY_COLORS[event.category]
+  const catColors = displayEvent
+    ? CATEGORY_COLORS[displayEvent.category]
     : CATEGORY_COLORS.Music;
 
-  const url = event ? ctaUrl(event) : null;
-  const canOpenDirections = event ? hasValidCoords(event.lat, event.lng) : false;
+  const canOpenDirections = displayEvent ? hasValidCoords(displayEvent.lat, displayEvent.lng) : false;
 
   return (
     <Modal
-      visible={event !== null}
+      visible={isOpen}
       transparent
-      animationType="slide"
+      animationType="none"
       statusBarTranslucent
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
     >
       <View style={styles.overlay}>
 
-        {/* Backdrop */}
+        {/* Backdrop — covers entire screen, fades in/out independently of sheet */}
         <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
         </Animated.View>
 
-        {/* Bottom sheet */}
-        <View style={styles.sheet}>
+        {/* Bottom sheet — slides up from below the visible area */}
+        <Animated.View style={[styles.sheet, { transform: [{ translateY: sheetTranslateY }] }]}>
           <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
 
-          {event && (
+          {displayEvent && (
             <>
               <View style={styles.handleBar} />
 
-              <Pressable style={styles.closeBtn} onPress={onClose} hitSlop={8}>
+              <Pressable style={styles.closeBtn} onPress={handleClose} hitSlop={8}>
                 <X size={16} color="rgba(255,255,255,0.7)" strokeWidth={1.5} />
               </Pressable>
 
@@ -147,14 +171,14 @@ export function EventDetails({ event, onClose }: EventDetailsProps) {
                 showsVerticalScrollIndicator={false}
                 bounces={false}
               >
-                {/* Header: category badge + hype badge (only when high) */}
+                {/* Header: category badge + hype badge */}
                 <View style={styles.badgeRow}>
                   <View style={[styles.categoryBadge, { borderColor: catColors.border }]}>
                     <Text style={[styles.categoryText, { color: catColors.text }]}>
-                      {event.category}
+                      {displayEvent.category}
                     </Text>
                   </View>
-                  {event.hypeLevel === 'high' && (
+                  {displayEvent.hypeLevel === 'high' && (
                     <View style={styles.hypeBadge}>
                       <Star size={10} color="#A855F7" fill="#A855F7" strokeWidth={1.5} />
                       <Text style={styles.hypeText}>High Hype</Text>
@@ -163,14 +187,14 @@ export function EventDetails({ event, onClose }: EventDetailsProps) {
                 </View>
 
                 {/* Title */}
-                <Text style={styles.title}>{event.title}</Text>
+                <Text style={styles.title}>{displayEvent.title}</Text>
 
-                {/* Venue — Directions deferred to FOMO-168 (needs device location) */}
+                {/* Venue + distance */}
                 <View style={styles.venueRow}>
                   <MapPin size={14} color="rgba(255,255,255,0.6)" strokeWidth={1.5} />
-                  <Text style={styles.venueText} numberOfLines={1}>{event.venue}</Text>
-                  {event.distance != null && (
-                    <Text style={styles.distanceText}>({event.distance})</Text>
+                  <Text style={styles.venueText} numberOfLines={1}>{displayEvent.venue}</Text>
+                  {displayEvent.distance != null && (
+                    <Text style={styles.distanceText}>({displayEvent.distance})</Text>
                   )}
                 </View>
 
@@ -178,30 +202,30 @@ export function EventDetails({ event, onClose }: EventDetailsProps) {
                 <View style={styles.pillRow}>
                   <View style={styles.pill}>
                     <Calendar size={14} color="#22D3EE" strokeWidth={1.5} />
-                    <Text style={styles.pillCyan}>{event.date}</Text>
+                    <Text style={styles.pillCyan}>{displayEvent.date}</Text>
                   </View>
                   <View style={styles.pill}>
                     <Clock size={14} color="#22D3EE" strokeWidth={1.5} />
-                    <Text style={styles.pillCyan}>{event.time}</Text>
+                    <Text style={styles.pillCyan}>{displayEvent.time}</Text>
                   </View>
                 </View>
 
-                {/* Action row — Directions (when coords valid) + Share (Heart/Save deferred to post-auth) */}
+                {/* Action row — Directions (when valid coords) + Share */}
                 <View style={styles.actionRow}>
                   {canOpenDirections && (
-                    <Pressable style={styles.actionBtn} onPress={() => openDirections(event)}>
+                    <Pressable style={styles.actionBtn} onPress={() => openDirections(displayEvent)}>
                       <Navigation size={16} color="rgba(255,255,255,0.6)" strokeWidth={1.5} />
                     </Pressable>
                   )}
-                  <Pressable style={styles.actionBtn} onPress={() => shareEvent(event)}>
+                  <Pressable style={styles.actionBtn} onPress={() => shareEvent(displayEvent)}>
                     <Share2 size={16} color="rgba(255,255,255,0.6)" strokeWidth={1.5} />
                   </Pressable>
                 </View>
 
               </ScrollView>
 
-              {/* Get Tickets CTA — only shown when a URL exists */}
-              {url && (
+              {/* Get Tickets CTA — only when ticketUrl is available */}
+              {displayEvent.ticketUrl && (
                 <View style={styles.ctaWrapper}>
                   <LinearGradient
                     colors={CTA_GRADIENT}
@@ -211,19 +235,17 @@ export function EventDetails({ event, onClose }: EventDetailsProps) {
                   >
                     <Pressable
                       style={styles.ctaPressable}
-                      onPress={() => openUrl(url)}
+                      onPress={() => openUrl(displayEvent.ticketUrl!)}
                     >
                       <Ticket size={16} color="#fff" strokeWidth={1.5} />
-                      <Text style={styles.ctaText}>
-                        {event.ticketUrl ? 'Get Tickets' : 'View Source'}
-                      </Text>
+                      <Text style={styles.ctaText}>Get Tickets</Text>
                     </Pressable>
                   </LinearGradient>
                 </View>
               )}
             </>
           )}
-        </View>
+        </Animated.View>
 
       </View>
     </Modal>
@@ -239,11 +261,11 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   sheet: {
     height: SHEET_HEIGHT,
-    backgroundColor: 'rgba(12, 12, 18, 0.88)',
+    backgroundColor: 'rgba(12, 12, 18, 0.95)',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     borderTopWidth: 1,

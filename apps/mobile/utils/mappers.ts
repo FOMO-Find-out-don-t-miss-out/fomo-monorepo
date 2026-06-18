@@ -15,11 +15,8 @@ function formatDate(iso: string): string {
 
 function formatTime(iso: string): string {
   try {
-    return new Date(iso).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
+    const d = new Date(iso);
+    return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
   } catch {
     return '';
   }

@@ -9,10 +9,9 @@ import { DEFAULT_DISCOVERY_RADIUS } from '../../utils/location-config';
 import { haversineKm, formatDistanceKm, hasValidCoords } from '../../utils/geo';
 import type { UiEvent } from '../../types/ui';
 import { LocateFixed } from 'lucide-react-native';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Animated,
   Dimensions,
   Pressable,
   ScrollView,
@@ -132,26 +131,6 @@ export default function DiscoveryScreen() {
 
   const carouselPadding = (SCREEN_WIDTH - CARD_WIDTH) / 2;
 
-  // Fade in the carousel only when *returning* from Calendar view, not on initial mount.
-  // On Android, useNativeDriver animations fail silently when the native view has not been
-  // laid out yet. Setting opacity to 0 on mount leaves the carousel invisible until the
-  // next effect cycle, which only triggers after a Calendar ↔ Map toggle.
-  const carouselOpacity = useRef(new Animated.Value(1)).current;
-  const prevCalendar = useRef(false);
-  useEffect(() => {
-    const wasCalendar = prevCalendar.current;
-    prevCalendar.current = isCalendarView;
-
-    if (!isCalendarView && wasCalendar) {
-      carouselOpacity.setValue(0);
-      Animated.timing(carouselOpacity, {
-        toValue: 1,
-        duration: 240,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [isCalendarView, carouselOpacity]);
-
   // ── Location status icon color for the locate button ─────────────────────
   const locateIconColor =
     locationStatus === 'granted'
@@ -227,54 +206,60 @@ export default function DiscoveryScreen() {
         </View>
       )}
 
-      {/* Layer 3a: Map-view carousel */}
-      {!isCalendarView && (
-        <Animated.View style={[styles.carouselAnchor, { opacity: carouselOpacity }]}>
-          {loading ? (
-            <View style={styles.feedbackContainer}>
-              <ActivityIndicator color="#A855F7" size="small" />
-            </View>
-          ) : error ? (
-            <View style={styles.feedbackContainer}>
-              <Text style={styles.feedbackText}>Could not load events</Text>
-              <Pressable onPress={refetch} style={styles.retryBtn}>
-                <Text style={styles.retryText}>Retry</Text>
-              </Pressable>
-            </View>
-          ) : filteredEvents.length === 0 ? (
-            <View style={styles.feedbackContainer}>
-              <Text style={styles.feedbackText}>
-                {events.length === 0 ? 'No events nearby' : 'No events match your search'}
-              </Text>
-            </View>
-          ) : (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              decelerationRate="fast"
-              snapToInterval={CARD_WIDTH + CARD_GAP}
-              snapToAlignment="center"
-              contentContainerStyle={[
-                styles.carouselContent,
-                { paddingHorizontal: carouselPadding },
-              ]}
-            >
-              {filteredEvents.map((event) => (
-                <EventCard
-                  key={event.id}
-                  event={event}
-                  isActive={selectedEvent?.id === event.id}
-                  onPress={() => setSelectedEvent(event)}
-                />
-              ))}
-            </ScrollView>
-          )}
-        </Animated.View>
-      )}
+      {/* Layer 3a: Map-view carousel — always mounted so EventCard ImageBackgrounds
+          are never torn down and recreated, which caused the 4-5s Android lag.
+          Visibility toggled via opacity + pointerEvents. */}
+      <View
+        pointerEvents={isCalendarView ? 'none' : 'auto'}
+        style={[styles.carouselAnchor, { opacity: isCalendarView ? 0 : 1 }]}
+      >
+        {loading ? (
+          <View style={styles.feedbackContainer}>
+            <ActivityIndicator color="#A855F7" size="small" />
+          </View>
+        ) : error ? (
+          <View style={styles.feedbackContainer}>
+            <Text style={styles.feedbackText}>Could not load events</Text>
+            <Pressable onPress={refetch} style={styles.retryBtn}>
+              <Text style={styles.retryText}>Retry</Text>
+            </Pressable>
+          </View>
+        ) : filteredEvents.length === 0 ? (
+          <View style={styles.feedbackContainer}>
+            <Text style={styles.feedbackText}>
+              {events.length === 0 ? 'No events nearby' : 'No events match your search'}
+            </Text>
+          </View>
+        ) : (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            decelerationRate="fast"
+            snapToInterval={CARD_WIDTH + CARD_GAP}
+            snapToAlignment="center"
+            contentContainerStyle={[
+              styles.carouselContent,
+              { paddingHorizontal: carouselPadding },
+            ]}
+          >
+            {filteredEvents.map((event) => (
+              <EventCard
+                key={event.id}
+                event={event}
+                isActive={selectedEvent?.id === event.id}
+                onPress={() => setSelectedEvent(event)}
+              />
+            ))}
+          </ScrollView>
+        )}
+      </View>
 
-      {/* Layer 3b: Calendar view */}
+      {/* Layer 3b: Calendar view — conditionally mounted (lightweight: no images) */}
       {isCalendarView && (
-        <CalendarView events={filteredEvents} onEventPress={setSelectedEvent} />
+        <CalendarView
+          events={filteredEvents}
+          onEventPress={(e) => setSelectedEvent(e)}
+        />
       )}
 
       {/* Layer 4: details modal */}

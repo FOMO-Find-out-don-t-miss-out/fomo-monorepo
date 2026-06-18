@@ -8,6 +8,7 @@ import {
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,8 +16,6 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-const AnimatedBlurView = Animated.createAnimatedComponent(BlurView);
 
 import {
   DateStripPicker,
@@ -128,21 +127,18 @@ export function CalendarView({ events, onEventPress }: CalendarViewProps) {
     [events, selectedDate],
   );
 
-  // Fade in when the calendar view mounts.
-  const viewOpacity = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(viewOpacity, {
-      toValue: 1,
-      duration: 260,
-      useNativeDriver: true,
-    }).start();
-  }, [viewOpacity]);
-
   // Fade list when selectedDate changes + reset scroll.
+  // Skip on the very first render so the list is immediately visible when
+  // the calendar opens — the setValue(0) would otherwise leave it blank.
   const listRef = useRef<ScrollView>(null);
   const listOpacity = useRef(new Animated.Value(1)).current;
+  const isFirstRender = useRef(true);
   useEffect(() => {
     listRef.current?.scrollTo({ y: 0, animated: false });
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     listOpacity.setValue(0);
     Animated.timing(listOpacity, {
       toValue: 1,
@@ -152,17 +148,26 @@ export function CalendarView({ events, onEventPress }: CalendarViewProps) {
   }, [selectedDate, listOpacity]);
 
   return (
-    <Animated.View
+    <View
       pointerEvents="box-none"
-      style={[StyleSheet.absoluteFillObject, { opacity: viewOpacity }]}
+      style={StyleSheet.absoluteFillObject}
     >
-      {/* Backdrop — dims the map/grid behind so the glass surfaces read clearly */}
-      <AnimatedBlurView
-        pointerEvents="none"
-        tint="dark"
-        intensity={40}
-        style={[StyleSheet.absoluteFillObject, styles.backdrop]}
-      />
+      {/* Backdrop — dims the map behind the glass surfaces.
+          BlurView is GPU-intensive to mount/unmount on Android so use a plain
+          dark overlay there; iOS keeps the frosted-glass effect. */}
+      {Platform.OS === 'ios' ? (
+        <BlurView
+          pointerEvents="none"
+          tint="dark"
+          intensity={40}
+          style={[StyleSheet.absoluteFillObject, styles.backdrop]}
+        />
+      ) : (
+        <View
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFillObject, styles.backdrop]}
+        />
+      )}
 
       {/* Content column — sits below the SearchBar, above the tab bar */}
       <View
@@ -218,7 +223,7 @@ export function CalendarView({ events, onEventPress }: CalendarViewProps) {
           )}
         </Animated.View>
       </View>
-    </Animated.View>
+    </View>
   );
 }
 

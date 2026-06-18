@@ -93,6 +93,58 @@ pnpm --filter @fomo/mobile start:clear
 
 **Conclusion: a dev build is required.** Expo Go will render a dark placeholder instead of the Mapbox map but all other screens (Search, Saved, Profile) and the event carousel work.
 
+## Event Detail Screen (FOMO-169)
+
+### Route
+
+`/event/[id]` — a Stack screen pushed on top of the Discover tab. Reachable from:
+
+- **Event card** (carousel, map view) — direct navigation to detail screen
+- **Calendar list item** — direct navigation to detail screen
+- **Map pin bottom-sheet** — via "Full Details →" link in the action row
+
+### Backend
+
+`GET /api/v1/events/{event_id}` — returns `EventDiscoveryResponse` (same schema as discovery).
+Public endpoint (no auth required). Returns 404 if event is not live/public.
+
+### Fields on detail screen
+
+| Field | Source | Notes |
+|---|---|---|
+| Title | `title` | Always shown |
+| Hero image | `photo_url` | Shown when present; dark gradient placeholder when absent |
+| Category badge | `category` | Colored border/text per category |
+| High Hype badge | `hype_score ≥ 70` | Only shown when truly high |
+| Venue | `location_name` | "TBA" fallback |
+| Distance | computed (Haversine) | Shown when device location granted |
+| Date | `start_time` formatted | |
+| Time | `start_time` formatted | |
+| Directions | `lat/lng` | Hidden when coordinates invalid/missing |
+| Share | `title + source_url` | Native share sheet |
+| Source domain | `source_url` | Extracted hostname (e.g. "more.com") |
+| Get Tickets | `ticket_url` | Hidden when absent |
+| View Source | `source_url` | Fallback CTA when no ticket_url |
+
+### Fields intentionally absent
+
+| Field | Why |
+|---|---|
+| Description | No `description` field in `EventDiscoveryResponse` — deferred |
+| Attendee count | No API field |
+| Price | No API field |
+| End time | Not mapped in `UiEvent`; shown as follow-up when needed |
+| Save/Interested/Going | Requires auth — deferred |
+| Comments/social | Deferred |
+
+### Navigation
+
+- Back button (top-left, always visible)
+- Share button (top-right in hero area)
+- Android hardware back works via Stack
+
+---
+
 ## What Discover V1 + FOMO-168 Map/Location Foundation Supports
 
 On boot the Discover tab:
@@ -108,9 +160,10 @@ Coordinates come from `useDeviceLocation` (real or default). The map camera alwa
 
 | Feature | Status | Notes |
 |---|---|---|
-| Event card carousel (map view) | ✅ Real data | Title, venue, date/time, category, cover image, distance |
-| Calendar date strip + event list | ✅ Real data | Filtered by selected date |
-| Event details bottom sheet | ✅ Real data | Category badge, hype badge (when score ≥ 70), distance |
+| Event card carousel (map view) | ✅ Real data | Tapping navigates to full detail screen |
+| Calendar date strip + event list | ✅ Real data | Tapping navigates to full detail screen |
+| Event detail screen | ✅ FOMO-169 | Full-screen route `/event/[id]`; fetches from `GET /api/v1/events/{id}` |
+| Map pin → bottom sheet preview | ✅ Real data | "Full Details →" link opens detail screen |
 | "Get Tickets" / "View Source" CTA | ✅ Real | Opens `ticket_url ?? source_url` in browser; hidden when absent |
 | Share button | ✅ Real | Native share sheet with event title + source URL |
 | Directions | ✅ Real | `maps/dir/?destination=<lat>,<lng>`; hidden when coords missing/invalid |
