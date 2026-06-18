@@ -13,6 +13,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
 import { View } from 'react-native';
+import { AuthProvider } from '../providers/auth-provider';
 
 // Hold the splash screen until Inter fonts are ready
 SplashScreen.preventAutoHideAsync();
@@ -36,11 +37,13 @@ export default function RootLayout() {
   if (!fontsLoaded && !fontError) return null;
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#0B0B0F' }}>
-      <StatusBar style="light" />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" />
-      </Stack>
-    </View>
+    <AuthProvider>
+      <View style={{ flex: 1, backgroundColor: '#0B0B0F' }}>
+        <StatusBar style="light" />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" />
+        </Stack>
+      </View>
+    </AuthProvider>
   );
 }

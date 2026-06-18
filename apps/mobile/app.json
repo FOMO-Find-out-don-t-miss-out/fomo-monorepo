@@ -43,7 +43,8 @@
         {
           "locationWhenInUsePermission": "Allow FOMO to use your location to show events near you."
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": false
