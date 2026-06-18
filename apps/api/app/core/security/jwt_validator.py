@@ -3,9 +3,10 @@ JWT validation for Keycloak-issued access tokens.
 
 Validation strategy
 -------------------
-1. Signature   — RS256, verified against Keycloak JWKS endpoint.
-2. Expiry      — enforced by PyJWT (exp claim).
-3. Issuer      — iss must equal AUTH_OIDC_ISSUER.
+1. Issuer      — iss extracted without verification, then checked against
+                 oidc_allowed_issuers_list (AUTH_OIDC_ISSUER + AUTH_OIDC_EXTRA_ISSUERS).
+2. Signature   — RS256, verified against the issuer's JWKS endpoint.
+3. Expiry      — enforced by PyJWT (exp claim).
 4. Audience    — if AUTH_OIDC_ALLOWED_AUDIENCES is configured, aud must contain
                  at least one of those values.  Keycloak public clients often
                  omit the client_id from aud, so audience validation is optional.
@@ -13,29 +14,46 @@ Validation strategy
                  list.  Keycloak sets azp to the client that requested the token;
                  this is more reliable than aud for public clients.
 
-FOMO-148 will handle user / profile sync; this module only validates the token.
-RBAC (role enforcement) is intentionally out of scope for FOMO-147.
+Multi-issuer support: both fomo-admin (dashboard) and fomo-users (mobile) realm
+tokens are accepted when both issuers are listed in the allowed issuers config.
 """
 
 import jwt
 
 from app.core.config import settings
-from app.core.security.jwks import get_jwks_client
+from app.core.security.jwks import get_jwks_client_for_issuer
 
 
 def validate_access_token(token: str) -> dict:
     """Validate a Keycloak Bearer access token and return its decoded claims.
 
     Raises:
-        RuntimeError: AUTH_OIDC_ISSUER not configured (server misconfiguration).
+        RuntimeError: no issuers configured (server misconfiguration).
         jwt.ExpiredSignatureError: token has expired.
-        jwt.InvalidTokenError: signature invalid, issuer wrong, malformed, or
-                               azp/audience policy violation.
+        jwt.InvalidTokenError: signature invalid, issuer not allowed, malformed,
+                               or azp/audience policy violation.
     """
-    if not settings.AUTH_OIDC_ISSUER:
-        raise RuntimeError("AUTH_OIDC_ISSUER is required when AUTH_OIDC_ENABLED=true")
+    allowed_issuers = settings.oidc_allowed_issuers_list
+    if not allowed_issuers:
+        raise RuntimeError(
+            "No OIDC issuers configured. Set AUTH_OIDC_ISSUER (and optionally "
+            "AUTH_OIDC_EXTRA_ISSUERS) when AUTH_OIDC_ENABLED=true."
+        )
 
-    client = get_jwks_client()
+    # Decode issuer without signature verification to route to the right JWKS client.
+    # The iss claim is re-validated with full verification below.
+    try:
+        unverified: dict = jwt.decode(token, options={"verify_signature": False})
+        token_issuer: str = unverified.get("iss", "")
+    except jwt.InvalidTokenError as exc:
+        raise jwt.InvalidTokenError(f"Cannot decode token: {exc}") from exc
+
+    if token_issuer not in allowed_issuers:
+        raise jwt.InvalidTokenError(
+            f"Token issuer {token_issuer!r} is not in the list of allowed issuers"
+        )
+
+    client = get_jwks_client_for_issuer(token_issuer)
 
     try:
         signing_key = client.get_signing_key_from_jwt(token)
@@ -48,7 +66,7 @@ def validate_access_token(token: str) -> dict:
         token,
         signing_key.key,
         algorithms=["RS256"],
-        issuer=settings.AUTH_OIDC_ISSUER,
+        issuer=token_issuer,
         audience=audiences if audiences else None,
         options={
             "verify_signature": True,

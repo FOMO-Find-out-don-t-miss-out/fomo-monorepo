@@ -22,17 +22,14 @@ export default function ProfileScreen() {
     );
   }
 
+  // Auth gate in _layout.tsx should redirect unauthenticated users to /login.
+  // This fallback handles any edge case where the tab is reached without auth.
   if (!isAuthenticated) {
     return (
       <View style={[styles.center, { paddingTop: insets.top }]}>
         <User size={48} color="rgba(255,255,255,0.2)" strokeWidth={1} />
         <Text style={styles.heading}>Sign in to FOMO</Text>
-        <Text style={styles.sub}>
-          Log in to access your profile and personalized features.
-        </Text>
-
         {authError ? <Text style={styles.error}>{authError}</Text> : null}
-
         <Pressable style={styles.loginBtn} onPress={login}>
           <LogIn size={18} color="#fff" strokeWidth={1.5} />
           <Text style={styles.loginBtnText}>Log In</Text>

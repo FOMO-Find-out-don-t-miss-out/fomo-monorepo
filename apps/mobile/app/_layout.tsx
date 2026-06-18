@@ -8,15 +8,50 @@ import {
   Inter_800ExtraBold,
 } from '@expo-google-fonts/inter';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { useRouter, useSegments, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
-import { View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { AuthProvider } from '../providers/auth-provider';
+import { useAuth } from '../hooks/use-auth';
 
 // Hold the splash screen until Inter fonts are ready
 SplashScreen.preventAutoHideAsync();
+
+// ── Auth gate ─────────────────────────────────────────────────────────────────
+// Runs inside <AuthProvider> so it can call useAuth().
+// Redirects unauthenticated users to /login and authenticated users away from it.
+
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isLoading) return;
+    const onLoginScreen = segments[0] === 'login';
+    if (!isAuthenticated && !onLoginScreen) {
+      router.replace('/login');
+    } else if (isAuthenticated && onLoginScreen) {
+      router.replace('/');
+    }
+  }, [isAuthenticated, isLoading, segments, router]);
+
+  // Hold a loading view until session restore completes — prevents any flash
+  // of tab content before the auth state is known.
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#0B0B0F', alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color="#A855F7" size="large" />
+      </View>
+    );
+  }
+
+  return <>{children}</>;
+}
+
+// ── Root layout ───────────────────────────────────────────────────────────────
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
@@ -33,16 +68,18 @@ export default function RootLayout() {
     }
   }, [fontsLoaded, fontError]);
 
-  // Render nothing while fonts are loading — splash screen keeps showing
   if (!fontsLoaded && !fontError) return null;
 
   return (
     <AuthProvider>
       <View style={{ flex: 1, backgroundColor: '#0B0B0F' }}>
         <StatusBar style="light" />
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(tabs)" />
-        </Stack>
+        <AuthGate>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="login" />
+          </Stack>
+        </AuthGate>
       </View>
     </AuthProvider>
   );

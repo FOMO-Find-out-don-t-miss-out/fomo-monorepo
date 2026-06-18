@@ -100,6 +100,7 @@ def auth_overrides(rsa_public_key: rsa.RSAPublicKey, monkeypatch: pytest.MonkeyP
     """
     import app.core.config as config_module
     import app.core.security.jwt_validator as validator_module
+    import app.core.security.jwks as jwks_module
 
     monkeypatch.setattr(config_module.settings, "AUTH_OIDC_ENABLED", True)
     monkeypatch.setattr(config_module.settings, "AUTH_OIDC_ISSUER", TEST_ISSUER)
@@ -110,6 +111,7 @@ def auth_overrides(rsa_public_key: rsa.RSAPublicKey, monkeypatch: pytest.MonkeyP
     )
     monkeypatch.setattr(config_module.settings, "AUTH_OIDC_ALLOWED_AZP", TEST_AZP)
     monkeypatch.setattr(config_module.settings, "AUTH_OIDC_ALLOWED_AUDIENCES", "")
+    monkeypatch.setattr(config_module.settings, "AUTH_OIDC_EXTRA_ISSUERS", "")
 
     mock_signing_key = MagicMock()
     mock_signing_key.key = rsa_public_key
@@ -117,7 +119,10 @@ def auth_overrides(rsa_public_key: rsa.RSAPublicKey, monkeypatch: pytest.MonkeyP
     mock_jwks_client = MagicMock()
     mock_jwks_client.get_signing_key_from_jwt.return_value = mock_signing_key
 
-    monkeypatch.setattr(validator_module, "get_jwks_client", lambda: mock_jwks_client)
+    # Patch the per-issuer JWKS lookup in the validator's own namespace
+    # (jwt_validator imports it directly, so we must patch where it's bound).
+    monkeypatch.setattr(validator_module, "get_jwks_client_for_issuer", lambda _issuer: mock_jwks_client)
+    jwks_module.reset_jwks_client()
 
 
 # ---------------------------------------------------------------------------

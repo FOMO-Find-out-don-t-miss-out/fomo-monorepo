@@ -9,7 +9,10 @@ Copy `apps/mobile/.env.example` to `apps/mobile/.env` and fill in the values bel
 | Variable | Staging Value | Notes |
 |---|---|---|
 | `EXPO_PUBLIC_API_URL` | `https://api.staging.fomo-lab.org` | Backend REST API base URL |
-| `EXPO_PUBLIC_AUTH_URL` | `https://auth.staging.fomo-lab.org` | Keycloak — reserved for future OIDC integration |
+| `EXPO_PUBLIC_AUTH_URL` | `https://auth.staging.fomo-lab.org` | Keycloak base URL |
+| `EXPO_PUBLIC_KEYCLOAK_REALM` | `fomo-users` | End-user realm — **not** `fomo-admin` |
+| `EXPO_PUBLIC_KEYCLOAK_CLIENT_ID` | `fomo-mobile` | Public PKCE client |
+| `EXPO_PUBLIC_AUTH_REDIRECT_SCHEME` | `fomo` | Must match `scheme` in `app.json` |
 | `EXPO_PUBLIC_MAPBOX_TOKEN` | `pk.…` | Mapbox **public** token; get from Mapbox dashboard |
 | `EXPO_PUBLIC_DEFAULT_LAT` | `37.9838` | Default discovery latitude (Athens) |
 | `EXPO_PUBLIC_DEFAULT_LNG` | `23.7275` | Default discovery longitude (Athens) |

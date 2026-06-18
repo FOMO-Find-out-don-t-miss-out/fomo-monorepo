@@ -3,7 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 // ── Configuration ─────────────────────────────────────────────────────────────
 
 export const AUTH_BASE_URL = (process.env.EXPO_PUBLIC_AUTH_URL ?? '').replace(/\/$/, '');
-export const KEYCLOAK_REALM = process.env.EXPO_PUBLIC_KEYCLOAK_REALM ?? 'fomo-admin';
+export const KEYCLOAK_REALM = process.env.EXPO_PUBLIC_KEYCLOAK_REALM ?? 'fomo-users';
 export const KEYCLOAK_CLIENT_ID = process.env.EXPO_PUBLIC_KEYCLOAK_CLIENT_ID ?? 'fomo-mobile';
 export const REDIRECT_SCHEME = process.env.EXPO_PUBLIC_AUTH_REDIRECT_SCHEME ?? 'fomo';
 

@@ -55,15 +55,34 @@ class Settings(BaseSettings):
     # When false (default), get_current_identity returns None and
     # require_authenticated_identity raises HTTP 503 (misconfiguration signal).
     AUTH_OIDC_ENABLED: bool = False
+    # Primary OIDC issuer (e.g. fomo-admin realm for dashboard users).
+    # The JWKS URL is derived automatically as {issuer}/protocol/openid-connect/certs
+    # unless AUTH_OIDC_JWKS_URL is explicitly set.
     AUTH_OIDC_ISSUER: str | None = None
     AUTH_OIDC_JWKS_URL: str | None = None
     AUTH_OIDC_CLIENT_ID: str | None = None
+    # Comma-separated additional issuers beyond AUTH_OIDC_ISSUER.
+    # Each issuer's JWKS URL is derived automatically via Keycloak convention.
+    # Example: AUTH_OIDC_EXTRA_ISSUERS=https://auth.fomo-lab.org/realms/fomo-users
+    AUTH_OIDC_EXTRA_ISSUERS: str = ""
     # Comma-separated allowed aud values.  Empty = audience claim not validated.
     # Keycloak public clients often omit client_id from aud; prefer azp validation.
     AUTH_OIDC_ALLOWED_AUDIENCES: str = ""
     # Comma-separated allowed azp values.  Empty = azp claim not validated.
     # azp is the Keycloak client that requested the token — reliable for public clients.
     AUTH_OIDC_ALLOWED_AZP: str = ""
+
+    @property
+    def oidc_allowed_issuers_list(self) -> list[str]:
+        """All trusted OIDC issuers: primary + any extras."""
+        issuers: list[str] = []
+        if self.AUTH_OIDC_ISSUER:
+            issuers.append(self.AUTH_OIDC_ISSUER)
+        for v in self.AUTH_OIDC_EXTRA_ISSUERS.split(","):
+            v = v.strip()
+            if v and v not in issuers:
+                issuers.append(v)
+        return issuers
 
     @property
     def oidc_allowed_audiences_list(self) -> list[str]:

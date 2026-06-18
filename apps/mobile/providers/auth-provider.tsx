@@ -76,6 +76,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const redirectUri = AuthSession.makeRedirectUri({ scheme: REDIRECT_SCHEME });
 
+  // Log redirect URI in dev to confirm Keycloak config — NEVER log tokens.
+  if (__DEV__) {
+    // eslint-disable-next-line no-console
+    console.log('[auth] redirect URI:', redirectUri);
+  }
+
   const [request, , promptAsync] = AuthSession.useAuthRequest(
     {
       clientId: KEYCLOAK_CLIENT_ID,
