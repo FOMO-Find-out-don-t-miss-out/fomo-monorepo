@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 from httpx import AsyncClient
@@ -125,6 +126,60 @@ async def test_wrong_issuer_returns_401(
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_extra_issuer_token_accepted(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+    rsa_private_key: rsa.RSAPrivateKey,
+) -> None:
+    """Token from AUTH_OIDC_EXTRA_ISSUERS must be accepted.
+
+    The validator tries the primary issuer's JWKS first (kid not found → skip),
+    then falls through to the extra issuer whose JWKS resolves the key.
+    iss is verified cryptographically inside jwt.decode — not via an unverified
+    pre-decode — so this test also validates the no-unverified-decode guarantee.
+    """
+    import app.core.config as config_module
+    import app.core.security.jwt_validator as validator_module
+
+    extra_issuer = "https://test.example.com/realms/extra-realm"
+    rsa_public_key = rsa_private_key.public_key()
+
+    monkeypatch.setattr(config_module.settings, "AUTH_OIDC_ENABLED", True)
+    monkeypatch.setattr(config_module.settings, "AUTH_OIDC_ISSUER", TEST_ISSUER)
+    monkeypatch.setattr(
+        config_module.settings,
+        "AUTH_OIDC_JWKS_URL",
+        "https://test.example.com/.well-known/jwks.json",
+    )
+    monkeypatch.setattr(config_module.settings, "AUTH_OIDC_ALLOWED_AZP", TEST_AZP)
+    monkeypatch.setattr(config_module.settings, "AUTH_OIDC_ALLOWED_AUDIENCES", "")
+    monkeypatch.setattr(config_module.settings, "AUTH_OIDC_EXTRA_ISSUERS", extra_issuer)
+
+    mock_signing_key = MagicMock()
+    mock_signing_key.key = rsa_public_key
+
+    primary_client = MagicMock()
+    primary_client.get_signing_key_from_jwt.side_effect = jwt.exceptions.PyJWKClientError(
+        "kid not found in primary issuer JWKS"
+    )
+
+    extra_client = MagicMock()
+    extra_client.get_signing_key_from_jwt.return_value = mock_signing_key
+
+    def _mock_get_client(issuer: str) -> MagicMock:
+        return primary_client if issuer == TEST_ISSUER else extra_client
+
+    monkeypatch.setattr(validator_module, "get_jwks_client_for_issuer", _mock_get_client)
+
+    token = sign_token(rsa_private_key, issuer=extra_issuer, azp=TEST_AZP)
+    resp = await client.get(
+        "/api/v1/identity/me", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["issuer"] == extra_issuer
 
 
 @pytest.mark.asyncio
