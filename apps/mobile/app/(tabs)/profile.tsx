@@ -30,7 +30,7 @@ export default function ProfileScreen() {
         <User size={48} color="rgba(255,255,255,0.2)" strokeWidth={1} />
         <Text style={styles.heading}>Sign in to FOMO</Text>
         {authError ? <Text style={styles.error}>{authError}</Text> : null}
-        <Pressable style={styles.loginBtn} onPress={login}>
+        <Pressable style={styles.loginBtn} onPress={() => login()}>
           <LogIn size={18} color="#fff" strokeWidth={1.5} />
           <Text style={styles.loginBtnText}>Log In</Text>
         </Pressable>

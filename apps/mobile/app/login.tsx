@@ -1,6 +1,5 @@
 import { useAuth } from '../hooks/use-auth';
-import { LogIn } from 'lucide-react-native';
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -13,6 +12,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 export default function LoginScreen() {
   const { isLoading, login, authError } = useAuth();
   const insets = useSafeAreaInsets();
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  const handleLogin = async (idpHint?: string) => {
+    setIsLoggingIn(true);
+    try {
+      await login(idpHint ? { idpHint } : undefined);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -35,10 +44,34 @@ export default function LoginScreen() {
       <View style={styles.footer}>
         {authError ? <Text style={styles.error}>{authError}</Text> : null}
 
-        <Pressable style={styles.loginBtn} onPress={login}>
-          <LogIn size={18} color="#fff" strokeWidth={1.5} />
-          <Text style={styles.loginBtnText}>Log In</Text>
-        </Pressable>
+        {isLoggingIn ? (
+          <View style={styles.loggingIn}>
+            <ActivityIndicator color="#A855F7" size="small" />
+            <Text style={styles.loggingInText}>Opening login…</Text>
+          </View>
+        ) : (
+          <>
+            <Pressable
+              style={styles.googleBtn}
+              onPress={() => handleLogin('google')}
+              accessibilityRole="button"
+              accessibilityLabel="Continue with Google"
+            >
+              <View style={styles.googleIconBox}>
+                <Text style={styles.googleIconLetter}>G</Text>
+              </View>
+              <Text style={styles.googleBtnText}>Continue with Google</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => handleLogin()}
+              accessibilityRole="button"
+              accessibilityLabel="Use email instead"
+            >
+              <Text style={styles.emailLink}>Use email instead</Text>
+            </Pressable>
+          </>
+        )}
 
         <Text style={styles.hint}>
           A FOMO account is required to access the app.
@@ -103,21 +136,53 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     textAlign: 'center',
   },
-  loginBtn: {
+  // Google button — white background follows Google brand guidelines
+  googleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    backgroundColor: '#A855F7',
-    paddingHorizontal: 36,
-    paddingVertical: 16,
+    gap: 12,
+    backgroundColor: '#fff',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
     borderRadius: 14,
     width: '100%',
     justifyContent: 'center',
   },
-  loginBtnText: {
-    color: '#fff',
+  googleIconBox: {
+    width: 22,
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  googleIconLetter: {
+    color: '#4285F4',
+    fontSize: 17,
+    fontFamily: 'Inter_700Bold',
+    lineHeight: 22,
+  },
+  googleBtnText: {
+    color: '#111',
     fontFamily: 'Inter_600SemiBold',
     fontSize: 16,
+  },
+  // Email fallback — intentionally low-prominence (dev / power-user path)
+  emailLink: {
+    color: 'rgba(255,255,255,0.3)',
+    fontSize: 13,
+    fontFamily: 'Inter_400Regular',
+    textDecorationLine: 'underline',
+    paddingVertical: 4,
+  },
+  loggingIn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 16,
+  },
+  loggingInText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 14,
+    fontFamily: 'Inter_400Regular',
   },
   hint: {
     color: 'rgba(255,255,255,0.25)',

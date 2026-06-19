@@ -29,25 +29,31 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   const onLoginScreen = segments[0] === 'login';
+  // On Android, Expo Router receives the fomo://auth/callback deep link at the
+  // same time as expo-auth-session's WebBrowser broadcast. Treating the callback
+  // route like the login screen prevents AuthGate from firing router.replace('/login')
+  // mid-exchange and forcing the user to log in a second time.
+  // auth/ has only one route (callback), so checking the first segment is enough.
+  const onCallbackRoute = segments[0] === 'auth';
+  const onAuthSystemRoute = onLoginScreen || onCallbackRoute;
 
   useEffect(() => {
     if (isLoading) return;
-    if (!isAuthenticated && !onLoginScreen) {
+    if (!isAuthenticated && !onAuthSystemRoute) {
       router.replace('/login');
-    } else if (isAuthenticated && onLoginScreen) {
+    } else if (isAuthenticated && onAuthSystemRoute) {
       router.replace('/');
     }
-  }, [isAuthenticated, isLoading, onLoginScreen, router]);
+  }, [isAuthenticated, isLoading, onAuthSystemRoute, router]);
 
-  // Hold the spinner while loading OR while a redirect is still pending.
-  // Without this, children render for one frame before the useEffect redirect
-  // fires — enough to mount a MapView that then immediately unmounts, which
-  // causes Mapbox ViewTagResolver errors.
-  const redirectPending =
-    !isLoading &&
-    ((!isAuthenticated && !onLoginScreen) || (isAuthenticated && onLoginScreen));
+  // Block children only when an unauthenticated user is on a protected app route.
+  // This prevents a tab screen (e.g. MapView) from mounting then immediately
+  // unmounting when the useEffect redirect fires — avoiding Mapbox ViewTagResolver
+  // errors. Auth-system routes (/login, /auth/callback) are exempt so the Stack
+  // stays mounted and navigation completes on the first attempt.
+  const blockChildren = !isLoading && !isAuthenticated && !onAuthSystemRoute;
 
-  if (isLoading || redirectPending) {
+  if (isLoading || blockChildren) {
     return (
       <View style={{ flex: 1, backgroundColor: '#0B0B0F', alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color="#A855F7" size="large" />

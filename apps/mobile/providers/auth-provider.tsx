@@ -27,12 +27,17 @@ WebBrowser.maybeCompleteAuthSession();
 
 type UserMe = components['schemas']['UserMeResponse'];
 
+export type LoginOptions = {
+  /** Keycloak IdP alias to skip the realm login page and go straight to the provider. */
+  idpHint?: string;
+};
+
 export interface AuthContextValue {
   isAuthenticated: boolean;
   isLoading: boolean;
   user: UserMe | null;
   authError: string | null;
-  login: () => Promise<void>;
+  login: (options?: LoginOptions) => Promise<void>;
   logout: () => Promise<void>;
   refreshSession: () => Promise<void>;
 }
@@ -139,16 +144,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [applySession]);
 
   // ── Login ────────────────────────────────────────────────────────────────────
+  //
+  // When idpHint is provided, we build the Keycloak authorization URL and append
+  // `kc_idp_hint=<alias>` so Keycloak skips its login page and goes straight to
+  // the identity provider. We pass the hinted URL to promptAsync via the `url`
+  // override, so the PKCE flow (code challenge, verifier, token exchange) is
+  // completely unchanged.
 
-  const login = useCallback(async () => {
+  const login = useCallback(async (options: LoginOptions = {}) => {
     if (!request || !discovery) return;
     setAuthError(null);
+
     try {
-      const result = await promptAsync();
+      let result: AuthSession.AuthSessionResult;
+
+      if (options.idpHint) {
+        // Build the standard authorization URL (code_challenge, state, nonce…)
+        const baseUrl = await request.makeAuthUrlAsync(discovery);
+        // Keycloak accepts kc_idp_hint as an extra query param — safe to append.
+        const hintedUrl = `${baseUrl}&kc_idp_hint=${encodeURIComponent(options.idpHint)}`;
+        result = await promptAsync({ url: hintedUrl });
+      } else {
+        result = await promptAsync();
+      }
+
       if (result.type !== 'success') {
-        if (result.type === 'error') {
-          setAuthError('Login failed. Please try again.');
-        }
+        if (result.type === 'error') setAuthError('Login failed. Please try again.');
         return;
       }
 

@@ -1,10 +1,15 @@
 import * as WebBrowser from 'expo-web-browser';
+import { ActivityIndicator, View } from 'react-native';
 
-// Intercepts the fomo://auth/callback deep link on web platforms.
-// On Android the WebBrowser module handles this before Expo Router; this
-// file is a safety net so the router never shows a 404 on that path.
+// expo-auth-session's WebBrowser broadcast resolves promptAsync on Android.
+// Expo Router also routes fomo://auth/callback here as a deep link side-effect.
+// Showing a spinner while the token exchange completes avoids a blank flash.
 WebBrowser.maybeCompleteAuthSession();
 
 export default function AuthCallback() {
-  return null;
+  return (
+    <View style={{ flex: 1, backgroundColor: '#0B0B0F', alignItems: 'center', justifyContent: 'center' }}>
+      <ActivityIndicator color="#A855F7" size="large" />
+    </View>
+  );
 }
