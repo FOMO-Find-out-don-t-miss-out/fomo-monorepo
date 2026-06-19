@@ -177,7 +177,11 @@ def _make_multi_azp_overrides(
     mock_signing_key.key = rsa_public_key
     mock_jwks_client = MagicMock()
     mock_jwks_client.get_signing_key_from_jwt.return_value = mock_signing_key
-    monkeypatch.setattr(validator_module, "get_jwks_client_for_issuer", lambda _issuer: mock_jwks_client)
+    monkeypatch.setattr(
+        validator_module,
+        "get_jwks_client_for_issuer",
+        lambda _issuer: mock_jwks_client,
+    )
 
 
 @pytest.mark.asyncio
@@ -284,7 +288,11 @@ async def test_audience_validated_when_configured(
     mock_signing_key.key = rsa_public_key
     mock_jwks_client = MagicMock()
     mock_jwks_client.get_signing_key_from_jwt.return_value = mock_signing_key
-    monkeypatch.setattr(validator_module, "get_jwks_client_for_issuer", lambda _issuer: mock_jwks_client)
+    monkeypatch.setattr(
+        validator_module,
+        "get_jwks_client_for_issuer",
+        lambda _issuer: mock_jwks_client,
+    )
 
     # Token without required aud → 401
     token_no_aud = sign_token(rsa_private_key)
