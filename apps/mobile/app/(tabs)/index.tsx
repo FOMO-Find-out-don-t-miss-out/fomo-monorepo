@@ -4,8 +4,11 @@ import { EventDetails } from '../../components/fomo/event-details';
 import { FomoMap } from '../../components/fomo/fomo-map';
 import { SearchBar } from '../../components/fomo/search-bar';
 import { FomoEmptyState, FomoErrorState, FomoLoadingState } from '../../components/ui';
+import { useAuth } from '../../hooks/use-auth';
 import { useDeviceLocation } from '../../hooks/use-device-location';
 import { useDiscovery } from '../../hooks/use-discovery';
+import { useEventRelationships } from '../../hooks/use-event-relationships';
+import { useRelationshipState } from '../../hooks/use-relationship-state';
 import { DEFAULT_DISCOVERY_RADIUS } from '../../utils/location-config';
 import { haversineKm, formatDistanceKm, hasValidCoords } from '../../utils/geo';
 import type { UiEvent } from '../../types/ui';
@@ -38,6 +41,7 @@ export default function DiscoveryScreen() {
   const [activeCategories, setActiveCategories] = useState<string[]>([]);
 
   const insets = useSafeAreaInsets();
+  const { accessToken } = useAuth();
 
   // Device location — falls back to env defaults when denied/unavailable.
   const { location, status: locationStatus, requestLocation } = useDeviceLocation();
@@ -86,6 +90,15 @@ export default function DiscoveryScreen() {
       })),
     [events, location.lat, location.lng],
   );
+
+  // Relationship state: batch-fetched from backend, managed optimistically locally.
+  const eventIds = useMemo(() => eventsWithDistance.map((e) => e.id), [eventsWithDistance]);
+  const { relationships: serverRels } = useEventRelationships(eventIds, accessToken);
+  const { syncFromServer, toggle: toggleRel, isPending: isRelPending, hasRelationship } = useRelationshipState(accessToken);
+
+  useEffect(() => {
+    syncFromServer(serverRels);
+  }, [serverRels, syncFromServer]);
 
   // Client-side filter: text matches title or venue; categories match UiEventCategory (lowercase).
   const filteredEvents = useMemo(() => {
@@ -246,6 +259,9 @@ export default function DiscoveryScreen() {
                 event={event}
                 isActive={selectedEvent?.id === event.id}
                 onPress={() => setSelectedEvent(event)}
+                isSaved={accessToken ? hasRelationship(event.id, 'saved') : undefined}
+                isSaveLoading={isRelPending(event.id, 'saved')}
+                onToggleSave={accessToken ? () => toggleRel(event.id, 'saved') : undefined}
               />
             ))}
           </ScrollView>
@@ -264,6 +280,13 @@ export default function DiscoveryScreen() {
       <EventDetails
         event={selectedEvent}
         onClose={() => setSelectedEvent(null)}
+        relationships={selectedEvent && accessToken ? (serverRels[selectedEvent.id] ?? []) : []}
+        onToggleRelationship={accessToken && selectedEvent
+          ? (type) => toggleRel(selectedEvent.id, type)
+          : undefined}
+        pendingRelationships={selectedEvent
+          ? (['saved', 'interested', 'going'] as const).filter((t) => isRelPending(selectedEvent.id, t))
+          : []}
       />
 
     </View>

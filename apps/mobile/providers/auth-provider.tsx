@@ -36,6 +36,7 @@ export interface AuthContextValue {
   isAuthenticated: boolean;
   isLoading: boolean;
   user: UserMe | null;
+  accessToken: string | null;
   authError: string | null;
   login: (options?: LoginOptions) => Promise<void>;
   logout: () => Promise<void>;
@@ -218,6 +219,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: !!accessToken,
         isLoading,
         user,
+        accessToken,
         authError,
         login,
         logout,

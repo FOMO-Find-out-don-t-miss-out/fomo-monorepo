@@ -97,3 +97,20 @@ class EventRelationshipService:
 
     def list_going_events(self, *, user_id: UUID) -> list[Event]:
         return self._list_events_for_type(user_id=user_id, relationship_type=RelationshipType.going)
+
+    def get_relationships_for_events(
+        self,
+        *,
+        user_id: UUID,
+        event_ids: list[UUID],
+    ) -> dict[UUID, list[RelationshipType]]:
+        if not event_ids:
+            return {}
+        statement = select(EventRelationship).where(
+            EventRelationship.user_id == user_id,
+            EventRelationship.event_id.in_(event_ids),
+        )
+        result: dict[UUID, list[RelationshipType]] = {}
+        for row in self.session.exec(statement).all():
+            result.setdefault(row.event_id, []).append(row.relationship_type)
+        return result

@@ -151,6 +151,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/events/{event_id}/relationships/{relationship_type}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Relationship */
+        put: operations["put_relationship_api_v1_me_events__event_id__relationships__relationship_type__put"];
+        post?: never;
+        /** Delete Relationship */
+        delete: operations["delete_relationship_api_v1_me_events__event_id__relationships__relationship_type__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/saved-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Saved Events */
+        get: operations["get_saved_events_api_v1_me_saved_events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/event-relationships": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Event Relationships */
+        get: operations["get_event_relationships_api_v1_me_event_relationships_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/users": {
         parameters: {
             query?: never;
@@ -811,6 +863,13 @@ export interface components {
             /** Raw Content */
             raw_content?: string | null;
         };
+        /** EventRelationshipsResponse */
+        EventRelationshipsResponse: {
+            /** Relationships */
+            relationships: {
+                [key: string]: components["schemas"]["RelationshipType"][];
+            };
+        };
         /** GeocodeResult */
         GeocodeResult: {
             /** Lat */
@@ -1092,6 +1151,35 @@ export interface components {
          * @enum {string}
          */
         PlaceVerificationStatus: "unverified" | "system_matched" | "manually_verified";
+        /** RelationshipResponse */
+        RelationshipResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Event Id
+             * Format: uuid
+             */
+            event_id: string;
+            relationship_type: components["schemas"]["RelationshipType"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * RelationshipType
+         * @enum {string}
+         */
+        RelationshipType: "interested" | "saved" | "going";
         /**
          * TokenIdentity
          * @description Validated identity extracted from a Keycloak JWT access token.
@@ -1380,6 +1468,119 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserMeResponse"];
+                };
+            };
+        };
+    };
+    put_relationship_api_v1_me_events__event_id__relationships__relationship_type__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: string;
+                relationship_type: components["schemas"]["RelationshipType"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelationshipResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_relationship_api_v1_me_events__event_id__relationships__relationship_type__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: string;
+                relationship_type: components["schemas"]["RelationshipType"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_saved_events_api_v1_me_saved_events_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventDiscoveryResponse"][];
+                };
+            };
+        };
+    };
+    get_event_relationships_api_v1_me_event_relationships_get: {
+        parameters: {
+            query?: {
+                event_ids?: string[] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventRelationshipsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

@@ -1,8 +1,11 @@
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
+  Bookmark,
   Calendar,
+  CheckCircle,
   Clock,
+  Heart,
   MapPin,
   Navigation,
   Share2,
@@ -12,6 +15,7 @@ import {
 } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Animated,
   Dimensions,
   Easing,
@@ -26,6 +30,7 @@ import {
 } from 'react-native';
 import { Colors, Gradients, Shadows } from '../../theme';
 import { hasValidCoords } from '../../utils/geo';
+import type { RelationshipType } from '../../utils/event-relationships-api';
 import type { Event } from '../../types/ui';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -61,14 +66,39 @@ async function shareEvent(event: Event): Promise<void> {
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
+interface RelActionConfig {
+  type: RelationshipType;
+  label: string;
+  Icon: React.FC<{ size: number; color: string; fill?: string; strokeWidth?: number }>;
+  activeColor: string;
+}
+
+const REL_ACTIONS: RelActionConfig[] = [
+  { type: 'saved',      label: 'Save',       Icon: Bookmark,     activeColor: Colors.purple },
+  { type: 'interested', label: 'Interested', Icon: Heart,        activeColor: Colors.magenta },
+  { type: 'going',      label: 'Going',      Icon: CheckCircle,  activeColor: Colors.success },
+];
+
 interface EventDetailsProps {
   event: Event | null;
   onClose: () => void;
+  /** Relationship types currently active for this event */
+  relationships?: RelationshipType[];
+  /** Called when user taps a relationship button */
+  onToggleRelationship?: (type: RelationshipType) => void;
+  /** Relationship types currently waiting for an API response */
+  pendingRelationships?: RelationshipType[];
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function EventDetails({ event, onClose }: EventDetailsProps) {
+export function EventDetails({
+  event,
+  onClose,
+  relationships = [],
+  onToggleRelationship,
+  pendingRelationships = [],
+}: EventDetailsProps) {
   const [isOpen, setIsOpen] = useState(false);
   const isClosingRef = useRef(false);
 
@@ -198,6 +228,40 @@ export function EventDetails({ event, onClose }: EventDetailsProps) {
                     <Text style={styles.pillCyan}>{displayEvent.time}</Text>
                   </View>
                 </View>
+
+                {/* Relationship actions: Saved / Interested / Going */}
+                {onToggleRelationship && (
+                  <View style={styles.relRow}>
+                    {REL_ACTIONS.map(({ type, label, Icon, activeColor }) => {
+                      const isActive = relationships.includes(type);
+                      const isPending = pendingRelationships.includes(type);
+                      return (
+                        <Pressable
+                          key={type}
+                          style={[styles.relBtn, isActive && { borderColor: activeColor, backgroundColor: `${activeColor}22` }]}
+                          onPress={() => onToggleRelationship(type)}
+                          disabled={isPending}
+                          accessibilityRole="button"
+                          accessibilityLabel={isActive ? `Remove ${label}` : label}
+                        >
+                          {isPending ? (
+                            <ActivityIndicator size="small" color={activeColor} />
+                          ) : (
+                            <Icon
+                              size={15}
+                              color={isActive ? activeColor : 'rgba(255,255,255,0.5)'}
+                              fill={isActive ? activeColor : 'transparent'}
+                              strokeWidth={1.5}
+                            />
+                          )}
+                          <Text style={[styles.relLabel, isActive && { color: activeColor }]}>
+                            {label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )}
 
                 {/* Action row — Directions (when valid coords) + Share */}
                 <View style={styles.actionRow}>
@@ -362,6 +426,28 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_600SemiBold',
     fontSize: 11,
     color: '#22D3EE',
+  },
+  relRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  relBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  relLabel: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.5)',
   },
   actionRow: {
     flexDirection: 'row',

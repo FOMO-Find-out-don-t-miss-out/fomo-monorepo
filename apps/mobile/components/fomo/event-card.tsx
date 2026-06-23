@@ -2,6 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Bookmark, Calendar, MapPin, Ticket } from 'lucide-react-native';
 import React, { useRef } from 'react';
 import {
+  ActivityIndicator,
   Animated,
   ImageBackground,
   Pressable,
@@ -19,6 +20,12 @@ interface EventCardProps {
   event: Event;
   isActive?: boolean;
   onPress?: () => void;
+  /** True when this event is saved by the current user */
+  isSaved?: boolean;
+  /** True while a save/unsave API call is in flight */
+  isSaveLoading?: boolean;
+  /** Called when the bookmark icon is pressed */
+  onToggleSave?: () => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -33,7 +40,14 @@ interface EventCardProps {
 // outer Animated.View (no overflow) and clipping on the inner Pressable gives
 // correct behaviour on both platforms.
 
-export function EventCard({ event, isActive = false, onPress }: EventCardProps) {
+export function EventCard({
+  event,
+  isActive = false,
+  onPress,
+  isSaved = false,
+  isSaveLoading = false,
+  onToggleSave,
+}: EventCardProps) {
   const scale = useRef(new Animated.Value(1)).current;
   const catColors = Colors.category[event.category];
 
@@ -80,10 +94,32 @@ export function EventCard({ event, isActive = false, onPress }: EventCardProps) 
           />
         ) : null}
 
-        {/* Bookmark — View (not Pressable) so it never swallows card taps */}
-        <View style={styles.bookmark}>
-          <Bookmark size={13} color="rgba(255,255,255,0.45)" strokeWidth={1.5} />
-        </View>
+        {/* Bookmark — Pressable when onToggleSave is provided; decorative View otherwise */}
+        {onToggleSave ? (
+          <Pressable
+            style={[styles.bookmark, isSaved && styles.bookmarkActive]}
+            onPress={onToggleSave}
+            disabled={isSaveLoading}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={isSaved ? 'Remove from saved' : 'Save event'}
+          >
+            {isSaveLoading ? (
+              <ActivityIndicator size="small" color={Colors.purple} />
+            ) : (
+              <Bookmark
+                size={13}
+                color={isSaved ? Colors.purple : 'rgba(255,255,255,0.45)'}
+                fill={isSaved ? Colors.purple : 'transparent'}
+                strokeWidth={1.5}
+              />
+            )}
+          </Pressable>
+        ) : (
+          <View style={styles.bookmark}>
+            <Bookmark size={13} color="rgba(255,255,255,0.45)" strokeWidth={1.5} />
+          </View>
+        )}
 
         {/* ── Header: category badge + price ── */}
         <View style={styles.headerRow}>
@@ -171,6 +207,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.05)',
     zIndex: 2,
+  },
+  bookmarkActive: {
+    backgroundColor: Colors.purpleDim,
+    borderWidth: 1,
+    borderColor: Colors.borderFocus,
   },
 
   // ── Header row ────────────────────────────────────────────────────────────
