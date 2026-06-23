@@ -3,12 +3,13 @@ import { EventCard } from '../../components/fomo/event-card';
 import { EventDetails } from '../../components/fomo/event-details';
 import { FomoMap } from '../../components/fomo/fomo-map';
 import { SearchBar } from '../../components/fomo/search-bar';
+import { FomoEmptyState, FomoErrorState, FomoLoadingState } from '../../components/ui';
 import { useDeviceLocation } from '../../hooks/use-device-location';
 import { useDiscovery } from '../../hooks/use-discovery';
 import { DEFAULT_DISCOVERY_RADIUS } from '../../utils/location-config';
 import { haversineKm, formatDistanceKm, hasValidCoords } from '../../utils/geo';
 import type { UiEvent } from '../../types/ui';
-import { LocateFixed } from 'lucide-react-native';
+import { LocateFixed, MapPin } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -20,6 +21,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Colors } from '../../theme';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -131,13 +133,12 @@ export default function DiscoveryScreen() {
 
   const carouselPadding = (SCREEN_WIDTH - CARD_WIDTH) / 2;
 
-  // ── Location status icon color for the locate button ─────────────────────
   const locateIconColor =
     locationStatus === 'granted'
-      ? '#A855F7'
+      ? Colors.purple
       : locationStatus === 'pending'
-        ? 'rgba(255,255,255,0.5)'
-        : 'rgba(255,255,255,0.3)';
+        ? Colors.textSecondary
+        : Colors.textMuted;
 
   return (
     <View style={styles.screen}>
@@ -187,10 +188,10 @@ export default function DiscoveryScreen() {
               {
                 backgroundColor:
                   locationStatus === 'granted'
-                    ? '#A855F7'
+                    ? Colors.purple
                     : locationStatus === 'unavailable'
-                      ? '#F97316'
-                      : 'rgba(255,255,255,0.22)',
+                      ? Colors.warning
+                      : Colors.textDisabled,
               },
             ]}
           />
@@ -214,22 +215,19 @@ export default function DiscoveryScreen() {
         style={[styles.carouselAnchor, { opacity: isCalendarView ? 0 : 1 }]}
       >
         {loading ? (
-          <View style={styles.feedbackContainer}>
-            <ActivityIndicator color="#A855F7" size="small" />
-          </View>
+          <FomoLoadingState style={styles.feedbackContainer} />
         ) : error ? (
-          <View style={styles.feedbackContainer}>
-            <Text style={styles.feedbackText}>Could not load events</Text>
-            <Pressable onPress={refetch} style={styles.retryBtn}>
-              <Text style={styles.retryText}>Retry</Text>
-            </Pressable>
-          </View>
+          <FomoErrorState
+            style={styles.feedbackContainer}
+            message="Could not load events"
+            onRetry={refetch}
+          />
         ) : filteredEvents.length === 0 ? (
-          <View style={styles.feedbackContainer}>
-            <Text style={styles.feedbackText}>
-              {events.length === 0 ? 'No events nearby' : 'No events match your search'}
-            </Text>
-          </View>
+          <FomoEmptyState
+            style={styles.feedbackContainer}
+            icon={<MapPin size={28} color={Colors.textMuted} strokeWidth={1.5} />}
+            message={events.length === 0 ? 'No events nearby' : 'No events match your search'}
+          />
         ) : (
           <ScrollView
             horizontal
@@ -277,7 +275,7 @@ export default function DiscoveryScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#0B0B0F',
+    backgroundColor: Colors.background,
   },
   // Locate-me button — top-right map control; `top` is set inline via insets
   locateBtn: {
@@ -334,24 +332,5 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
-  },
-  feedbackText: {
-    color: 'rgba(255,255,255,0.35)',
-    fontSize: 13,
-    letterSpacing: 0.5,
-    fontFamily: 'Inter_400Regular',
-  },
-  retryBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(168, 85, 247, 0.4)',
-  },
-  retryText: {
-    color: '#A855F7',
-    fontSize: 12,
-    fontFamily: 'Inter_600SemiBold',
   },
 });

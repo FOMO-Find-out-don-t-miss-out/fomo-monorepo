@@ -16,34 +16,20 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Colors } from '../../theme';
 
 import {
   DateStripPicker,
   formatEventDateKey,
 } from './date-strip-picker';
-import type { Event, EventCategory } from '../../types/ui';
+import type { Event } from '../../types/ui';
 
-// ─── Design tokens ────────────────────────────────────────────────────────────
-
-const NEON_PURPLE = '#BC13FE';
-const NEON_CYAN = '#22D3EE';
-const GLASS_BG = 'rgba(18, 18, 24, 0.75)';
-const GLASS_BORDER = 'rgba(255, 255, 255, 0.1)';
+// ─── Layout constants ─────────────────────────────────────────────────────────
 
 // SearchBar ≈ insets.top + 58. Strip needs 12px gap below.
 const HEADER_OFFSET = 70;
 // Tab bar sits at bottom 116; leave a small buffer.
 const BOTTOM_OFFSET = 124;
-
-type CatSwatch = { border: string; text: string; bg: string };
-const CATEGORY_COLORS: Record<EventCategory, CatSwatch> = {
-  Music:    { border: 'rgba(168, 85, 247, 0.5)', text: '#C084FC', bg: 'rgba(168, 85, 247, 0.1)' },
-  Arts:     { border: 'rgba(236, 72, 153, 0.5)', text: '#F472B6', bg: 'rgba(236, 72, 153, 0.1)' },
-  Theater:  { border: 'rgba(245, 158, 11, 0.5)', text: '#FBBF24', bg: 'rgba(245, 158, 11, 0.1)' },
-  Sports:   { border: 'rgba(34, 197, 94, 0.5)',  text: '#4ADE80', bg: 'rgba(34, 197, 94, 0.1)' },
-  Comedy:   { border: 'rgba(249, 115, 22, 0.5)', text: '#FB923C', bg: 'rgba(249, 115, 22, 0.1)' },
-  Festival: { border: 'rgba(6, 182, 212, 0.5)',  text: '#22D3EE', bg: 'rgba(6, 182, 212, 0.1)' },
-};
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -61,7 +47,7 @@ function CalendarEventCard({
   event: Event;
   onPress: () => void;
 }) {
-  const cat = CATEGORY_COLORS[event.category];
+  const cat = Colors.category[event.category];
   return (
     <Pressable onPress={onPress} style={styles.card}>
       <View style={styles.timeCol}>
@@ -102,7 +88,7 @@ function CalendarEventCard({
       </View>
 
       <View style={styles.ticketBtn}>
-        <Ticket size={14} color={NEON_PURPLE} />
+        <Ticket size={14} color={Colors.purpleNeon} />
       </View>
     </Pressable>
   );
@@ -274,8 +260,8 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: NEON_PURPLE,
-    shadowColor: NEON_PURPLE,
+    backgroundColor: Colors.purpleNeon,
+    shadowColor: Colors.purpleNeon,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.9,
     shadowRadius: 6,
@@ -293,7 +279,7 @@ const styles = StyleSheet.create({
   headerRule: {
     flex: 1,
     height: 1,
-    backgroundColor: 'rgba(188, 19, 254, 0.25)',
+    backgroundColor: Colors.purpleDim,
   },
   // ── Event card ───────────────────────────────────────────────────────────
   card: {
@@ -301,9 +287,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     padding: 12,
-    backgroundColor: GLASS_BG,
+    backgroundColor: Colors.surfaceGlass,
     borderWidth: 1,
-    borderColor: GLASS_BORDER,
+    borderColor: Colors.borderGlass,
     borderRadius: 14,
   },
   timeCol: {
@@ -315,7 +301,7 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 13,
     fontWeight: '700',
-    color: NEON_CYAN,
+    color: Colors.cyan,
   },
   cardDivider: {
     width: 1,
@@ -345,7 +331,7 @@ const styles = StyleSheet.create({
   priceText: {
     fontSize: 10,
     fontWeight: '700',
-    color: NEON_CYAN,
+    color: Colors.cyan,
   },
   cardTitle: {
     fontSize: 13,
@@ -371,8 +357,8 @@ const styles = StyleSheet.create({
   ticketBtn: {
     padding: 8,
     borderRadius: 10,
-    backgroundColor: 'rgba(188, 19, 254, 0.15)',
+    backgroundColor: Colors.purpleDim,
     borderWidth: 1,
-    borderColor: 'rgba(188, 19, 254, 0.3)',
+    borderColor: Colors.borderFocus,
   },
 });

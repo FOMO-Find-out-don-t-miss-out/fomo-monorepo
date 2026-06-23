@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Colors, Typography, Spacing, Radii } from '../theme';
 
 export default function LoginScreen() {
   const { isLoading, login, authError } = useAuth();
@@ -26,7 +27,7 @@ export default function LoginScreen() {
   if (isLoading) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator color="#A855F7" size="large" />
+        <ActivityIndicator color={Colors.purple} size="large" />
       </View>
     );
   }
@@ -46,7 +47,7 @@ export default function LoginScreen() {
 
         {isLoggingIn ? (
           <View style={styles.loggingIn}>
-            <ActivityIndicator color="#A855F7" size="small" />
+            <ActivityIndicator color={Colors.purple} size="small" />
             <Text style={styles.loggingInText}>Opening login…</Text>
           </View>
         ) : (
@@ -84,67 +85,67 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B0B0F',
+    backgroundColor: Colors.background,
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 32,
+    paddingHorizontal: Spacing['2xl'],
   },
   logoArea: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
+    gap: Spacing.md,
   },
   logoRing: {
     width: 96,
     height: 96,
     borderRadius: 48,
     borderWidth: 2,
-    borderColor: 'rgba(168,85,247,0.6)',
-    backgroundColor: 'rgba(168,85,247,0.1)',
+    borderColor: `${Colors.purple}99`,
+    backgroundColor: `${Colors.purple}1A`,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   logoText: {
-    color: '#A855F7',
+    color: Colors.purple,
     fontSize: 48,
-    fontFamily: 'Inter_800ExtraBold',
+    fontFamily: Typography.font.extraBold,
     lineHeight: 56,
   },
   appName: {
-    color: '#fff',
-    fontSize: 36,
-    fontFamily: 'Inter_800ExtraBold',
+    color: Colors.textPrimary,
+    fontSize: Typography.size.hero,
+    fontFamily: Typography.font.extraBold,
     letterSpacing: 6,
   },
   tagline: {
-    color: 'rgba(255,255,255,0.4)',
-    fontSize: 14,
-    fontFamily: 'Inter_400Regular',
+    color: Colors.textMuted,
+    fontSize: Typography.size.md,
+    fontFamily: Typography.font.regular,
     letterSpacing: 0.3,
   },
   footer: {
     width: '100%',
     alignItems: 'center',
     gap: 14,
-    paddingBottom: 8,
+    paddingBottom: Spacing.sm,
   },
   error: {
-    color: '#F87171',
-    fontSize: 13,
-    fontFamily: 'Inter_400Regular',
+    color: Colors.error,
+    fontSize: Typography.size.base,
+    fontFamily: Typography.font.regular,
     textAlign: 'center',
   },
   // Google button — white background follows Google brand guidelines
   googleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: Spacing.md,
     backgroundColor: '#fff',
-    paddingHorizontal: 24,
+    paddingHorizontal: Spacing.xl,
     paddingVertical: 14,
-    borderRadius: 14,
+    borderRadius: Radii.lg,
     width: '100%',
     justifyContent: 'center',
   },
@@ -157,37 +158,37 @@ const styles = StyleSheet.create({
   googleIconLetter: {
     color: '#4285F4',
     fontSize: 17,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: Typography.font.bold,
     lineHeight: 22,
   },
   googleBtnText: {
     color: '#111',
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 16,
+    fontFamily: Typography.font.semiBold,
+    fontSize: Typography.size.xl,
   },
   // Email fallback — intentionally low-prominence (dev / power-user path)
   emailLink: {
-    color: 'rgba(255,255,255,0.3)',
-    fontSize: 13,
-    fontFamily: 'Inter_400Regular',
+    color: Colors.textMuted,
+    fontSize: Typography.size.base,
+    fontFamily: Typography.font.regular,
     textDecorationLine: 'underline',
-    paddingVertical: 4,
+    paddingVertical: Spacing.xs,
   },
   loggingIn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingVertical: 16,
+    paddingVertical: Spacing.base,
   },
   loggingInText: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 14,
-    fontFamily: 'Inter_400Regular',
+    color: Colors.textSecondary,
+    fontSize: Typography.size.md,
+    fontFamily: Typography.font.regular,
   },
   hint: {
-    color: 'rgba(255,255,255,0.25)',
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
+    color: Colors.textDisabled,
+    fontSize: Typography.size.sm,
+    fontFamily: Typography.font.regular,
     textAlign: 'center',
     lineHeight: 18,
   },

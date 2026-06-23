@@ -22,14 +22,10 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Colors } from '../../theme';
 
-// ─── Design tokens ────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
 
-const NEON_PURPLE = '#BC13FE';
-const NEON_CYAN = '#22D3EE';
-const GLASS_BG = 'rgba(18, 18, 24, 0.75)';
-const GLASS_BORDER = 'rgba(255, 255, 255, 0.1)';
-const FOCUS_BORDER = 'rgba(188, 19, 254, 0.4)';
 const FILTER_PANEL_MAX_HEIGHT = 160;
 
 // ─── Category config ──────────────────────────────────────────────────────────
@@ -123,7 +119,7 @@ export function SearchBar({
   // ── Derived animated styles ────────────────────────────────────────────────
   const animatedBorderColor = focusProgress.interpolate({
     inputRange: [0, 1],
-    outputRange: [GLASS_BORDER, FOCUS_BORDER],
+    outputRange: [Colors.borderGlass, Colors.borderFocus],
   });
 
   // ── Handlers ───────────────────────────────────────────────────────────────
@@ -216,7 +212,7 @@ export function SearchBar({
           ]}
         >
           {isFilterOpen
-            ? <X size={20} color={NEON_PURPLE} strokeWidth={2} />
+            ? <X size={20} color={Colors.purpleNeon} strokeWidth={2} />
             : <SlidersHorizontal size={20} color="rgba(255,255,255,0.7)" strokeWidth={2} />}
           {selectedFilters.length > 0 && !isFilterOpen && (
             <View style={styles.badge}>
@@ -237,7 +233,7 @@ export function SearchBar({
           ]}
         >
           {isCalendarView
-            ? <Map size={20} color={NEON_CYAN} strokeWidth={2} />
+            ? <Map size={20} color={Colors.cyan} strokeWidth={2} />
             : <CalendarDays size={20} color="rgba(255,255,255,0.7)" strokeWidth={2} />}
         </AnimatedPressable>
 
@@ -309,10 +305,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: 12,
-    paddingVertical: 12, // Increased from 10 to reach ~56px
-    backgroundColor: GLASS_BG,
+    paddingVertical: 12,
+    backgroundColor: Colors.surfaceGlass,
     borderWidth: 1,
-    borderRadius: 14, // Slightly more rounded for premium look
+    borderRadius: 14,
     // borderColor animated via Animated.Value — do not set here
   },
   logo: {
@@ -339,13 +335,13 @@ const styles = StyleSheet.create({
   // ── Icon buttons ──────────────────────────────────────────────────────────
   iconBtn: {
     padding: 10,
-    backgroundColor: GLASS_BG,
+    backgroundColor: Colors.surfaceGlass,
     borderWidth: 1,
-    borderColor: GLASS_BORDER,
+    borderColor: Colors.borderGlass,
     borderRadius: 12,
   },
   iconBtnActive: {
-    borderColor: 'rgba(188, 19, 254, 0.4)',
+    borderColor: Colors.borderFocus,
   },
   calBtnActive: {
     borderColor: 'rgba(34, 211, 238, 0.6)',
@@ -359,7 +355,7 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: NEON_PURPLE,
+    backgroundColor: Colors.purpleNeon,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -376,7 +372,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: NEON_PURPLE,
+    backgroundColor: Colors.purpleNeon,
   },
   // ── Filter panel ──────────────────────────────────────────────────────────
   filterPanel: {
@@ -384,9 +380,9 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   filterPanelInner: {
-    backgroundColor: GLASS_BG,
+    backgroundColor: Colors.surfaceGlass,
     borderWidth: 1,
-    borderColor: GLASS_BORDER,
+    borderColor: Colors.borderGlass,
     borderRadius: 12,
     padding: 12,
   },

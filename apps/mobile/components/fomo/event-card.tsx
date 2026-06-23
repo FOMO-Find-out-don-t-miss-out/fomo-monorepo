@@ -9,9 +9,10 @@ import {
   Text,
   View,
 } from 'react-native';
+import { Colors, Gradients, Shadows } from '../../theme';
 
 // ─── Types (canonical definitions live in types/ui) ──────────────────────────
-import type { Event, EventCategory } from '../../types/ui';
+import type { Event } from '../../types/ui';
 export type { Event, EventCategory } from '../../types/ui';
 
 interface EventCardProps {
@@ -19,21 +20,6 @@ interface EventCardProps {
   isActive?: boolean;
   onPress?: () => void;
 }
-
-// ─── Category colour map ──────────────────────────────────────────────────────
-
-const CATEGORY_COLORS: Record<EventCategory, { border: string; text: string }> = {
-  Music:    { border: 'rgba(168, 85,  247, 0.5)', text: '#A855F7' },
-  Arts:     { border: 'rgba(236, 72,  153, 0.5)', text: '#EC4899' },
-  Theater:  { border: 'rgba(245, 158, 11,  0.5)', text: '#F59E0B' },
-  Sports:   { border: 'rgba(34,  197, 94,  0.5)', text: '#22C55E' },
-  Comedy:   { border: 'rgba(249, 115, 22,  0.5)', text: '#F97316' },
-  Festival: { border: 'rgba(34,  211, 238, 0.5)', text: '#22D3EE' },
-};
-
-// ─── CTA gradient colours ─────────────────────────────────────────────────────
-
-const CTA_GRADIENT: [string, string] = ['#BC13FE', '#9333EA'];
 
 // ─── Component ────────────────────────────────────────────────────────────────
 //
@@ -49,7 +35,7 @@ const CTA_GRADIENT: [string, string] = ['#BC13FE', '#9333EA'];
 
 export function EventCard({ event, isActive = false, onPress }: EventCardProps) {
   const scale = useRef(new Animated.Value(1)).current;
-  const catColors = CATEGORY_COLORS[event.category];
+  const catColors = Colors.category[event.category];
 
   function pressIn() {
     Animated.spring(scale, {
@@ -74,7 +60,7 @@ export function EventCard({ event, isActive = false, onPress }: EventCardProps) 
     <Animated.View
       style={[
         styles.shadow,
-        isActive && styles.shadowActive,
+        isActive && Shadows.cardActive,
         { transform: [{ scale }] },
       ]}
     >
@@ -135,7 +121,7 @@ export function EventCard({ event, isActive = false, onPress }: EventCardProps) 
 
         {/* ── CTA — LinearGradient from #BC13FE → #9333EA (purple-600) ── */}
         <LinearGradient
-          colors={CTA_GRADIENT}
+          colors={Gradients.primaryCta}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.ctaBtn}
@@ -157,13 +143,6 @@ const styles = StyleSheet.create({
     width: 260,
     height: 180,
     borderRadius: 16,
-  },
-  shadowActive: {
-    shadowColor: '#A855F7',
-    shadowOffset: { width: 0, height: 0 },
-    shadowRadius: 16,
-    shadowOpacity: 0.45,
-    elevation: 12,
   },
 
   // Inner Pressable — fills outer, owns bg + clipping

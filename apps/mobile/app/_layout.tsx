@@ -12,9 +12,11 @@ import { useRouter, useSegments, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { View } from 'react-native';
 import { AuthProvider } from '../providers/auth-provider';
 import { useAuth } from '../hooks/use-auth';
+import { FomoLoadingState } from '../components/ui';
+import { Colors } from '../theme';
 
 // Hold the splash screen until Inter fonts are ready
 SplashScreen.preventAutoHideAsync();
@@ -55,8 +57,8 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
   if (isLoading || blockChildren) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#0B0B0F', alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color="#A855F7" size="large" />
+      <View style={{ flex: 1, backgroundColor: Colors.background }}>
+        <FomoLoadingState />
       </View>
     );
   }
@@ -85,7 +87,7 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <View style={{ flex: 1, backgroundColor: '#0B0B0F' }}>
+      <View style={{ flex: 1, backgroundColor: Colors.background }}>
         <StatusBar style="light" />
         <AuthGate>
           <Stack screenOptions={{ headerShown: false }}>

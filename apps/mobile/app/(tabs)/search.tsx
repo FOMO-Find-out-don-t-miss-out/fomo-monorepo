@@ -1,24 +1,16 @@
+import { Search } from 'lucide-react-native';
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { FomoEmptyState, FomoScreen } from '../../components/ui';
+import { Colors } from '../../theme';
 
 export default function SearchScreen() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.label}>Search</Text>
-    </View>
+    <FomoScreen>
+      <FomoEmptyState
+        icon={<Search size={48} color={Colors.purple} strokeWidth={1.2} />}
+        message="Search is coming soon"
+        sub="Browse events from the Discover tab for now."
+      />
+    </FomoScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0B0B0F',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  label: {
-    color: 'rgba(255,255,255,0.3)',
-    fontSize: 14,
-    letterSpacing: 2,
-  },
-});

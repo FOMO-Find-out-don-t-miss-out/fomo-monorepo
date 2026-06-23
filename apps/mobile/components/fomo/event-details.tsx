@@ -24,25 +24,14 @@ import {
   Text,
   View,
 } from 'react-native';
+import { Colors, Gradients, Shadows } from '../../theme';
 import { hasValidCoords } from '../../utils/geo';
-import type { Event, EventCategory } from '../../types/ui';
+import type { Event } from '../../types/ui';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const { height: SCREEN_H } = Dimensions.get('window');
 const SHEET_HEIGHT = SCREEN_H * 0.42;
-const CTA_GRADIENT: [string, string] = ['#BC13FE', '#9333EA'];
-
-// ─── Category colour map ──────────────────────────────────────────────────────
-
-const CATEGORY_COLORS: Record<EventCategory, { border: string; text: string }> = {
-  Music:    { border: 'rgba(168, 85,  247, 0.5)', text: '#A855F7' },
-  Arts:     { border: 'rgba(236, 72,  153, 0.5)', text: '#EC4899' },
-  Theater:  { border: 'rgba(245, 158, 11,  0.5)', text: '#F59E0B' },
-  Sports:   { border: 'rgba(34,  197, 94,  0.5)', text: '#22C55E' },
-  Comedy:   { border: 'rgba(249, 115, 22,  0.5)', text: '#F97316' },
-  Festival: { border: 'rgba(34,  211, 238, 0.5)', text: '#22D3EE' },
-};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -133,8 +122,8 @@ export function EventDetails({ event, onClose }: EventDetailsProps) {
   }, [event, isOpen]);
 
   const catColors = displayEvent
-    ? CATEGORY_COLORS[displayEvent.category]
-    : CATEGORY_COLORS.Music;
+    ? Colors.category[displayEvent.category]
+    : Colors.category.Music;
 
   const canOpenDirections = displayEvent ? hasValidCoords(displayEvent.lat, displayEvent.lng) : false;
 
@@ -228,7 +217,7 @@ export function EventDetails({ event, onClose }: EventDetailsProps) {
               {displayEvent.ticketUrl && (
                 <View style={styles.ctaWrapper}>
                   <LinearGradient
-                    colors={CTA_GRADIENT}
+                    colors={Gradients.primaryCta}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.ctaBtn}
@@ -394,11 +383,7 @@ const styles = StyleSheet.create({
   ctaBtn: {
     borderRadius: 12,
     overflow: 'hidden',
-    shadowColor: '#BC13FE',
-    shadowOffset: { width: 0, height: 0 },
-    shadowRadius: 15,
-    shadowOpacity: 0.5,
-    elevation: 8,
+    ...Shadows.ctaGlow,
   },
   ctaPressable: {
     flexDirection: 'row',

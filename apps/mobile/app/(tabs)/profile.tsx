@@ -2,13 +2,13 @@ import { useAuth } from '../../hooks/use-auth';
 import { LogIn, LogOut, User } from 'lucide-react-native';
 import React from 'react';
 import {
-  ActivityIndicator,
-  Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FomoButton, FomoLoadingState, FomoScreen } from '../../components/ui';
+import { Colors, Typography, Spacing } from '../../theme';
 
 export default function ProfileScreen() {
   const { isAuthenticated, isLoading, user, authError, login, logout } = useAuth();
@@ -16,9 +16,9 @@ export default function ProfileScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator color="#A855F7" size="large" />
-      </View>
+      <FomoScreen>
+        <FomoLoadingState />
+      </FomoScreen>
     );
   }
 
@@ -26,22 +26,24 @@ export default function ProfileScreen() {
   // This fallback handles any edge case where the tab is reached without auth.
   if (!isAuthenticated) {
     return (
-      <View style={[styles.center, { paddingTop: insets.top }]}>
-        <User size={48} color="rgba(255,255,255,0.2)" strokeWidth={1} />
+      <FomoScreen style={[styles.center, { paddingTop: insets.top }]}>
+        <User size={48} color={Colors.textDisabled} strokeWidth={1} />
         <Text style={styles.heading}>Sign in to FOMO</Text>
         {authError ? <Text style={styles.error}>{authError}</Text> : null}
-        <Pressable style={styles.loginBtn} onPress={() => login()}>
-          <LogIn size={18} color="#fff" strokeWidth={1.5} />
-          <Text style={styles.loginBtnText}>Log In</Text>
-        </Pressable>
-      </View>
+        <FomoButton
+          label="Log In"
+          icon={<LogIn size={18} color="#fff" strokeWidth={1.5} />}
+          onPress={() => login()}
+          style={styles.loginBtnWidth}
+        />
+      </FomoScreen>
     );
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + 24 }]}>
+    <FomoScreen style={[styles.container, { paddingTop: insets.top + 24 }]}>
       <View style={styles.avatarRing}>
-        <User size={40} color="#A855F7" strokeWidth={1.5} />
+        <User size={40} color={Colors.purple} strokeWidth={1.5} />
       </View>
 
       <Text style={styles.username}>{user?.username ?? '—'}</Text>
@@ -54,11 +56,14 @@ export default function ProfileScreen() {
 
       {authError ? <Text style={styles.error}>{authError}</Text> : null}
 
-      <Pressable style={styles.logoutBtn} onPress={logout}>
-        <LogOut size={16} color="rgba(255,255,255,0.6)" strokeWidth={1.5} />
-        <Text style={styles.logoutBtnText}>Log Out</Text>
-      </Pressable>
-    </View>
+      <FomoButton
+        label="Log Out"
+        variant="ghost"
+        icon={<LogOut size={16} color={Colors.textSecondary} strokeWidth={1.5} />}
+        onPress={logout}
+        style={styles.logoutBtnMargin}
+      />
+    </FomoScreen>
   );
 }
 
@@ -84,83 +89,60 @@ function formatDate(iso: string): string {
 
 const styles = StyleSheet.create({
   center: {
-    flex: 1,
-    backgroundColor: '#0B0B0F',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
-    gap: 12,
+    paddingHorizontal: Spacing['2xl'],
+    gap: Spacing.md,
   },
   container: {
-    flex: 1,
-    backgroundColor: '#0B0B0F',
     alignItems: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: Spacing.xl,
   },
   heading: {
-    color: '#fff',
-    fontSize: 22,
-    fontFamily: 'Inter_700Bold',
-    marginTop: 8,
-  },
-  sub: {
-    color: 'rgba(255,255,255,0.45)',
-    fontSize: 14,
-    fontFamily: 'Inter_400Regular',
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 8,
+    color: Colors.textPrimary,
+    fontSize: Typography.size['2xl'],
+    fontFamily: Typography.font.bold,
+    marginTop: Spacing.sm,
   },
   error: {
-    color: '#F87171',
-    fontSize: 13,
-    fontFamily: 'Inter_400Regular',
+    color: Colors.error,
+    fontSize: Typography.size.base,
+    fontFamily: Typography.font.regular,
     textAlign: 'center',
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
-  loginBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#A855F7',
-    paddingHorizontal: 28,
-    paddingVertical: 14,
-    borderRadius: 12,
-    marginTop: 8,
-  },
-  loginBtnText: {
-    color: '#fff',
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 15,
+  loginBtnWidth: {
+    width: '100%',
+    marginTop: Spacing.sm,
   },
   avatarRing: {
     width: 80,
     height: 80,
     borderRadius: 40,
     borderWidth: 1.5,
-    borderColor: 'rgba(168,85,247,0.4)',
-    backgroundColor: 'rgba(168,85,247,0.08)',
+    borderColor: `${Colors.purple}66`,
+    backgroundColor: `${Colors.purple}14`,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   username: {
-    color: '#fff',
-    fontSize: 20,
-    fontFamily: 'Inter_700Bold',
+    color: Colors.textPrimary,
+    fontSize: Typography.size['2xl'],
+    fontFamily: Typography.font.bold,
     letterSpacing: 0.3,
   },
   email: {
-    color: 'rgba(255,255,255,0.45)',
-    fontSize: 13,
-    fontFamily: 'Inter_400Regular',
+    color: Colors.textSecondary,
+    fontSize: Typography.size.base,
+    fontFamily: Typography.font.regular,
     marginTop: 2,
   },
   divider: {
     width: '100%',
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    marginVertical: 24,
+    backgroundColor: Colors.borderSubtle,
+    marginVertical: Spacing.xl,
   },
   infoRow: {
     flexDirection: 'row',
@@ -168,33 +150,20 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
+    borderBottomColor: Colors.borderSubtle,
   },
   infoLabel: {
     color: 'rgba(255,255,255,0.4)',
-    fontFamily: 'Inter_500Medium',
-    fontSize: 13,
+    fontFamily: Typography.font.medium,
+    fontSize: Typography.size.base,
   },
   infoValue: {
     color: 'rgba(255,255,255,0.85)',
-    fontFamily: 'Inter_500Medium',
-    fontSize: 13,
+    fontFamily: Typography.font.medium,
+    fontSize: Typography.size.base,
     textTransform: 'capitalize',
   },
-  logoutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 32,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-  },
-  logoutBtnText: {
-    color: 'rgba(255,255,255,0.6)',
-    fontFamily: 'Inter_500Medium',
-    fontSize: 14,
+  logoutBtnMargin: {
+    marginTop: Spacing['2xl'],
   },
 });
