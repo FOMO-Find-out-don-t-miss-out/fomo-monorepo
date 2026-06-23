@@ -1,6 +1,6 @@
 import { Bookmark, CheckCircle, Heart, LayoutList } from 'lucide-react-native';
 import { useFocusEffect } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -9,6 +9,7 @@ import { EventDetails } from '../../components/fomo/event-details';
 import { FomoEmptyState, FomoErrorState, FomoLoadingState, FomoScreen } from '../../components/ui';
 import { useAuth } from '../../hooks/use-auth';
 import { useMyEvents } from '../../hooks/use-my-events';
+import { useRelationshipState } from '../../hooks/use-relationship-state';
 import { Colors, Radii, Spacing, Typography } from '../../theme';
 import type { RelationshipType } from '../../utils/event-relationships-api';
 import type { UiEvent } from '../../types/ui';
@@ -42,64 +43,6 @@ const EMPTY_SUB: Record<TabLabel, string> = {
   Going: 'Mark events as going from the event detail sheet.',
 };
 
-// ─── Inner list (one per tab) ─────────────────────────────────────────────────
-
-interface TabListProps {
-  tab: TabLabel;
-  accessToken: string;
-  onEventPress: (event: UiEvent) => void;
-  triggerRefetch: number;
-}
-
-function TabList({ tab, accessToken, onEventPress, triggerRefetch }: TabListProps) {
-  const { events, isLoading, error, refetch, remove } = useMyEvents(
-    TAB_TYPE[tab],
-    accessToken,
-  );
-  const insets = useSafeAreaInsets();
-
-  useFocusEffect(
-    useCallback(() => {
-      refetch();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [triggerRefetch]),
-  );
-
-  if (isLoading) return <FomoLoadingState />;
-  if (error) return <FomoErrorState message={error} onRetry={refetch} />;
-  if (events.length === 0) {
-    return (
-      <FomoEmptyState
-        icon={<Heart size={48} color={TAB_COLOR[tab]} strokeWidth={1.2} />}
-        message={EMPTY_MESSAGE[tab]}
-        sub={EMPTY_SUB[tab]}
-      />
-    );
-  }
-
-  return (
-    <ScrollView
-      contentContainerStyle={[
-        styles.list,
-        { paddingBottom: insets.bottom + Spacing.xl },
-      ]}
-      showsVerticalScrollIndicator={false}
-    >
-      {events.map((event) => (
-        <View key={event.id} style={styles.cardRow}>
-          <EventCard
-            event={event}
-            isSaved={tab === 'Saved'}
-            isSaveLoading={false}
-            onToggleSave={tab === 'Saved' ? () => remove(event.id) : undefined}
-            onPress={() => onEventPress(event)}
-          />
-        </View>
-      ))}
-    </ScrollView>
-  );
-}
-
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function MyEventsScreen() {
@@ -107,14 +50,60 @@ export default function MyEventsScreen() {
   const { accessToken, isLoading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<TabLabel>('Saved');
   const [selectedEvent, setSelectedEvent] = useState<UiEvent | null>(null);
-  // Incrementing this causes TabList to re-run useFocusEffect on tab switch
-  const [refetchKey, setRefetchKey] = useState(0);
 
-  // Trigger a refetch whenever the active tab changes so we get fresh data
+  // Fetch events + full relationship state for the active tab.
+  const { events, relationships: batchRel, isLoading, error, refetch } = useMyEvents(
+    TAB_TYPE[activeTab],
+    accessToken,
+  );
+
+  // Optimistic relationship layer — single source of truth for the detail sheet
+  // and card bookmark state across all three relationship types.
+  const {
+    state: relState,
+    syncFromServer,
+    toggle: toggleRel,
+    isPending: isRelPending,
+    hasRelationship,
+  } = useRelationshipState(accessToken);
+
+  // Sync batch-fetched relationship state into the optimistic layer whenever
+  // new events are loaded (tab switch, focus refetch, or initial mount).
+  useEffect(() => {
+    syncFromServer(batchRel);
+  }, [batchRel, syncFromServer]);
+
+  // Refetch the active tab's events when the screen gains focus so that
+  // changes made in Discover (save/unsave) are reflected here.
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab]),
+  );
+
+  // Derive visible events: filter out any event where the optimistic state shows
+  // the current tab's relationship type has been toggled off.  This lets the
+  // card disappear instantly when the user unsaves/un-interests/un-goes in the
+  // detail sheet without needing a separate list-remove API call.
+  const visibleEvents = useMemo(
+    () =>
+      events.filter((e) => {
+        const rels = relState[e.id];
+        // If the optimistic layer hasn't received state for this event yet
+        // (batch fetch still in flight), trust the list membership.
+        if (rels === undefined) return true;
+        return rels.includes(TAB_TYPE[activeTab]);
+      }),
+    [events, relState, activeTab],
+  );
+
   const handleTabPress = useCallback((tab: TabLabel) => {
     setActiveTab(tab);
-    setRefetchKey((k) => k + 1);
+    setSelectedEvent(null);
   }, []);
+
+  // ── Auth guards ─────────────────────────────────────────────────────────────
 
   if (authLoading) {
     return (
@@ -134,6 +123,8 @@ export default function MyEventsScreen() {
       </FomoScreen>
     );
   }
+
+  // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <FomoScreen>
@@ -160,10 +151,20 @@ export default function MyEventsScreen() {
               accessibilityState={{ selected: isActive }}
             >
               {tab === 'Saved' && (
-                <Bookmark size={13} color={color} fill={isActive ? color : 'transparent'} strokeWidth={1.5} />
+                <Bookmark
+                  size={13}
+                  color={color}
+                  fill={isActive ? color : 'transparent'}
+                  strokeWidth={1.5}
+                />
               )}
               {tab === 'Interested' && (
-                <Heart size={13} color={color} fill={isActive ? color : 'transparent'} strokeWidth={1.5} />
+                <Heart
+                  size={13}
+                  color={color}
+                  fill={isActive ? color : 'transparent'}
+                  strokeWidth={1.5}
+                />
               )}
               {tab === 'Going' && (
                 <CheckCircle size={13} color={color} strokeWidth={1.5} />
@@ -175,27 +176,58 @@ export default function MyEventsScreen() {
       </View>
 
       {/* Event list for active tab */}
-      <TabList
-        tab={activeTab}
-        accessToken={accessToken}
-        onEventPress={setSelectedEvent}
-        triggerRefetch={refetchKey}
-      />
+      {isLoading ? (
+        <FomoLoadingState />
+      ) : error ? (
+        <FomoErrorState message={error} onRetry={refetch} />
+      ) : visibleEvents.length === 0 ? (
+        <FomoEmptyState
+          icon={<Heart size={48} color={TAB_COLOR[activeTab]} strokeWidth={1.2} />}
+          message={EMPTY_MESSAGE[activeTab]}
+          sub={EMPTY_SUB[activeTab]}
+        />
+      ) : (
+        <ScrollView
+          contentContainerStyle={[
+            styles.list,
+            { paddingBottom: insets.bottom + Spacing.xl },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
+          {visibleEvents.map((event) => (
+            <View key={event.id} style={styles.cardRow}>
+              <EventCard
+                event={event}
+                isSaved={hasRelationship(event.id, 'saved')}
+                isSaveLoading={isRelPending(event.id, 'saved')}
+                onToggleSave={() => toggleRel(event.id, 'saved')}
+                onPress={() => setSelectedEvent(event)}
+              />
+            </View>
+          ))}
+        </ScrollView>
+      )}
 
-      {/* Detail sheet — remove from this collection when toggled off */}
+      {/* Detail sheet — shows full relationship state, all three buttons active */}
       <EventDetails
         event={selectedEvent}
         onClose={() => setSelectedEvent(null)}
-        relationships={selectedEvent ? [TAB_TYPE[activeTab]] : []}
+        relationships={
+          selectedEvent
+            ? (relState[selectedEvent.id] ?? [TAB_TYPE[activeTab]])
+            : []
+        }
         onToggleRelationship={
           selectedEvent
-            ? (type) => {
-                if (type === TAB_TYPE[activeTab]) {
-                  setSelectedEvent(null);
-                  setRefetchKey((k) => k + 1);
-                }
-              }
+            ? (type) => toggleRel(selectedEvent.id, type)
             : undefined
+        }
+        pendingRelationships={
+          selectedEvent
+            ? (['saved', 'interested', 'going'] as const).filter((t) =>
+                isRelPending(selectedEvent.id, t),
+              )
+            : []
         }
       />
     </FomoScreen>
