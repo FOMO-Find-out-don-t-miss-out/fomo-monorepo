@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const ROUTE_META = {
   index:   { label: 'Discover', Icon: Map    },
   search:  { label: 'Search',   Icon: Search },
-  saved:   { label: 'Saved',    Icon: Heart  },
+  saved:   { label: 'My Events', Icon: Heart  },
   profile: { label: 'Profile',  Icon: User   },
 } as const;
 
@@ -110,7 +110,7 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="index"   options={{ title: 'Discover' }} />
       <Tabs.Screen name="search"  options={{ title: 'Search'   }} />
-      <Tabs.Screen name="saved"   options={{ title: 'Saved'    }} />
+      <Tabs.Screen name="saved"   options={{ title: 'My Events' }} />
       <Tabs.Screen name="profile" options={{ title: 'Profile'  }} />
     </Tabs>
   );

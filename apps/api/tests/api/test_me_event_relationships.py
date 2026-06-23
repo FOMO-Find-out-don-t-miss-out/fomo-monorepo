@@ -360,3 +360,121 @@ async def test_event_relationships_empty_when_no_ids(
     response = await client.get("/api/v1/me/event-relationships")
     assert response.status_code == 200
     assert response.json() == {"relationships": {}}
+
+
+# ---------------------------------------------------------------------------
+# GET /me/events?relationship_type= (generic collection endpoint)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_my_events_requires_auth(client: AsyncClient, auth_overrides: None) -> None:
+    response = await client.get("/api/v1/me/events?relationship_type=saved")
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_my_events_invalid_type_returns_422(
+    client: AsyncClient, auth_user: User
+) -> None:
+    response = await client.get("/api/v1/me/events?relationship_type=wishlist")
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_my_events_saved_returns_saved_events(
+    client: AsyncClient, auth_user: User, session: Session
+) -> None:
+    event = make_event(session, "My Saved")
+    await client.put(f"/api/v1/me/events/{event.id}/relationships/saved")
+    response = await client.get("/api/v1/me/events?relationship_type=saved")
+    assert response.status_code == 200
+    ids = [e["id"] for e in response.json()]
+    assert str(event.id) in ids
+
+
+@pytest.mark.asyncio
+async def test_my_events_interested_returns_interested_events(
+    client: AsyncClient, auth_user: User, session: Session
+) -> None:
+    event = make_event(session, "My Interested")
+    await client.put(f"/api/v1/me/events/{event.id}/relationships/interested")
+    response = await client.get("/api/v1/me/events?relationship_type=interested")
+    assert response.status_code == 200
+    ids = [e["id"] for e in response.json()]
+    assert str(event.id) in ids
+
+
+@pytest.mark.asyncio
+async def test_my_events_going_returns_going_events(
+    client: AsyncClient, auth_user: User, session: Session
+) -> None:
+    event = make_event(session, "My Going")
+    await client.put(f"/api/v1/me/events/{event.id}/relationships/going")
+    response = await client.get("/api/v1/me/events?relationship_type=going")
+    assert response.status_code == 200
+    ids = [e["id"] for e in response.json()]
+    assert str(event.id) in ids
+
+
+@pytest.mark.asyncio
+async def test_my_events_excludes_other_users(
+    client: AsyncClient,
+    auth_user: User,
+    other_user: User,
+    session: Session,
+) -> None:
+    event = make_event(session, "Other User Going")
+    session.add(
+        EventRelationship(
+            user_id=other_user.id,
+            event_id=event.id,
+            relationship_type=RelationshipType.going,
+        )
+    )
+    session.commit()
+    response = await client.get("/api/v1/me/events?relationship_type=going")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+@pytest.mark.asyncio
+async def test_my_events_excludes_non_live_events(
+    client: AsyncClient, auth_user: User, session: Session
+) -> None:
+    removed = make_event(session, "Removed Event", status=EventStatus.removed)
+    session.add(
+        EventRelationship(
+            user_id=auth_user.id,
+            event_id=removed.id,
+            relationship_type=RelationshipType.saved,
+        )
+    )
+    session.commit()
+    response = await client.get("/api/v1/me/events?relationship_type=saved")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+@pytest.mark.asyncio
+async def test_my_events_different_types_do_not_bleed(
+    client: AsyncClient, auth_user: User, session: Session
+) -> None:
+    event = make_event(session, "Only Saved")
+    await client.put(f"/api/v1/me/events/{event.id}/relationships/saved")
+    interested = await client.get("/api/v1/me/events?relationship_type=interested")
+    going = await client.get("/api/v1/me/events?relationship_type=going")
+    assert interested.json() == []
+    assert going.json() == []
+
+
+@pytest.mark.asyncio
+async def test_saved_events_legacy_endpoint_still_works(
+    client: AsyncClient, auth_user: User, session: Session
+) -> None:
+    """/me/saved-events must remain backward compatible."""
+    event = make_event(session, "Legacy Saved")
+    await client.put(f"/api/v1/me/events/{event.id}/relationships/saved")
+    response = await client.get("/api/v1/me/saved-events")
+    assert response.status_code == 200
+    assert any(e["id"] == str(event.id) for e in response.json())

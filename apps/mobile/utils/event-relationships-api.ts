@@ -45,6 +45,16 @@ export async function removeEventRelationship(
   );
 }
 
+export async function fetchMyEvents(
+  relationshipType: RelationshipType,
+  accessToken: string,
+): Promise<ApiEvent[]> {
+  return apiFetchAuth<ApiEvent[]>(
+    `${BASE}/events?relationship_type=${encodeURIComponent(relationshipType)}`,
+    accessToken,
+  );
+}
+
 export async function fetchSavedEvents(accessToken: string): Promise<ApiEvent[]> {
   return apiFetchAuth<ApiEvent[]>(`${BASE}/saved-events`, accessToken);
 }

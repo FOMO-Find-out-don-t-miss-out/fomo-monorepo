@@ -94,7 +94,7 @@ export default function DiscoveryScreen() {
   // Relationship state: batch-fetched from backend, managed optimistically locally.
   const eventIds = useMemo(() => eventsWithDistance.map((e) => e.id), [eventsWithDistance]);
   const { relationships: serverRels } = useEventRelationships(eventIds, accessToken);
-  const { syncFromServer, toggle: toggleRel, isPending: isRelPending, hasRelationship } = useRelationshipState(accessToken);
+  const { state: relState, syncFromServer, toggle: toggleRel, isPending: isRelPending, hasRelationship } = useRelationshipState(accessToken);
 
   useEffect(() => {
     syncFromServer(serverRels);
@@ -280,7 +280,7 @@ export default function DiscoveryScreen() {
       <EventDetails
         event={selectedEvent}
         onClose={() => setSelectedEvent(null)}
-        relationships={selectedEvent && accessToken ? (serverRels[selectedEvent.id] ?? []) : []}
+        relationships={selectedEvent && accessToken ? (relState[selectedEvent.id] ?? []) : []}
         onToggleRelationship={accessToken && selectedEvent
           ? (type) => toggleRel(selectedEvent.id, type)
           : undefined}

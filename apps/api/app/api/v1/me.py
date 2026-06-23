@@ -57,6 +57,22 @@ async def delete_relationship(
     return Response(status_code=204)
 
 
+@router.get("/events", response_model=list[EventDiscoveryResponse])
+async def get_my_events(
+    relationship_type: RelationshipType,
+    user: Annotated[User, Depends(require_authenticated_user)],
+    session: Annotated[Session, Depends(get_db)],
+) -> list[EventDiscoveryResponse]:
+    """Return the authenticated user's events for a given relationship type.
+
+    ?relationship_type=saved|interested|going
+    Sorted by start_time ascending (upcoming first).
+    """
+    service = EventRelationshipService(session)
+    events = service.list_events_by_type(user_id=user.id, relationship_type=relationship_type)
+    return [EventDiscoveryResponse.model_validate(e) for e in events]
+
+
 @router.get("/saved-events", response_model=list[EventDiscoveryResponse])
 async def get_saved_events(
     user: Annotated[User, Depends(require_authenticated_user)],

@@ -72,9 +72,10 @@ class EventRelationshipService:
         self.session.commit()
         return True
 
-    def _list_events_for_type(
+    def list_events_by_type(
         self, *, user_id: UUID, relationship_type: RelationshipType
     ) -> list[Event]:
+        """Return live public events for the user filtered by relationship type."""
         statement = (
             select(Event)
             .join(EventRelationship, EventRelationship.event_id == Event.id)
@@ -88,15 +89,15 @@ class EventRelationshipService:
         return list(self.session.exec(statement).all())
 
     def list_saved_events(self, *, user_id: UUID) -> list[Event]:
-        return self._list_events_for_type(user_id=user_id, relationship_type=RelationshipType.saved)
+        return self.list_events_by_type(user_id=user_id, relationship_type=RelationshipType.saved)
 
     def list_interested_events(self, *, user_id: UUID) -> list[Event]:
-        return self._list_events_for_type(
+        return self.list_events_by_type(
             user_id=user_id, relationship_type=RelationshipType.interested
         )
 
     def list_going_events(self, *, user_id: UUID) -> list[Event]:
-        return self._list_events_for_type(user_id=user_id, relationship_type=RelationshipType.going)
+        return self.list_events_by_type(user_id=user_id, relationship_type=RelationshipType.going)
 
     def get_relationships_for_events(
         self,
