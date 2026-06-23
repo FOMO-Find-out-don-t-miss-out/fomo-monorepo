@@ -68,8 +68,10 @@ export interface UiEventFields {
   venue: string;
   /** Formatted date string. Derived from API's start_time. */
   date: string;
-  /** Formatted time string. Derived from API's start_time. */
+  /** Formatted time string (HH:MM). Derived from API's start_time. */
   time: string;
+  /** Raw ISO start time string. Kept for chronological sorting and date grouping. */
+  startTime?: string;
   /** Intensity bucket. Derived from API's hype_score (high ≥ 70, medium ≥ 40, low otherwise). */
   hypeLevel: 'high' | 'medium' | 'low';
   /** Image URI. Maps to API's photo_url. */

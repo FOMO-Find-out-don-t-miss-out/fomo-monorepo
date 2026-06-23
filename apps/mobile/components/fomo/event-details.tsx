@@ -231,35 +231,56 @@ export function EventDetails({
 
                 {/* Relationship actions: Saved / Interested / Going */}
                 {onToggleRelationship && (
-                  <View style={styles.relRow}>
-                    {REL_ACTIONS.map(({ type, label, Icon, activeColor }) => {
-                      const isActive = relationships.includes(type);
-                      const isPending = pendingRelationships.includes(type);
-                      return (
-                        <Pressable
-                          key={type}
-                          style={[styles.relBtn, isActive && { borderColor: activeColor, backgroundColor: `${activeColor}22` }]}
-                          onPress={() => onToggleRelationship(type)}
-                          disabled={isPending}
-                          accessibilityRole="button"
-                          accessibilityLabel={isActive ? `Remove ${label}` : label}
-                        >
-                          {isPending ? (
-                            <ActivityIndicator size="small" color={activeColor} />
-                          ) : (
-                            <Icon
-                              size={15}
-                              color={isActive ? activeColor : 'rgba(255,255,255,0.5)'}
-                              fill={isActive ? activeColor : 'transparent'}
-                              strokeWidth={1.5}
-                            />
-                          )}
-                          <Text style={[styles.relLabel, isActive && { color: activeColor }]}>
-                            {label}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
+                  <View style={styles.relSection}>
+                    {/* Intent hierarchy label */}
+                    <View style={styles.relDivider}>
+                      <View style={styles.relDividerLine} />
+                      <Text style={styles.relDividerLabel}>YOUR INTENT</Text>
+                      <View style={styles.relDividerLine} />
+                    </View>
+
+                    <View style={styles.relRow}>
+                      {REL_ACTIONS.map(({ type, label, Icon, activeColor }) => {
+                        const isActive  = relationships.includes(type);
+                        const isPending = pendingRelationships.includes(type);
+                        return (
+                          <Pressable
+                            key={type}
+                            style={[
+                              styles.relBtn,
+                              isActive && {
+                                borderColor: activeColor,
+                                backgroundColor: `${activeColor}28`,
+                                shadowColor: activeColor,
+                                shadowOpacity: 0.35,
+                                shadowRadius: 8,
+                                shadowOffset: { width: 0, height: 0 },
+                                elevation: 4,
+                              },
+                            ]}
+                            onPress={() => onToggleRelationship(type)}
+                            disabled={isPending}
+                            accessibilityRole="button"
+                            accessibilityLabel={isActive ? `Remove ${label}` : label}
+                            accessibilityState={{ checked: isActive }}
+                          >
+                            {isPending ? (
+                              <ActivityIndicator size={14} color={activeColor} />
+                            ) : (
+                              <Icon
+                                size={15}
+                                color={isActive ? activeColor : 'rgba(255,255,255,0.4)'}
+                                fill={isActive ? activeColor : 'transparent'}
+                                strokeWidth={1.5}
+                              />
+                            )}
+                            <Text style={[styles.relLabel, isActive && { color: activeColor, fontFamily: 'Inter_600SemiBold' }]}>
+                              {label}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
                   </View>
                 )}
 
@@ -427,10 +448,29 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#22D3EE',
   },
+  relSection: {
+    marginBottom: 12,
+    gap: 10,
+  },
+  relDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  relDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  relDividerLabel: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 9,
+    letterSpacing: 1.4,
+    color: 'rgba(255,255,255,0.30)',
+  },
   relRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 12,
   },
   relBtn: {
     flex: 1,
@@ -438,7 +478,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 5,
-    paddingVertical: 8,
+    paddingVertical: 11,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: Colors.border,
@@ -447,7 +487,7 @@ const styles = StyleSheet.create({
   relLabel: {
     fontFamily: 'Inter_500Medium',
     fontSize: 11,
-    color: 'rgba(255,255,255,0.5)',
+    color: 'rgba(255,255,255,0.40)',
   },
   actionRow: {
     flexDirection: 'row',

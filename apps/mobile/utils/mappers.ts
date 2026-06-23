@@ -53,5 +53,6 @@ export function apiEventToUiEvent(event: ApiEvent): UiEvent {
     sourceUrl: event.sourceUrl ?? null,
     lat: event.lat,
     lng: event.lng,
+    startTime: event.startTime ?? undefined,
   };
 }
