@@ -62,9 +62,16 @@ async function fetchUserMe(accessToken: string): Promise<UserMe | null> {
     const res = await fetch(`${BASE_URL}/api/v1/users/me`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      if (__DEV__) {
+        const body = await res.text().catch(() => '(unreadable)');
+        console.warn(`[auth] /users/me returned ${res.status}: ${body}`);
+      }
+      return null;
+    }
     return (await res.json()) as UserMe;
-  } catch {
+  } catch (err) {
+    if (__DEV__) console.warn('[auth] /users/me fetch error:', err);
     return null;
   }
 }

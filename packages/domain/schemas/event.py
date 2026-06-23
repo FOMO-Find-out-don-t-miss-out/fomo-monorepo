@@ -3,13 +3,15 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class EventDiscoveryResponse(BaseModel):
     """
     Schema for atomic event facts returned by the discovery endpoint.
     """
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
     id: UUID
     title: str
@@ -27,7 +29,3 @@ class EventDiscoveryResponse(BaseModel):
     trust_level: str
     place_id: UUID | None = None
     organizer_id: UUID | None = None
-
-    class Config:
-        from_attributes = True
-        populate_by_name = True

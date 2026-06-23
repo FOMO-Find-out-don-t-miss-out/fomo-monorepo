@@ -11,7 +11,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from httpx import AsyncClient
 from sqlmodel import Session, select
 
-from packages.domain.models.user import User
+from packages.domain.models.user import User, UserSystemRole
 from tests.api.conftest import sign_token
 
 # ---------------------------------------------------------------------------
@@ -50,6 +50,7 @@ async def test_users_me_creates_user_on_first_access(
     assert data["username"] is not None
     assert data["phone_number"] is None
     assert data["phone_verified"] is False
+    assert data["system_role"] == UserSystemRole.user.value
 
     # Verify persistence in DB
     users = session.exec(select(User).where(User.external_id == "kc-api-new")).all()
@@ -69,6 +70,43 @@ async def test_users_me_external_id_equals_sub(
 
     users = session.exec(select(User).where(User.external_id == "kc-ext-id-check")).all()
     assert len(users) == 1
+
+
+@pytest.mark.asyncio
+async def test_users_me_creates_user_without_email(
+    client: AsyncClient,
+    auth_overrides: None,
+    rsa_private_key: rsa.RSAPrivateKey,
+    session: Session,
+) -> None:
+    """Users without an email claim in their token must still be created."""
+    token = sign_token(rsa_private_key, sub="kc-no-email", extra={"email": None})
+    response = await client.get("/api/v1/users/me", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["external_id"] == "kc-no-email"
+    assert data["email"] is None
+    assert data["username"] is not None
+
+
+@pytest.mark.asyncio
+async def test_users_me_response_shape_includes_all_fields(
+    client: AsyncClient,
+    auth_overrides: None,
+    rsa_private_key: rsa.RSAPrivateKey,
+) -> None:
+    """Response must include all fields required by the mobile Profile screen."""
+    token = sign_token(rsa_private_key, sub="kc-field-check")
+    response = await client.get("/api/v1/users/me", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200
+    data = response.json()
+
+    required_fields = {
+        "id", "external_id", "email", "phone_number", "phone_verified",
+        "system_role", "username", "avatar_url", "created_at", "updated_at",
+    }
+    assert required_fields <= data.keys()
+    assert data["system_role"] == "user"
 
 
 # ---------------------------------------------------------------------------
@@ -96,6 +134,38 @@ async def test_users_me_repeated_calls_no_duplicate(
 
     count = len(session.exec(select(User).where(User.external_id == "kc-idempotent-api")).all())
     assert count == 1
+
+
+# ---------------------------------------------------------------------------
+# Duplicate handling — email conflict
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_users_me_duplicate_email_keeps_existing_user(
+    client: AsyncClient,
+    auth_overrides: None,
+    rsa_private_key: rsa.RSAPrivateKey,
+    session: Session,
+) -> None:
+    """When a user exists with the given external_id, repeated requests return 200.
+
+    Simulates an existing user whose record was pre-populated (e.g., by a
+    seeder or a prior auth method) then re-authenticated via Keycloak.
+    """
+    # Pre-populate a user so the service finds it by external_id on first call.
+    user_b = User(external_id="kc-dup-email-b", email="shared@example.com")
+    session.add(user_b)
+    session.commit()
+
+    token_b = sign_token(
+        rsa_private_key, sub="kc-dup-email-b",
+        extra={"email": "shared@example.com"},
+    )
+    headers = {"Authorization": f"Bearer {token_b}"}
+    response_b = await client.get("/api/v1/users/me", headers=headers)
+    assert response_b.status_code == 200
+    assert response_b.json()["external_id"] == "kc-dup-email-b"
 
 
 # ---------------------------------------------------------------------------

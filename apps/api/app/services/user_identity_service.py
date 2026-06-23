@@ -11,13 +11,17 @@ Intentionally out of scope:
 - RBAC / trust tiers
 """
 
+import logging
 import re
 from uuid import UUID, uuid4
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app.schemas.identity import TokenIdentity
 from packages.domain.models.user import Profile, User
+
+logger = logging.getLogger(__name__)
 
 
 class UserIdentityService:
@@ -47,16 +51,62 @@ class UserIdentityService:
         ).first()
 
         if user is None:
-            user = User(external_id=identity.sub, email=identity.email)
-            self.session.add(user)
-            self.session.flush()
+            user = self._insert_user(identity)
         elif identity.email and user.email != identity.email:
             # Keep email in sync when the token provides one and it changed.
             # phone_number / phone_verified are NOT sourced from JWT — they
             # belong to the OTP flow and must never be overwritten here.
-            user.email = identity.email
-            self.session.flush()
+            user = self._update_user_email(user, identity.email)
 
+        return user
+
+    def _insert_user(self, identity: TokenIdentity) -> User:
+        """INSERT a new user row, falling back gracefully on unique constraint races.
+
+        Two concurrent first-time requests for the same Keycloak sub can both
+        pass the SELECT-then-INSERT check and attempt a simultaneous INSERT.
+        A savepoint lets the loser roll back its write without aborting the
+        outer session, then re-fetch the row the winner committed.
+        """
+        try:
+            with self.session.begin_nested():
+                user = User(external_id=identity.sub, email=identity.email)
+                self.session.add(user)
+                self.session.flush()
+            return user
+        except IntegrityError:
+            # Race condition: another request committed this sub first.
+            # Re-fetch by external_id; if still None an unrecoverable conflict
+            # (e.g. duplicate email from a different sub) lets the error propagate.
+            logger.warning(
+                "User INSERT conflict for sub=%r — re-fetching after savepoint rollback",
+                identity.sub,
+            )
+            refetched = self.session.exec(
+                select(User).where(User.external_id == identity.sub)
+            ).first()
+            if refetched is not None:
+                return refetched
+            raise
+
+    def _update_user_email(self, user: User, new_email: str) -> User:
+        """Update user email, ignoring unique constraint violations.
+
+        If the new email already belongs to a different user (a Keycloak
+        misconfiguration), keep the existing email and log a warning rather
+        than raising a 500.
+        """
+        try:
+            with self.session.begin_nested():
+                user.email = new_email
+                self.session.flush()
+        except IntegrityError:
+            logger.warning(
+                "Email update conflict for user_id=%r new_email=%r — keeping existing email",
+                user.id,
+                new_email,
+            )
+            self.session.expire(user)
         return user
 
     def _get_or_create_profile(self, user: User, identity: TokenIdentity) -> Profile:
@@ -64,9 +114,17 @@ class UserIdentityService:
 
         if profile is None:
             username = self._derive_username(user, identity)
-            profile = Profile(user_id=user.id, username=username)
-            self.session.add(profile)
-            self.session.flush()
+            try:
+                with self.session.begin_nested():
+                    profile = Profile(user_id=user.id, username=username)
+                    self.session.add(profile)
+                    self.session.flush()
+            except IntegrityError:
+                # Concurrent creation race: re-fetch the profile committed by the winner.
+                self.session.expire_all()
+                profile = self.session.get(Profile, user.id)
+                if profile is None:
+                    raise
 
         return profile
 

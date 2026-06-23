@@ -46,6 +46,10 @@ export async function apiFetchAuth<T>(
     throw new ApiError(401, 'Session expired. Please log in again.');
   }
   if (!res.ok) {
+    if (__DEV__) {
+      const body = await res.clone().text().catch(() => '(unreadable)');
+      console.warn(`[api] ${init?.method ?? 'GET'} ${path} → ${res.status}: ${body}`);
+    }
     throw new ApiError(res.status, `${res.status} ${res.statusText}`);
   }
   if (res.status === 204) return undefined as T;

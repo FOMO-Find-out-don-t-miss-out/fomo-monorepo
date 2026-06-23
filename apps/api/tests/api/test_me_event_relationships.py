@@ -56,7 +56,8 @@ def make_event(
 
 @pytest.fixture
 def auth_user(session: Session) -> Generator[User, None, None]:
-    user = User(external_id=str(uuid4()), email="me@example.com")
+    uid = uuid4()
+    user = User(external_id=str(uid), email=f"me-{uid}@example.com")
     session.add(user)
     session.commit()
     session.refresh(user)
@@ -67,7 +68,8 @@ def auth_user(session: Session) -> Generator[User, None, None]:
 
 @pytest.fixture
 def other_user(session: Session) -> User:
-    user = User(external_id=str(uuid4()), email="other@example.com")
+    uid = uuid4()
+    user = User(external_id=str(uid), email=f"other-{uid}@example.com")
     session.add(user)
     session.commit()
     session.refresh(user)
