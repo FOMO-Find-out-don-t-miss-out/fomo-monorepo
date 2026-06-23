@@ -137,35 +137,84 @@ async def test_users_me_repeated_calls_no_duplicate(
 
 
 # ---------------------------------------------------------------------------
-# Duplicate handling — email conflict
+# Email reconciliation — existing email / different external_id
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_users_me_duplicate_email_keeps_existing_user(
+async def test_users_me_existing_email_new_sub_returns_200(
     client: AsyncClient,
     auth_overrides: None,
     rsa_private_key: rsa.RSAPrivateKey,
     session: Session,
 ) -> None:
-    """When a user exists with the given external_id, repeated requests return 200.
+    """Staging root cause regression test.
 
-    Simulates an existing user whose record was pre-populated (e.g., by a
-    seeder or a prior auth method) then re-authenticated via Keycloak.
+    A user already exists with email=reconcile@example.com and
+    external_id=old-dashboard-sub (from a prior login or seeded data).
+    A new Keycloak token arrives with the same email but sub=new-mobile-sub.
+
+    Expected: /users/me returns 200 for the EXISTING user, no 500, no duplicate.
     """
-    # Pre-populate a user so the service finds it by external_id on first call.
-    user_b = User(external_id="kc-dup-email-b", email="shared@example.com")
-    session.add(user_b)
-    session.commit()
-
-    token_b = sign_token(
-        rsa_private_key, sub="kc-dup-email-b",
-        extra={"email": "shared@example.com"},
+    existing = User(
+        external_id="old-dashboard-sub",
+        email="reconcile@example.com",
     )
-    headers = {"Authorization": f"Bearer {token_b}"}
-    response_b = await client.get("/api/v1/users/me", headers=headers)
-    assert response_b.status_code == 200
-    assert response_b.json()["external_id"] == "kc-dup-email-b"
+    session.add(existing)
+    session.commit()
+    session.refresh(existing)
+    existing_id = str(existing.id)
+
+    token = sign_token(
+        rsa_private_key,
+        sub="new-mobile-sub",
+        extra={"email": "reconcile@example.com"},
+    )
+    response = await client.get(
+        "/api/v1/users/me", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    # Must resolve to the PRE-EXISTING user row, not create a duplicate.
+    assert data["id"] == existing_id
+    assert data["email"] == "reconcile@example.com"
+
+    users = session.exec(
+        select(User).where(User.email == "reconcile@example.com")
+    ).all()
+    assert len(users) == 1
+
+
+@pytest.mark.asyncio
+async def test_users_me_existing_email_new_sub_repeated_stable(
+    client: AsyncClient,
+    auth_overrides: None,
+    rsa_private_key: rsa.RSAPrivateKey,
+    session: Session,
+) -> None:
+    """Repeated calls with mismatched sub keep returning the same user."""
+    existing = User(
+        external_id="old-sub-for-repeat",
+        email="repeat-reconcile@example.com",
+    )
+    session.add(existing)
+    session.commit()
+    session.refresh(existing)
+
+    token = sign_token(
+        rsa_private_key,
+        sub="new-sub-for-repeat",
+        extra={"email": "repeat-reconcile@example.com"},
+    )
+    headers = {"Authorization": f"Bearer {token}"}
+
+    r1 = await client.get("/api/v1/users/me", headers=headers)
+    r2 = await client.get("/api/v1/users/me", headers=headers)
+
+    assert r1.status_code == 200
+    assert r2.status_code == 200
+    assert r1.json()["id"] == str(existing.id)
+    assert r2.json()["id"] == str(existing.id)
 
 
 # ---------------------------------------------------------------------------

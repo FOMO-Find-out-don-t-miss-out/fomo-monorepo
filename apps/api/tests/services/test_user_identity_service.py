@@ -92,6 +92,89 @@ def test_repeated_access_does_not_create_duplicate_user(session: Session) -> Non
 
 
 # ---------------------------------------------------------------------------
+# Email reconciliation — existing email / different external_id
+# ---------------------------------------------------------------------------
+
+
+def test_existing_email_different_sub_returns_existing_user(session: Session) -> None:
+    """Core staging fix: existing user with same email but different external_id
+    must be returned instead of triggering a duplicate-email IntegrityError 500.
+
+    Scenario: user signed up via the dashboard (old-sub), then authenticates
+    via the mobile app under a different Keycloak client that maps to a new sub.
+    """
+    existing = User(external_id="old-sub-dashboard", email="shared@example.com")
+    session.add(existing)
+    session.commit()
+    session.refresh(existing)
+
+    identity = _make_identity(sub="new-sub-mobile", email="shared@example.com")
+    service = UserIdentityService(session)
+
+    returned, _ = service.get_or_create_from_identity(identity)
+
+    assert returned.id == existing.id
+    assert returned.email == "shared@example.com"
+    # Existing sub must NOT be overwritten (MVP: preserve stable identity)
+    assert returned.external_id == "old-sub-dashboard"
+    # No duplicate rows created
+    all_users = session.exec(
+        select(User).where(User.email == "shared@example.com")
+    ).all()
+    assert len(all_users) == 1
+
+
+def test_existing_email_different_sub_repeated_calls_stable(session: Session) -> None:
+    """Repeated calls with the mismatched sub keep returning the same user row."""
+    existing = User(external_id="old-sub-stable", email="stable@example.com")
+    session.add(existing)
+    session.commit()
+    session.refresh(existing)
+
+    identity = _make_identity(sub="new-sub-stable", email="stable@example.com")
+    service = UserIdentityService(session)
+
+    u1, _ = service.get_or_create_from_identity(identity)
+    u2, _ = service.get_or_create_from_identity(identity)
+
+    assert u1.id == existing.id
+    assert u2.id == existing.id
+    all_users = session.exec(
+        select(User).where(User.email == "stable@example.com")
+    ).all()
+    assert len(all_users) == 1
+
+
+def test_no_email_in_token_and_no_existing_user_creates_new(session: Session) -> None:
+    """When token has no email and no user exists for the sub, create fresh."""
+    identity = _make_identity(sub="no-email-new-sub", email=None)
+    service = UserIdentityService(session)
+
+    user, _ = service.get_or_create_from_identity(identity)
+
+    assert user.external_id == "no-email-new-sub"
+    assert user.email is None
+
+
+def test_no_email_in_token_existing_sub_still_returns_user(session: Session) -> None:
+    """Existing user whose token stops including email must not be re-created."""
+    existing = User(external_id="sub-no-email-existing", email="had-email@example.com")
+    session.add(existing)
+    session.commit()
+    session.refresh(existing)
+
+    # Token now has no email claim (e.g., consent removed)
+    identity = _make_identity(sub="sub-no-email-existing", email=None)
+    service = UserIdentityService(session)
+
+    returned, _ = service.get_or_create_from_identity(identity)
+
+    assert returned.id == existing.id
+    # Email on record is preserved (not cleared) when token omits the claim
+    assert returned.email == "had-email@example.com"
+
+
+# ---------------------------------------------------------------------------
 # Profile creation
 # ---------------------------------------------------------------------------
 
@@ -119,6 +202,23 @@ def test_creates_profile_for_existing_user_without_profile(session: Session) -> 
 
     assert user.id == existing.id
     assert profile.user_id == user.id
+
+
+def test_email_fallback_user_gets_profile_created(session: Session) -> None:
+    """User resolved via email fallback (different sub) also gets a profile."""
+    existing = User(external_id="old-sub-profile", email="profiled@example.com")
+    session.add(existing)
+    session.commit()
+    session.refresh(existing)
+
+    identity = _make_identity(sub="new-sub-profile", email="profiled@example.com")
+    service = UserIdentityService(session)
+
+    user, profile = service.get_or_create_from_identity(identity)
+
+    assert user.id == existing.id
+    assert profile.user_id == user.id
+    assert profile.username is not None
 
 
 def test_username_derived_from_preferred_username(session: Session) -> None:

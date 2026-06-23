@@ -9,6 +9,7 @@ Intentionally out of scope:
 - wallet state (kept in wallet_accounts / wallet_transactions)
 - phone OTP verification (reserved for FOMO-149+)
 - RBAC / trust tiers
+- multi-issuer identity alias table (deferred; see note in _resolve_by_email)
 """
 
 import logging
@@ -46,27 +47,69 @@ class UserIdentityService:
     # ------------------------------------------------------------------
 
     def _get_or_create_user(self, identity: TokenIdentity) -> User:
+        # Fast path: exact sub match
         user = self.session.exec(
             select(User).where(User.external_id == identity.sub)
         ).first()
-
-        if user is None:
-            user = self._insert_user(identity)
-        elif identity.email and user.email != identity.email:
+        if user is not None:
             # Keep email in sync when the token provides one and it changed.
             # phone_number / phone_verified are NOT sourced from JWT — they
             # belong to the OTP flow and must never be overwritten here.
-            user = self._update_user_email(user, identity.email)
+            if identity.email and user.email != identity.email:
+                user = self._update_user_email(user, identity.email)
+            return user
 
+        # Email fallback: handles realm migration, IdP change, or staging data
+        # where a user record exists with the same verified email but a different
+        # stored external_id.  MVP policy: return the existing user unchanged
+        # rather than creating a duplicate or silently overwriting the sub.
+        # Full multi-issuer linking (user_identity_aliases table) is deferred.
+        if identity.email:
+            user = self._resolve_by_email(identity)
+            if user is not None:
+                return user
+
+        # No match by sub or email: insert a new user row.
+        return self._insert_user(identity)
+
+    def _resolve_by_email(self, identity: TokenIdentity) -> User | None:
+        """Look up an existing user whose verified email matches the token claim.
+
+        When found and the stored external_id differs from the token sub, the
+        existing sub is preserved (not overwritten).  This is the safe MVP
+        behaviour for single-realm setups: the email uniqueness constraint
+        already ensures one user per address, so returning the existing row is
+        always correct.  Overwriting external_id would require an explicit
+        identity migration table to be safe across multiple issuers.
+        """
+        user = self.session.exec(
+            select(User).where(User.email == identity.email)
+        ).first()
+        if user is None:
+            return None
+
+        if user.external_id != identity.sub:
+            logger.warning(
+                "Email match for sub=%r: found user_id=%r with external_id=%r. "
+                "Returning existing user without overwriting external_id.",
+                identity.sub,
+                user.id,
+                user.external_id,
+            )
         return user
 
     def _insert_user(self, identity: TokenIdentity) -> User:
-        """INSERT a new user row, falling back gracefully on unique constraint races.
+        """INSERT a new user row, recovering from unique constraint races.
 
         Two concurrent first-time requests for the same Keycloak sub can both
-        pass the SELECT-then-INSERT check and attempt a simultaneous INSERT.
-        A savepoint lets the loser roll back its write without aborting the
-        outer session, then re-fetch the row the winner committed.
+        pass the SELECT-then-INSERT check and race to INSERT.  A savepoint
+        lets the loser roll back its write without aborting the outer session,
+        then re-fetch the winner's row.
+
+        If the IntegrityError is on the email column (a concurrent request
+        resolved the same email via _resolve_by_email and itself INSERTed a
+        new row just before us), we fall back to an email lookup after the
+        savepoint rollback.
         """
         try:
             with self.session.begin_nested():
@@ -75,18 +118,23 @@ class UserIdentityService:
                 self.session.flush()
             return user
         except IntegrityError:
-            # Race condition: another request committed this sub first.
-            # Re-fetch by external_id; if still None an unrecoverable conflict
-            # (e.g. duplicate email from a different sub) lets the error propagate.
             logger.warning(
                 "User INSERT conflict for sub=%r — re-fetching after savepoint rollback",
                 identity.sub,
             )
+            # Race on external_id (concurrent first login with same sub)
             refetched = self.session.exec(
                 select(User).where(User.external_id == identity.sub)
             ).first()
             if refetched is not None:
                 return refetched
+            # Race on email (another path resolved the same email just before us)
+            if identity.email:
+                refetched = self.session.exec(
+                    select(User).where(User.email == identity.email)
+                ).first()
+                if refetched is not None:
+                    return refetched
             raise
 
     def _update_user_email(self, user: User, new_email: str) -> User:
