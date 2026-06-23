@@ -27,7 +27,10 @@ import { useAuth } from '../../hooks/use-auth';
 import { useMyEvents } from '../../hooks/use-my-events';
 import { useRelationshipState } from '../../hooks/use-relationship-state';
 import { Colors, Radii, Spacing, Typography } from '../../theme';
-import type { RelationshipType } from '../../utils/event-relationships-api';
+import {
+  fetchMyEvents,
+  type RelationshipType,
+} from '../../utils/event-relationships-api';
 import type { UiEvent } from '../../types/ui';
 
 // ─── Tab config ───────────────────────────────────────────────────────────────
@@ -90,7 +93,11 @@ function dateLabel(isoDate: string): { label: string; dateRight: string } {
   const tomorrow = localDateKey(new Date(Date.now() + 86_400_000));
   const key      = localDateKey(d);
 
-  const dateRight = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const dateRight = d.toLocaleDateString('en-US', {
+    month: 'short',
+    day:   'numeric',
+    year:  'numeric',
+  });
 
   if (key === today)    return { label: 'Today',    dateRight };
   if (key === tomorrow) return { label: 'Tomorrow', dateRight };
@@ -99,6 +106,7 @@ function dateLabel(isoDate: string): { label: string; dateRight: string } {
     weekday: 'short',
     day:     'numeric',
     month:   'short',
+    year:    'numeric',
   });
   return { label, dateRight };
 }
@@ -165,6 +173,26 @@ export default function MyEventsScreen() {
     }, [activeTab]),
   );
 
+  // Background-fetch counts for all 3 tabs in parallel so inactive tab badges
+  // are populated on mount without requiring the user to visit each tab.
+  const [tabCounts, setTabCounts] = useState<Record<RelationshipType, number>>({
+    saved: 0, interested: 0, going: 0,
+  });
+  useEffect(() => {
+    if (!accessToken) return;
+    let cancelled = false;
+    Promise.all([
+      fetchMyEvents('saved',      accessToken),
+      fetchMyEvents('interested', accessToken),
+      fetchMyEvents('going',      accessToken),
+    ]).then(([s, i, g]) => {
+      if (!cancelled) {
+        setTabCounts({ saved: s.length, interested: i.length, going: g.length });
+      }
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [accessToken]);
+
   // Events still in the list: filter out any whose optimistic state no longer
   // includes the current tab's relationship type.
   const visibleEvents = useMemo(
@@ -220,8 +248,11 @@ export default function MyEventsScreen() {
       <View style={styles.tabBar}>
         {TABS.map((tab) => {
           const isActive = tab === activeTab;
-          const color    = isActive ? TAB_COLOR[tab] : Colors.textMuted;
-          const bgColor  = isActive ? `${TAB_COLOR[tab]}18` : 'transparent';
+          const tabColor = TAB_COLOR[tab];
+          const color    = isActive ? tabColor : Colors.textMuted;
+          const bgColor  = isActive ? `${tabColor}18` : 'transparent';
+          // Active tab uses live visibleEvents count; inactive tabs use cached count.
+          const count    = tab === activeTab ? visibleEvents.length : tabCounts[TAB_TYPE[tab]];
 
           return (
             <Pressable
@@ -254,9 +285,9 @@ export default function MyEventsScreen() {
                 <CheckCircle size={13} color={color} strokeWidth={1.5} />
               )}
               <Text style={[styles.tabLabel, { color }]}>{tab}</Text>
-              {isActive && visibleEvents.length > 0 && (
-                <View style={[styles.countBadge, { backgroundColor: color }]}>
-                  <Text style={styles.countText}>{visibleEvents.length}</Text>
+              {count > 0 && (
+                <View style={[styles.countBadge, { backgroundColor: tabColor }]}>
+                  <Text style={styles.countText}>{count}</Text>
                 </View>
               )}
             </Pressable>

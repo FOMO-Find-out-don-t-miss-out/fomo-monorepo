@@ -251,11 +251,6 @@ export function EventDetails({
                               isActive && {
                                 borderColor: activeColor,
                                 backgroundColor: `${activeColor}28`,
-                                shadowColor: activeColor,
-                                shadowOpacity: 0.35,
-                                shadowRadius: 8,
-                                shadowOffset: { width: 0, height: 0 },
-                                elevation: 4,
                               },
                             ]}
                             onPress={() => onToggleRelationship(type)}
@@ -274,7 +269,7 @@ export function EventDetails({
                                 strokeWidth={1.5}
                               />
                             )}
-                            <Text style={[styles.relLabel, isActive && { color: activeColor, fontFamily: 'Inter_600SemiBold' }]}>
+                            <Text style={[styles.relLabel, isActive && { color: activeColor }]}>
                               {label}
                             </Text>
                           </Pressable>
@@ -485,7 +480,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.04)',
   },
   relLabel: {
-    fontFamily: 'Inter_500Medium',
+    fontFamily: 'Inter_600SemiBold',
     fontSize: 11,
     color: 'rgba(255,255,255,0.40)',
   },
