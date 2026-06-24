@@ -3,23 +3,21 @@ import { MapPin } from 'lucide-react-native';
 import React from 'react';
 
 import { Colors, Radii, Spacing, Typography } from '../../../theme';
-import type { RelationshipType } from '../../../utils/event-relationships-api';
-import type { UiEvent } from '../../../types/ui';
+import type { EventIntent, UiEvent } from '../../../types/ui';
 
-// ─── Relationship dot config ─────────────────────────────────────────────────
+// ─── Intent dot config ───────────────────────────────────────────────────────
 
-const REL_DOTS: { type: RelationshipType; color: string }[] = [
-  { type: 'saved',      color: Colors.purple  },
-  { type: 'interested', color: Colors.magenta },
-  { type: 'going',      color: Colors.success  },
-];
+const INTENT_DOT: Record<'interested' | 'going', string> = {
+  interested: Colors.magenta,
+  going:      Colors.success,
+};
 
 // ─── Props ───────────────────────────────────────────────────────────────────
 
 interface MyEventListItemProps {
   event: UiEvent;
-  relationships: RelationshipType[];
-  pendingTypes?: RelationshipType[];
+  intent: EventIntent;
+  isPending?: boolean;
   onPress: () => void;
 }
 
@@ -27,15 +25,13 @@ interface MyEventListItemProps {
 
 export function MyEventListItem({
   event,
-  relationships,
-  pendingTypes = [],
+  intent,
+  isPending = false,
   onPress,
 }: MyEventListItemProps) {
   const catColors = Colors.category[event.category];
   const accentColor = catColors.text;
-
-  const activeDots = REL_DOTS.filter(({ type }) => relationships.includes(type));
-  const hasPending = pendingTypes.length > 0;
+  const dotColor = intent ? INTENT_DOT[intent] : null;
 
   return (
     <Pressable
@@ -61,7 +57,7 @@ export function MyEventListItem({
           </View>
         </View>
 
-        {/* Row 2: time · venue + relationship indicators */}
+        {/* Row 2: time · venue + intent indicator */}
         <View style={styles.metaRow}>
           <View style={styles.metaLeft}>
             {event.time ? (
@@ -80,15 +76,13 @@ export function MyEventListItem({
             ) : null}
           </View>
 
-          {/* Relationship indicators */}
-          <View style={styles.indicators}>
-            {hasPending ? (
-              <ActivityIndicator size={12} color={Colors.purple} />
-            ) : (
-              activeDots.map(({ type, color }) => (
-                <View key={type} style={[styles.dot, { backgroundColor: color }]} />
-              ))
-            )}
+          {/* Intent indicator */}
+          <View style={styles.indicator}>
+            {isPending ? (
+              <ActivityIndicator size={12} color={Colors.magenta} />
+            ) : dotColor ? (
+              <View style={[styles.dot, { backgroundColor: dotColor }]} />
+            ) : null}
           </View>
         </View>
       </View>
@@ -173,11 +167,11 @@ const styles = StyleSheet.create({
     fontSize: Typography.size.sm,
     color: Colors.textMuted,
   },
-  indicators: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+  indicator: {
     flexShrink: 0,
+    width: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dot: {
     width: 7,

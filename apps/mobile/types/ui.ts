@@ -101,6 +101,16 @@ export interface UiEvent extends UiEventFields {
   hypeScore?: number;
 }
 
+/**
+ * Mobile intent model. A user can have exactly one intent per event.
+ * Maps backend RelationshipType[] at the API boundary:
+ *   going      → 'going'
+ *   interested → 'interested'
+ *   (no intent or only saved) → null
+ * `saved` is dormant in mobile MVP and is ignored here.
+ */
+export type EventIntent = 'interested' | 'going' | null;
+
 // Re-export EventCategory under the legacy name so existing components
 // don't need to be updated beyond their import path.
 export type { UiEventCategory as EventCategory };

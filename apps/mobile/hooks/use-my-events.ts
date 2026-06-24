@@ -1,30 +1,24 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import {
-  fetchEventRelationshipState,
-  fetchMyEvents,
-} from '../utils/event-relationships-api';
+import { fetchMyEvents } from '../utils/event-relationships-api';
 import type { RelationshipType } from '../utils/event-relationships-api';
 import { apiEventToUiEvent } from '../utils/mappers';
 import type { UiEvent } from '../types/ui';
 
 export interface UseMyEventsResult {
   events: UiEvent[];
-  /** Full relationship state for every loaded event, keyed by event id. */
+  /**
+   * Seed data for useRelationshipState.syncFromServer.
+   * All returned events have intent = the requested relationship type.
+   * No secondary batch fetch is needed because the backend list endpoint
+   * already guarantees this invariant.
+   */
   relationships: Record<string, RelationshipType[]>;
   isLoading: boolean;
   error: string | null;
   refetch: () => void;
 }
 
-/**
- * Fetches the current user's events for a given relationship type, then
- * batch-fetches the full relationship state for those events so the detail
- * sheet can show all active relationship types (not just the tab's type).
- *
- * Call refetch() on screen focus to keep the list fresh after mutations
- * in other screens (e.g. saving from Discover).
- */
 export function useMyEvents(
   relationshipType: RelationshipType,
   accessToken: string | null,
@@ -35,7 +29,6 @@ export function useMyEvents(
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
 
-  // Primary fetch: events by relationship type
   useEffect(() => {
     if (!accessToken) {
       setEvents([]);
@@ -53,17 +46,13 @@ export function useMyEvents(
         const uiEvents = raw.map(apiEventToUiEvent);
         setEvents(uiEvents);
 
-        // Secondary fetch: full relationship state for these event ids.
-        // Runs inside the same cancelled-scope so we don't update state
-        // after the component unmounts or the effect re-runs.
-        const ids = uiEvents.map((e) => e.id);
-        if (ids.length === 0) {
-          setRelationships({});
-          return;
+        // Seed intent directly from the tab type — every event returned here
+        // has exactly this relationship type (backend exclusivity guarantees it).
+        const seeds: Record<string, RelationshipType[]> = {};
+        for (const e of uiEvents) {
+          seeds[e.id] = [relationshipType];
         }
-        return fetchEventRelationshipState(ids, accessToken).then((rels) => {
-          if (!cancelled) setRelationships(rels);
-        });
+        setRelationships(seeds);
       })
       .catch((err: unknown) => {
         if (!cancelled) {

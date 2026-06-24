@@ -5,43 +5,52 @@ import {
   removeEventRelationship,
   type RelationshipType,
 } from '../utils/event-relationships-api';
+import type { EventIntent } from '../types/ui';
 
-export interface UseRelationshipStateResult {
-  /** Current merged relationship state: event_id → active relationship types */
-  state: Record<string, RelationshipType[]>;
-  /** Overwrite state with fresh server data (call after batch fetch completes) */
-  syncFromServer: (serverState: Record<string, RelationshipType[]>) => void;
-  /** Toggle a relationship type for an event, with optimistic update + rollback on failure */
-  toggle: (eventId: string, type: RelationshipType) => Promise<void>;
-  /** True while a specific (eventId, type) mutation is in-flight */
-  isPending: (eventId: string, type: RelationshipType) => boolean;
-  /** True if the given relationship type is currently active for an event */
-  hasRelationship: (eventId: string, type: RelationshipType) => boolean;
+// ─── API boundary mapping ─────────────────────────────────────────────────────
+
+/** Map backend RelationshipType[] → EventIntent. `saved` is ignored in mobile MVP. */
+export function toEventIntent(types: RelationshipType[]): EventIntent {
+  if (types.includes('going')) return 'going';
+  if (types.includes('interested')) return 'interested';
+  return null;
 }
 
-// interested and going are mutually exclusive — toggling one on removes the other.
-const EXCLUSIVE_INTENT: Partial<Record<RelationshipType, RelationshipType>> = {
-  interested: 'going',
-  going: 'interested',
-};
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-/**
- * Manages optimistic relationship state for event cards and the detail sheet.
- *
- * Toggle is stable (empty deps) — it reads current values via refs to avoid
- * stale closures, so it is safe to pass as a prop without triggering re-renders.
- *
- * Mutual exclusivity: marking interested removes going optimistically (and the
- * backend removes it atomically), and vice versa. Rollback restores the full
- * prior state for the event.
- */
+export interface UseRelationshipStateResult {
+  /** Current intent state: event_id → EventIntent */
+  state: Record<string, EventIntent>;
+  /**
+   * Merge server relationship data into the local state.
+   * Maps RelationshipType[] → EventIntent at the API boundary.
+   * Uses merge (not replace) so optimistic updates for unrelated events survive.
+   */
+  syncFromServer: (serverState: Record<string, RelationshipType[]>) => void;
+  /**
+   * Toggle the intent for an event. If the given type is already active,
+   * it is cleared (→ null). Otherwise it is set, and the backend atomically
+   * removes any conflicting intent (interested ↔ going exclusivity).
+   *
+   * Applies an optimistic update and rolls back on API failure.
+   * Toggle is stable (empty deps array) — safe to pass as a prop.
+   */
+  toggle: (eventId: string, type: 'interested' | 'going') => Promise<void>;
+  /** True while a mutation for this event is in-flight. */
+  isPending: (eventId: string) => boolean;
+  /** Current EventIntent for an event (null if none or not yet hydrated). */
+  intentFor: (eventId: string) => EventIntent;
+}
+
+// ─── Hook ─────────────────────────────────────────────────────────────────────
+
 export function useRelationshipState(
   accessToken: string | null,
 ): UseRelationshipStateResult {
-  const [state, setState] = useState<Record<string, RelationshipType[]>>({});
+  const [state, setState] = useState<Record<string, EventIntent>>({});
   const [pending, setPending] = useState<Set<string>>(new Set());
 
-  // Refs so toggle can read current values without being re-created
+  // Refs so toggle can read current values without being re-created.
   const stateRef = useRef(state);
   const pendingRef = useRef(pending);
   const tokenRef = useRef(accessToken);
@@ -51,62 +60,57 @@ export function useRelationshipState(
   useEffect(() => { tokenRef.current = accessToken; }, [accessToken]);
 
   const syncFromServer = useCallback(
-    (serverState: Record<string, RelationshipType[]>) => setState(serverState),
+    (serverState: Record<string, RelationshipType[]>) => {
+      const updates: Record<string, EventIntent> = {};
+      for (const [id, types] of Object.entries(serverState)) {
+        updates[id] = toEventIntent(types);
+      }
+      setState((prev) => ({ ...prev, ...updates }));
+    },
     [],
   );
 
-  const toggle = useCallback(async (eventId: string, type: RelationshipType) => {
+  const toggle = useCallback(async (eventId: string, type: 'interested' | 'going') => {
     const token = tokenRef.current;
     if (!token) return;
+    if (pendingRef.current.has(eventId)) return;
 
-    const key = `${eventId}:${type}`;
-    if (pendingRef.current.has(key)) return;
-
-    const current = stateRef.current[eventId] ?? [];
-    const isActive = current.includes(type);
-
-    let next: RelationshipType[];
-    if (isActive) {
-      next = current.filter((t) => t !== type);
-    } else {
-      // Enforce mutual exclusivity: remove the conflicting intent type if present.
-      const conflicting = EXCLUSIVE_INTENT[type];
-      next = conflicting
-        ? current.filter((t) => t !== conflicting).concat(type)
-        : [...current, type];
-    }
+    const current = stateRef.current[eventId] ?? null;
+    const isActive = current === type;
+    const next: EventIntent = isActive ? null : type;
 
     // Optimistic update
     setState((prev) => ({ ...prev, [eventId]: next }));
-    setPending((prev) => new Set([...prev, key]));
+    setPending((prev) => new Set([...prev, eventId]));
 
     try {
       if (isActive) {
         await removeEventRelationship(eventId, type, token);
       } else {
+        // Backend atomically removes any conflicting intent (interested ↔ going).
         await markEventRelationship(eventId, type, token);
       }
     } catch {
-      // Rollback restores the full prior state (including any optimistically removed type).
+      // Rollback to prior intent on failure.
       setState((prev) => ({ ...prev, [eventId]: current }));
     } finally {
       setPending((prev) => {
         const n = new Set(prev);
-        n.delete(key);
+        n.delete(eventId);
         return n;
       });
     }
-  }, []); // stable — uses refs only
+  }, []); // stable — reads current values via refs only
 
   const isPending = useCallback(
-    (eventId: string, type: RelationshipType) => pending.has(`${eventId}:${type}`),
+    (eventId: string) => pending.has(eventId),
     [pending],
   );
 
-  const hasRelationship = useCallback(
-    (eventId: string, type: RelationshipType) => (state[eventId] ?? []).includes(type),
+  const intentFor = useCallback(
+    (eventId: string): EventIntent => state[eventId] ?? null,
     [state],
   );
 
-  return { state, syncFromServer, toggle, isPending, hasRelationship };
+  return { state, syncFromServer, toggle, isPending, intentFor };
 }

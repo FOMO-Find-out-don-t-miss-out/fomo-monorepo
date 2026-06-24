@@ -55,6 +55,3 @@ export async function fetchMyEvents(
   );
 }
 
-export async function fetchSavedEvents(accessToken: string): Promise<ApiEvent[]> {
-  return apiFetchAuth<ApiEvent[]>(`${BASE}/saved-events`, accessToken);
-}

@@ -1,9 +1,4 @@
-import {
-  Bookmark,
-  CalendarDays,
-  CheckCircle,
-  Heart,
-} from 'lucide-react-native';
+import { CalendarDays, CheckCircle, Heart } from 'lucide-react-native';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -27,36 +22,32 @@ import { useAuth } from '../../hooks/use-auth';
 import { useMyEvents } from '../../hooks/use-my-events';
 import { useRelationshipState } from '../../hooks/use-relationship-state';
 import { Colors, Radii, Spacing, Typography } from '../../theme';
-import {
-  fetchMyEvents,
-  type RelationshipType,
-} from '../../utils/event-relationships-api';
-import type { UiEvent } from '../../types/ui';
+import type { RelationshipType } from '../../utils/event-relationships-api';
+import type { EventIntent, UiEvent } from '../../types/ui';
 
 // ─── Tab config ───────────────────────────────────────────────────────────────
 
-const TABS = ['Saved', 'Interested', 'Going'] as const;
+const TABS = ['Interested', 'Going'] as const;
 type TabLabel = (typeof TABS)[number];
 
 const TAB_TYPE: Record<TabLabel, RelationshipType> = {
-  Saved:      'saved',
+  Interested: 'interested',
+  Going:      'going',
+};
+
+const TAB_INTENT: Record<TabLabel, EventIntent> = {
   Interested: 'interested',
   Going:      'going',
 };
 
 const TAB_COLOR: Record<TabLabel, string> = {
-  Saved:      Colors.purple,
   Interested: Colors.magenta,
   Going:      Colors.success,
 };
 
 const EMPTY_COPY: Record<TabLabel, { message: string; sub: string }> = {
-  Saved: {
-    message: 'Nothing saved yet',
-    sub:     'Tap the bookmark on any event to save it here for later.',
-  },
   Interested: {
-    message: 'No interested events',
+    message: 'Nothing here yet',
     sub:     'Open an event and tap Interested when something catches your eye.',
   },
   Going: {
@@ -66,17 +57,16 @@ const EMPTY_COPY: Record<TabLabel, { message: string; sub: string }> = {
 };
 
 const TAB_EMPTY_ICON: Record<TabLabel, React.ReactNode> = {
-  Saved:      <Bookmark     size={44} color={Colors.purple}  strokeWidth={1.2} />,
-  Interested: <Heart        size={44} color={Colors.magenta} strokeWidth={1.2} />,
-  Going:      <CheckCircle  size={44} color={Colors.success} strokeWidth={1.2} />,
+  Interested: <Heart       size={44} color={Colors.magenta} strokeWidth={1.2} />,
+  Going:      <CheckCircle size={44} color={Colors.success} strokeWidth={1.2} />,
 };
 
 // ─── Date grouping ────────────────────────────────────────────────────────────
 
 interface DateSection {
   key: string;       // YYYY-MM-DD for sort, "zzzz" for no-date
-  label: string;     // "Today", "Tomorrow", "Fri, 27 Jun"
-  dateRight: string; // e.g. "Jun 24"
+  label: string;     // "Today", "Tomorrow", "Fri, 27 Jun 2026"
+  dateRight: string; // e.g. "Jun 27, 2026"
   events: UiEvent[];
 }
 
@@ -128,17 +118,14 @@ function groupAndSort(events: UiEvent[]): DateSection[] {
     sections.get(key)!.events.push(event);
   }
 
-  // Sort events within each section by startTime
   for (const section of sections.values()) {
     section.events.sort((a, b) => (a.startTime ?? '').localeCompare(b.startTime ?? ''));
   }
 
   const sorted = [...sections.values()].sort((a, b) => a.key.localeCompare(b.key));
-
   if (noDate.length > 0) {
     sorted.push({ key: 'zzzz', label: 'Date TBA', dateRight: '', events: noDate });
   }
-
   return sorted;
 }
 
@@ -147,24 +134,25 @@ function groupAndSort(events: UiEvent[]): DateSection[] {
 export default function MyEventsScreen() {
   const insets          = useSafeAreaInsets();
   const { accessToken, isLoading: authLoading } = useAuth();
-  const [activeTab, setActiveTab]               = useState<TabLabel>('Saved');
+  const [activeTab, setActiveTab]               = useState<TabLabel>('Interested');
   const [selectedEvent, setSelectedEvent]       = useState<UiEvent | null>(null);
 
-  const { events, relationships: batchRel, isLoading, error, refetch } = useMyEvents(
+  const { events, relationships: rawRels, isLoading, error, refetch } = useMyEvents(
     TAB_TYPE[activeTab],
     accessToken,
   );
 
   const {
-    state: relState,
+    state: intentState,
     syncFromServer,
-    toggle: toggleRel,
-    isPending: isRelPending,
+    toggle: toggleIntent,
+    isPending,
+    intentFor,
   } = useRelationshipState(accessToken);
 
   useEffect(() => {
-    syncFromServer(batchRel);
-  }, [batchRel, syncFromServer]);
+    syncFromServer(rawRels);
+  }, [rawRels, syncFromServer]);
 
   useFocusEffect(
     useCallback(() => {
@@ -173,36 +161,17 @@ export default function MyEventsScreen() {
     }, [activeTab]),
   );
 
-  // Background-fetch counts for all 3 tabs in parallel so inactive tab badges
-  // are populated on mount without requiring the user to visit each tab.
-  const [tabCounts, setTabCounts] = useState<Record<RelationshipType, number>>({
-    saved: 0, interested: 0, going: 0,
-  });
-  useEffect(() => {
-    if (!accessToken) return;
-    let cancelled = false;
-    Promise.all([
-      fetchMyEvents('saved',      accessToken),
-      fetchMyEvents('interested', accessToken),
-      fetchMyEvents('going',      accessToken),
-    ]).then(([s, i, g]) => {
-      if (!cancelled) {
-        setTabCounts({ saved: s.length, interested: i.length, going: g.length });
-      }
-    }).catch(() => {});
-    return () => { cancelled = true; };
-  }, [accessToken]);
-
-  // Events still in the list: filter out any whose optimistic state no longer
-  // includes the current tab's relationship type.
+  // Events still visible: hide any whose optimistic intent no longer matches
+  // the current tab (e.g. user switched from Interested → Going).
+  const tabIntent = TAB_INTENT[activeTab];
   const visibleEvents = useMemo(
     () =>
       events.filter((e) => {
-        const rels = relState[e.id];
-        if (rels === undefined) return true;
-        return rels.includes(TAB_TYPE[activeTab]);
+        // If not yet in intentState, keep (initial load before sync completes).
+        if (!(e.id in intentState)) return true;
+        return intentState[e.id] === tabIntent;
       }),
-    [events, relState, activeTab],
+    [events, intentState, tabIntent],
   );
 
   const sections = useMemo(() => groupAndSort(visibleEvents), [visibleEvents]);
@@ -228,7 +197,7 @@ export default function MyEventsScreen() {
         <FomoEmptyState
           icon={<CalendarDays size={44} color={Colors.textMuted} strokeWidth={1.2} />}
           message="Log in to see your events"
-          sub="Your saved events, interest, and plans live here."
+          sub="Your plans and interests live here."
         />
       </FomoScreen>
     );
@@ -241,7 +210,7 @@ export default function MyEventsScreen() {
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + Spacing.base }]}>
         <Text style={styles.screenTitle}>My Events</Text>
-        <Text style={styles.screenSub}>Your upcoming plans and saved discoveries</Text>
+        <Text style={styles.screenSub}>Your upcoming plans and interests</Text>
       </View>
 
       {/* Segmented tab bar */}
@@ -251,8 +220,7 @@ export default function MyEventsScreen() {
           const tabColor = TAB_COLOR[tab];
           const color    = isActive ? tabColor : Colors.textMuted;
           const bgColor  = isActive ? `${tabColor}18` : 'transparent';
-          // Active tab uses live visibleEvents count; inactive tabs use cached count.
-          const count    = tab === activeTab ? visibleEvents.length : tabCounts[TAB_TYPE[tab]];
+          const count    = isActive ? visibleEvents.length : 0;
 
           return (
             <Pressable
@@ -265,14 +233,6 @@ export default function MyEventsScreen() {
               accessibilityRole="tab"
               accessibilityState={{ selected: isActive }}
             >
-              {tab === 'Saved' && (
-                <Bookmark
-                  size={13}
-                  color={color}
-                  fill={isActive ? color : 'transparent'}
-                  strokeWidth={1.5}
-                />
-              )}
               {tab === 'Interested' && (
                 <Heart
                   size={13}
@@ -285,7 +245,7 @@ export default function MyEventsScreen() {
                 <CheckCircle size={13} color={color} strokeWidth={1.5} />
               )}
               <Text style={[styles.tabLabel, { color }]}>{tab}</Text>
-              {count > 0 && (
+              {isActive && count > 0 && (
                 <View style={[styles.countBadge, { backgroundColor: tabColor }]}>
                   <Text style={styles.countText}>{count}</Text>
                 </View>
@@ -331,12 +291,8 @@ export default function MyEventsScreen() {
                   <MyEventListItem
                     key={event.id}
                     event={event}
-                    relationships={relState[event.id] ?? [TAB_TYPE[activeTab]]}
-                    pendingTypes={
-                      (['saved', 'interested', 'going'] as const).filter((t) =>
-                        isRelPending(event.id, t),
-                      )
-                    }
+                    intent={intentFor(event.id) ?? tabIntent}
+                    isPending={isPending(event.id)}
                     onPress={() => setSelectedEvent(event)}
                   />
                 ))}
@@ -350,21 +306,11 @@ export default function MyEventsScreen() {
       <EventDetails
         event={selectedEvent}
         onClose={() => setSelectedEvent(null)}
-        relationships={
-          selectedEvent
-            ? (relState[selectedEvent.id] ?? [TAB_TYPE[activeTab]])
-            : []
+        intent={selectedEvent ? intentFor(selectedEvent.id) : null}
+        onToggleIntent={
+          selectedEvent ? (type) => toggleIntent(selectedEvent.id, type) : undefined
         }
-        onToggleRelationship={
-          selectedEvent ? (type) => toggleRel(selectedEvent.id, type) : undefined
-        }
-        pendingRelationships={
-          selectedEvent
-            ? (['saved', 'interested', 'going'] as const).filter((t) =>
-                isRelPending(selectedEvent.id, t),
-              )
-            : []
-        }
+        isPendingIntent={selectedEvent ? isPending(selectedEvent.id) : false}
       />
     </FomoScreen>
   );

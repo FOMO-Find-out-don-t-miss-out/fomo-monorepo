@@ -94,7 +94,7 @@ export default function DiscoveryScreen() {
   // Relationship state: batch-fetched from backend, managed optimistically locally.
   const eventIds = useMemo(() => eventsWithDistance.map((e) => e.id), [eventsWithDistance]);
   const { relationships: serverRels } = useEventRelationships(eventIds, accessToken);
-  const { state: relState, syncFromServer, toggle: toggleRel, isPending: isRelPending, hasRelationship } = useRelationshipState(accessToken);
+  const { syncFromServer, toggle: toggleIntent, isPending, intentFor } = useRelationshipState(accessToken);
 
   useEffect(() => {
     syncFromServer(serverRels);
@@ -259,9 +259,6 @@ export default function DiscoveryScreen() {
                 event={event}
                 isActive={selectedEvent?.id === event.id}
                 onPress={() => setSelectedEvent(event)}
-                isSaved={accessToken ? hasRelationship(event.id, 'saved') : undefined}
-                isSaveLoading={isRelPending(event.id, 'saved')}
-                onToggleSave={accessToken ? () => toggleRel(event.id, 'saved') : undefined}
               />
             ))}
           </ScrollView>
@@ -280,13 +277,11 @@ export default function DiscoveryScreen() {
       <EventDetails
         event={selectedEvent}
         onClose={() => setSelectedEvent(null)}
-        relationships={selectedEvent && accessToken ? (relState[selectedEvent.id] ?? []) : []}
-        onToggleRelationship={accessToken && selectedEvent
-          ? (type) => toggleRel(selectedEvent.id, type)
+        intent={selectedEvent && accessToken ? intentFor(selectedEvent.id) : null}
+        onToggleIntent={accessToken && selectedEvent
+          ? (type) => toggleIntent(selectedEvent.id, type)
           : undefined}
-        pendingRelationships={selectedEvent
-          ? (['saved', 'interested', 'going'] as const).filter((t) => isRelPending(selectedEvent.id, t))
-          : []}
+        isPendingIntent={selectedEvent ? isPending(selectedEvent.id) : false}
       />
 
     </View>

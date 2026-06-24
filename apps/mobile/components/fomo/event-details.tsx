@@ -1,7 +1,6 @@
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-  Bookmark,
   Calendar,
   CheckCircle,
   Clock,
@@ -30,8 +29,7 @@ import {
 } from 'react-native';
 import { Colors, Gradients, Shadows } from '../../theme';
 import { hasValidCoords } from '../../utils/geo';
-import type { RelationshipType } from '../../utils/event-relationships-api';
-import type { Event } from '../../types/ui';
+import type { EventIntent, Event } from '../../types/ui';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -66,18 +64,14 @@ async function shareEvent(event: Event): Promise<void> {
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
-interface RelActionConfig {
-  type: RelationshipType;
+interface IntentActionConfig {
+  type: 'interested' | 'going';
   label: string;
   Icon: React.FC<{ size: number; color: string; fill?: string; strokeWidth?: number }>;
   activeColor: string;
 }
 
-const SAVE_ACTION: RelActionConfig = {
-  type: 'saved', label: 'Save', Icon: Bookmark, activeColor: Colors.purple,
-};
-
-const INTENT_ACTIONS: RelActionConfig[] = [
+const INTENT_ACTIONS: IntentActionConfig[] = [
   { type: 'interested', label: 'Interested', Icon: Heart,       activeColor: Colors.magenta },
   { type: 'going',      label: 'Going',      Icon: CheckCircle, activeColor: Colors.success },
 ];
@@ -85,12 +79,12 @@ const INTENT_ACTIONS: RelActionConfig[] = [
 interface EventDetailsProps {
   event: Event | null;
   onClose: () => void;
-  /** Relationship types currently active for this event */
-  relationships?: RelationshipType[];
-  /** Called when user taps a relationship button */
-  onToggleRelationship?: (type: RelationshipType) => void;
-  /** Relationship types currently waiting for an API response */
-  pendingRelationships?: RelationshipType[];
+  /** Current user intent for this event (null = no intent set). */
+  intent?: EventIntent;
+  /** Called when the user taps an intent button. */
+  onToggleIntent?: (type: 'interested' | 'going') => void;
+  /** True while an intent mutation is in-flight for this event. */
+  isPendingIntent?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -98,9 +92,9 @@ interface EventDetailsProps {
 export function EventDetails({
   event,
   onClose,
-  relationships = [],
-  onToggleRelationship,
-  pendingRelationships = [],
+  intent = null,
+  onToggleIntent,
+  isPendingIntent = false,
 }: EventDetailsProps) {
   const [isOpen, setIsOpen] = useState(false);
   const isClosingRef = useRef(false);
@@ -232,44 +226,9 @@ export function EventDetails({
                   </View>
                 </View>
 
-                {/* Relationship actions */}
-                {onToggleRelationship && (
+                {/* Intent selector: Interested / Going */}
+                {onToggleIntent && (
                   <View style={styles.relSection}>
-                    {/* Save — independent bookmark action */}
-                    {(() => {
-                      const { type, Icon, activeColor } = SAVE_ACTION;
-                      const isActive  = relationships.includes(type);
-                      const isPending = pendingRelationships.includes(type);
-                      return (
-                        <Pressable
-                          style={[
-                            styles.relBtn,
-                            isActive && { borderColor: activeColor, backgroundColor: `${activeColor}28` },
-                          ]}
-                          onPress={() => onToggleRelationship(type)}
-                          disabled={isPending}
-                          accessibilityRole="button"
-                          accessibilityLabel={isActive ? 'Remove from Saved' : 'Save'}
-                          accessibilityState={{ checked: isActive }}
-                        >
-                          {isPending ? (
-                            <ActivityIndicator size={14} color={activeColor} />
-                          ) : (
-                            <Icon
-                              size={15}
-                              color={isActive ? activeColor : 'rgba(255,255,255,0.4)'}
-                              fill={isActive ? activeColor : 'transparent'}
-                              strokeWidth={1.5}
-                            />
-                          )}
-                          <Text style={[styles.relLabel, isActive && { color: activeColor }]}>
-                            {isActive ? 'Saved' : 'Save'}
-                          </Text>
-                        </Pressable>
-                      );
-                    })()}
-
-                    {/* Intent — mutually exclusive (interested XOR going) */}
                     <View style={styles.relDivider}>
                       <View style={styles.relDividerLine} />
                       <Text style={styles.relDividerLabel}>YOUR INTENT</Text>
@@ -277,22 +236,24 @@ export function EventDetails({
                     </View>
                     <View style={styles.relRow}>
                       {INTENT_ACTIONS.map(({ type, label, Icon, activeColor }) => {
-                        const isActive  = relationships.includes(type);
-                        const isPending = pendingRelationships.includes(type);
+                        const isActive = intent === type;
                         return (
                           <Pressable
                             key={type}
                             style={[
                               styles.relBtn,
-                              isActive && { borderColor: activeColor, backgroundColor: `${activeColor}28` },
+                              isActive && {
+                                borderColor: activeColor,
+                                backgroundColor: `${activeColor}28`,
+                              },
                             ]}
-                            onPress={() => onToggleRelationship(type)}
-                            disabled={isPending}
+                            onPress={() => onToggleIntent(type)}
+                            disabled={isPendingIntent}
                             accessibilityRole="button"
                             accessibilityLabel={isActive ? `Remove ${label}` : label}
                             accessibilityState={{ checked: isActive }}
                           >
-                            {isPending ? (
+                            {isPendingIntent && isActive ? (
                               <ActivityIndicator size={14} color={activeColor} />
                             ) : (
                               <Icon
