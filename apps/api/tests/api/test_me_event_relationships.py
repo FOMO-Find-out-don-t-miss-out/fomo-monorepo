@@ -478,3 +478,118 @@ async def test_saved_events_legacy_endpoint_still_works(
     response = await client.get("/api/v1/me/saved-events")
     assert response.status_code == 200
     assert any(e["id"] == str(event.id) for e in response.json())
+
+
+# ---------------------------------------------------------------------------
+# Mutual exclusivity: interested ↔ going
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_put_interested_removes_going(
+    client: AsyncClient, auth_user: User, session: Session
+) -> None:
+    event = make_event(session, "Exclusive Intent: Interested Wins")
+    await client.put(f"/api/v1/me/events/{event.id}/relationships/going")
+    await client.put(f"/api/v1/me/events/{event.id}/relationships/interested")
+    response = await client.get(f"/api/v1/me/event-relationships?event_ids={event.id}")
+    assert response.status_code == 200
+    types = response.json()["relationships"][str(event.id)]
+    assert "interested" in types
+    assert "going" not in types
+
+
+@pytest.mark.asyncio
+async def test_put_going_removes_interested(
+    client: AsyncClient, auth_user: User, session: Session
+) -> None:
+    event = make_event(session, "Exclusive Intent: Going Wins")
+    await client.put(f"/api/v1/me/events/{event.id}/relationships/interested")
+    await client.put(f"/api/v1/me/events/{event.id}/relationships/going")
+    response = await client.get(f"/api/v1/me/event-relationships?event_ids={event.id}")
+    assert response.status_code == 200
+    types = response.json()["relationships"][str(event.id)]
+    assert "going" in types
+    assert "interested" not in types
+
+
+@pytest.mark.asyncio
+async def test_put_saved_does_not_remove_interested(
+    client: AsyncClient, auth_user: User, session: Session
+) -> None:
+    event = make_event(session, "Save + Interested")
+    await client.put(f"/api/v1/me/events/{event.id}/relationships/interested")
+    await client.put(f"/api/v1/me/events/{event.id}/relationships/saved")
+    response = await client.get(f"/api/v1/me/event-relationships?event_ids={event.id}")
+    assert response.status_code == 200
+    types = set(response.json()["relationships"][str(event.id)])
+    assert types == {"interested", "saved"}
+
+
+@pytest.mark.asyncio
+async def test_put_saved_does_not_remove_going(
+    client: AsyncClient, auth_user: User, session: Session
+) -> None:
+    event = make_event(session, "Save + Going")
+    await client.put(f"/api/v1/me/events/{event.id}/relationships/going")
+    await client.put(f"/api/v1/me/events/{event.id}/relationships/saved")
+    response = await client.get(f"/api/v1/me/event-relationships?event_ids={event.id}")
+    assert response.status_code == 200
+    types = set(response.json()["relationships"][str(event.id)])
+    assert types == {"going", "saved"}
+
+
+@pytest.mark.asyncio
+async def test_batch_state_never_returns_both_interested_and_going(
+    client: AsyncClient, auth_user: User, session: Session
+) -> None:
+    event = make_event(session, "Legacy Both Batch")
+    # Insert legacy rows directly, bypassing the service.
+    session.add(
+        EventRelationship(
+            user_id=auth_user.id,
+            event_id=event.id,
+            relationship_type=RelationshipType.interested,
+        )
+    )
+    session.add(
+        EventRelationship(
+            user_id=auth_user.id,
+            event_id=event.id,
+            relationship_type=RelationshipType.going,
+        )
+    )
+    session.commit()
+
+    response = await client.get(f"/api/v1/me/event-relationships?event_ids={event.id}")
+    assert response.status_code == 200
+    types = response.json()["relationships"][str(event.id)]
+    assert not ("interested" in types and "going" in types), "must not return both"
+
+
+@pytest.mark.asyncio
+async def test_batch_state_going_wins_over_interested_for_legacy_data(
+    client: AsyncClient, auth_user: User, session: Session
+) -> None:
+    event = make_event(session, "Legacy Going Wins Batch")
+    session.add(
+        EventRelationship(
+            user_id=auth_user.id,
+            event_id=event.id,
+            relationship_type=RelationshipType.interested,
+        )
+    )
+    session.add(
+        EventRelationship(
+            user_id=auth_user.id,
+            event_id=event.id,
+            relationship_type=RelationshipType.going,
+        )
+    )
+    session.commit()
+
+    response = await client.get(f"/api/v1/me/event-relationships?event_ids={event.id}")
+    assert response.status_code == 200
+    types = response.json()["relationships"][str(event.id)]
+    assert "going" in types
+    assert "interested" not in types

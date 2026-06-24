@@ -73,10 +73,13 @@ interface RelActionConfig {
   activeColor: string;
 }
 
-const REL_ACTIONS: RelActionConfig[] = [
-  { type: 'saved',      label: 'Save',       Icon: Bookmark,     activeColor: Colors.purple },
-  { type: 'interested', label: 'Interested', Icon: Heart,        activeColor: Colors.magenta },
-  { type: 'going',      label: 'Going',      Icon: CheckCircle,  activeColor: Colors.success },
+const SAVE_ACTION: RelActionConfig = {
+  type: 'saved', label: 'Save', Icon: Bookmark, activeColor: Colors.purple,
+};
+
+const INTENT_ACTIONS: RelActionConfig[] = [
+  { type: 'interested', label: 'Interested', Icon: Heart,       activeColor: Colors.magenta },
+  { type: 'going',      label: 'Going',      Icon: CheckCircle, activeColor: Colors.success },
 ];
 
 interface EventDetailsProps {
@@ -229,18 +232,51 @@ export function EventDetails({
                   </View>
                 </View>
 
-                {/* Relationship actions: Saved / Interested / Going */}
+                {/* Relationship actions */}
                 {onToggleRelationship && (
                   <View style={styles.relSection}>
-                    {/* Intent hierarchy label */}
+                    {/* Save — independent bookmark action */}
+                    {(() => {
+                      const { type, Icon, activeColor } = SAVE_ACTION;
+                      const isActive  = relationships.includes(type);
+                      const isPending = pendingRelationships.includes(type);
+                      return (
+                        <Pressable
+                          style={[
+                            styles.relBtn,
+                            isActive && { borderColor: activeColor, backgroundColor: `${activeColor}28` },
+                          ]}
+                          onPress={() => onToggleRelationship(type)}
+                          disabled={isPending}
+                          accessibilityRole="button"
+                          accessibilityLabel={isActive ? 'Remove from Saved' : 'Save'}
+                          accessibilityState={{ checked: isActive }}
+                        >
+                          {isPending ? (
+                            <ActivityIndicator size={14} color={activeColor} />
+                          ) : (
+                            <Icon
+                              size={15}
+                              color={isActive ? activeColor : 'rgba(255,255,255,0.4)'}
+                              fill={isActive ? activeColor : 'transparent'}
+                              strokeWidth={1.5}
+                            />
+                          )}
+                          <Text style={[styles.relLabel, isActive && { color: activeColor }]}>
+                            {isActive ? 'Saved' : 'Save'}
+                          </Text>
+                        </Pressable>
+                      );
+                    })()}
+
+                    {/* Intent — mutually exclusive (interested XOR going) */}
                     <View style={styles.relDivider}>
                       <View style={styles.relDividerLine} />
                       <Text style={styles.relDividerLabel}>YOUR INTENT</Text>
                       <View style={styles.relDividerLine} />
                     </View>
-
                     <View style={styles.relRow}>
-                      {REL_ACTIONS.map(({ type, label, Icon, activeColor }) => {
+                      {INTENT_ACTIONS.map(({ type, label, Icon, activeColor }) => {
                         const isActive  = relationships.includes(type);
                         const isPending = pendingRelationships.includes(type);
                         return (
@@ -248,10 +284,7 @@ export function EventDetails({
                             key={type}
                             style={[
                               styles.relBtn,
-                              isActive && {
-                                borderColor: activeColor,
-                                backgroundColor: `${activeColor}28`,
-                              },
+                              isActive && { borderColor: activeColor, backgroundColor: `${activeColor}28` },
                             ]}
                             onPress={() => onToggleRelationship(type)}
                             disabled={isPending}

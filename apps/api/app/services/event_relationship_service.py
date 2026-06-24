@@ -5,6 +5,12 @@ from sqlmodel import Session, select
 from packages.domain.models import Event, EventRelationship, RelationshipType
 from packages.domain.models.event import EventStatus, EventVisibility
 
+# interested and going are mutually exclusive — marking one removes the other.
+_EXCLUSIVE_INTENT: dict[RelationshipType, RelationshipType] = {
+    RelationshipType.interested: RelationshipType.going,
+    RelationshipType.going: RelationshipType.interested,
+}
+
 
 class EventRelationshipService:
     def __init__(self, session: Session) -> None:
@@ -30,13 +36,29 @@ class EventRelationshipService:
         if self._get_public_event(event_id) is None:
             return None
 
-        statement = select(EventRelationship).where(
-            EventRelationship.user_id == user_id,
-            EventRelationship.event_id == event_id,
-            EventRelationship.relationship_type == relationship_type,
-        )
-        existing = self.session.exec(statement).first()
+        # Enforce mutual exclusivity between interested and going.
+        conflicting = _EXCLUSIVE_INTENT.get(relationship_type)
+        if conflicting is not None:
+            conflict_row = self.session.exec(
+                select(EventRelationship).where(
+                    EventRelationship.user_id == user_id,
+                    EventRelationship.event_id == event_id,
+                    EventRelationship.relationship_type == conflicting,
+                )
+            ).first()
+            if conflict_row:
+                self.session.delete(conflict_row)
+
+        existing = self.session.exec(
+            select(EventRelationship).where(
+                EventRelationship.user_id == user_id,
+                EventRelationship.event_id == event_id,
+                EventRelationship.relationship_type == relationship_type,
+            )
+        ).first()
         if existing:
+            # Commit the conflict deletion even in the idempotent case.
+            self.session.commit()
             return existing
 
         relationship = EventRelationship(
@@ -114,4 +136,11 @@ class EventRelationshipService:
         result: dict[UUID, list[RelationshipType]] = {}
         for row in self.session.exec(statement).all():
             result.setdefault(row.event_id, []).append(row.relationship_type)
+
+        # Defensive normalization: going wins over interested when legacy rows
+        # have both (should not happen after the cleanup migration, but guard anyway).
+        for event_id, types in result.items():
+            if RelationshipType.going in types and RelationshipType.interested in types:
+                result[event_id] = [t for t in types if t != RelationshipType.interested]
+
         return result

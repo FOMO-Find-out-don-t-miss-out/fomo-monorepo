@@ -229,6 +229,141 @@ def test_list_going_events_for_user(session: Session) -> None:
     assert [e.id for e in result] == [going.id]
 
 
+# ---------------------------------------------------------------------------
+# Mutual exclusivity: interested ↔ going
+# ---------------------------------------------------------------------------
+
+
+def _mark(
+    service: EventRelationshipService, user: User, event: Event, rt: RelationshipType
+) -> None:
+    service.mark_relationship(user_id=user.id, event_id=event.id, relationship_type=rt)
+
+
+def _remove(
+    service: EventRelationshipService, user: User, event: Event, rt: RelationshipType
+) -> None:
+    service.remove_relationship(user_id=user.id, event_id=event.id, relationship_type=rt)
+
+
+def _types(session: Session, user: User, event: Event) -> set[RelationshipType]:
+    rows = session.exec(
+        select(EventRelationship).where(
+            EventRelationship.user_id == user.id,
+            EventRelationship.event_id == event.id,
+        )
+    ).all()
+    return {r.relationship_type for r in rows}
+
+
+def test_mark_interested_removes_existing_going(session: Session) -> None:
+    user = create_user(session)
+    event = create_event(session, "Exclusive Intent")
+    service = EventRelationshipService(session)
+    _mark(service, user, event, RelationshipType.going)
+    _mark(service, user, event, RelationshipType.interested)
+    assert _types(session, user, event) == {RelationshipType.interested}
+
+
+def test_mark_going_removes_existing_interested(session: Session) -> None:
+    user = create_user(session)
+    event = create_event(session, "Exclusive Intent 2")
+    service = EventRelationshipService(session)
+    _mark(service, user, event, RelationshipType.interested)
+    _mark(service, user, event, RelationshipType.going)
+    assert _types(session, user, event) == {RelationshipType.going}
+
+
+def test_mark_saved_does_not_affect_interested(session: Session) -> None:
+    user = create_user(session)
+    event = create_event(session, "Saved Independent")
+    service = EventRelationshipService(session)
+    _mark(service, user, event, RelationshipType.interested)
+    _mark(service, user, event, RelationshipType.saved)
+    types = _types(session, user, event)
+    assert RelationshipType.interested in types
+    assert RelationshipType.saved in types
+
+
+def test_mark_saved_does_not_affect_going(session: Session) -> None:
+    user = create_user(session)
+    event = create_event(session, "Saved Independent Going")
+    service = EventRelationshipService(session)
+    _mark(service, user, event, RelationshipType.going)
+    _mark(service, user, event, RelationshipType.saved)
+    types = _types(session, user, event)
+    assert RelationshipType.going in types
+    assert RelationshipType.saved in types
+
+
+def test_saved_plus_interested_is_allowed(session: Session) -> None:
+    user = create_user(session)
+    event = create_event(session, "Saved + Interested")
+    service = EventRelationshipService(session)
+    _mark(service, user, event, RelationshipType.saved)
+    _mark(service, user, event, RelationshipType.interested)
+    assert relationship_count(session) == 2
+
+
+def test_saved_plus_going_is_allowed(session: Session) -> None:
+    user = create_user(session)
+    event = create_event(session, "Saved + Going")
+    service = EventRelationshipService(session)
+    _mark(service, user, event, RelationshipType.saved)
+    _mark(service, user, event, RelationshipType.going)
+    assert relationship_count(session) == 2
+
+
+def test_delete_going_does_not_restore_interested(session: Session) -> None:
+    user = create_user(session)
+    event = create_event(session, "Delete Going")
+    service = EventRelationshipService(session)
+    # Mark interested then going (going removes interested); then remove going.
+    _mark(service, user, event, RelationshipType.interested)
+    _mark(service, user, event, RelationshipType.going)
+    _remove(service, user, event, RelationshipType.going)
+    assert relationship_count(session) == 0
+
+
+def test_delete_interested_does_not_affect_saved(session: Session) -> None:
+    user = create_user(session)
+    event = create_event(session, "Delete Interested Keeps Saved")
+    service = EventRelationshipService(session)
+    _mark(service, user, event, RelationshipType.saved)
+    _mark(service, user, event, RelationshipType.interested)
+    _remove(service, user, event, RelationshipType.interested)
+    assert _types(session, user, event) == {RelationshipType.saved}
+
+
+def test_delete_saved_does_not_affect_going(session: Session) -> None:
+    user = create_user(session)
+    event = create_event(session, "Delete Saved Keeps Going")
+    service = EventRelationshipService(session)
+    _mark(service, user, event, RelationshipType.saved)
+    _mark(service, user, event, RelationshipType.going)
+    _remove(service, user, event, RelationshipType.saved)
+    assert _types(session, user, event) == {RelationshipType.going}
+
+
+def test_batch_state_normalizes_going_wins_over_interested_legacy(session: Session) -> None:
+    user = create_user(session)
+    event = create_event(session, "Legacy Both")
+    service = EventRelationshipService(session)
+    # Simulate legacy data: insert both directly, bypassing the service.
+    session.add(EventRelationship(
+        user_id=user.id, event_id=event.id, relationship_type=RelationshipType.interested,
+    ))
+    session.add(EventRelationship(
+        user_id=user.id, event_id=event.id, relationship_type=RelationshipType.going,
+    ))
+    session.commit()
+
+    result = service.get_relationships_for_events(user_id=user.id, event_ids=[event.id])
+    types = result.get(event.id, [])
+    assert RelationshipType.going in types
+    assert RelationshipType.interested not in types
+
+
 def test_list_saved_events_for_user_filters_visibility_and_other_users(session: Session) -> None:
     user = create_user(session)
     other_user = create_user(session, "other@example.com")

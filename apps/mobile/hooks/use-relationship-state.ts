@@ -19,11 +19,21 @@ export interface UseRelationshipStateResult {
   hasRelationship: (eventId: string, type: RelationshipType) => boolean;
 }
 
+// interested and going are mutually exclusive — toggling one on removes the other.
+const EXCLUSIVE_INTENT: Partial<Record<RelationshipType, RelationshipType>> = {
+  interested: 'going',
+  going: 'interested',
+};
+
 /**
  * Manages optimistic relationship state for event cards and the detail sheet.
  *
  * Toggle is stable (empty deps) — it reads current values via refs to avoid
  * stale closures, so it is safe to pass as a prop without triggering re-renders.
+ *
+ * Mutual exclusivity: marking interested removes going optimistically (and the
+ * backend removes it atomically), and vice versa. Rollback restores the full
+ * prior state for the event.
  */
 export function useRelationshipState(
   accessToken: string | null,
@@ -54,7 +64,17 @@ export function useRelationshipState(
 
     const current = stateRef.current[eventId] ?? [];
     const isActive = current.includes(type);
-    const next = isActive ? current.filter((t) => t !== type) : [...current, type];
+
+    let next: RelationshipType[];
+    if (isActive) {
+      next = current.filter((t) => t !== type);
+    } else {
+      // Enforce mutual exclusivity: remove the conflicting intent type if present.
+      const conflicting = EXCLUSIVE_INTENT[type];
+      next = conflicting
+        ? current.filter((t) => t !== conflicting).concat(type)
+        : [...current, type];
+    }
 
     // Optimistic update
     setState((prev) => ({ ...prev, [eventId]: next }));
@@ -67,7 +87,7 @@ export function useRelationshipState(
         await markEventRelationship(eventId, type, token);
       }
     } catch {
-      // Rollback on failure
+      // Rollback restores the full prior state (including any optimistically removed type).
       setState((prev) => ({ ...prev, [eventId]: current }));
     } finally {
       setPending((prev) => {
