@@ -247,13 +247,13 @@ export function EventDetails({
                               styles.relBtn,
                               isActive && {
                                 borderColor: activeColor,
-                                backgroundColor: `${activeColor}30`,
+                                backgroundColor: `${activeColor}38`,
                                 shadowColor: activeColor,
-                                shadowOpacity: 0.55,
-                                shadowRadius: 18,
+                                shadowOpacity: 0.50,
+                                shadowRadius: 16,
                                 shadowOffset: { width: 0, height: 0 },
                               },
-                              pressed && !isPendingIntent && { opacity: 0.65 },
+                              pressed && !isPendingIntent && { opacity: 0.70 },
                             ]}
                             onPress={() => { if (!isPendingIntent) onToggleIntent(type); }}
                             accessibilityRole="button"
@@ -261,11 +261,11 @@ export function EventDetails({
                             accessibilityState={{ checked: isActive, busy: isPendingIntent && isActive }}
                           >
                             {isPendingIntent && isActive ? (
-                              <ActivityIndicator size={20} color={activeColor} />
+                              <ActivityIndicator size={18} color={activeColor} />
                             ) : (
                               <Icon
-                                size={20}
-                                color={isActive ? activeColor : 'rgba(255,255,255,0.50)'}
+                                size={18}
+                                color={isActive ? activeColor : Colors.textSecondary}
                                 fill={fillOnActive && isActive ? activeColor : 'transparent'}
                                 strokeWidth={1.5}
                               />
@@ -474,17 +474,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 18,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.25)',
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.purpleGlow,     // rgba(168,85,247,0.45) — same range as category badges
+    backgroundColor: Colors.purpleDim,  // rgba(168,85,247,0.20) — purple glass surface
   },
   relLabel: {
     fontFamily: 'Inter_600SemiBold',
-    fontSize: 14,
+    fontSize: 13,
     letterSpacing: 0.3,
-    color: 'rgba(255,255,255,0.65)',
+    color: Colors.textSecondary,        // rgba(255,255,255,0.60) — clearly readable
   },
   actionRow: {
     flexDirection: 'row',
