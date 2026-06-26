@@ -379,7 +379,9 @@ export default function MyEventsScreen() {
         onClose={() => setSelectedEvent(null)}
         intent={selectedEvent ? intentFor(selectedEvent.id) : null}
         onToggleIntent={
-          selectedEvent ? (type) => toggleIntent(selectedEvent.id, type) : undefined
+          selectedEvent
+            ? (type) => { void toggleIntent(selectedEvent.id, type).finally(refetchBoth); }
+            : undefined
         }
         isPendingIntent={selectedEvent ? isPending(selectedEvent.id) : false}
       />

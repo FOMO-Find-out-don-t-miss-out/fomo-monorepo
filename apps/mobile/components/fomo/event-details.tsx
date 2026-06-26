@@ -248,6 +248,7 @@ export function EventDetails({
                               isActive && {
                                 borderColor: activeColor,
                                 backgroundColor: `${activeColor}38`,
+                                elevation: 6,
                                 shadowColor: activeColor,
                                 shadowOpacity: 0.50,
                                 shadowRadius: 16,
@@ -479,6 +480,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.purpleGlow,     // rgba(168,85,247,0.45) — same range as category badges
     backgroundColor: Colors.purpleDim,  // rgba(168,85,247,0.20) — purple glass surface
+    elevation: 3,                       // Android raised-surface shadow, visible on any background
   },
   relLabel: {
     fontFamily: 'Inter_600SemiBold',
