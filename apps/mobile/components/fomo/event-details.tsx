@@ -241,40 +241,51 @@ export function EventDetails({
                       {INTENT_ACTIONS.map(({ type, label, Icon, activeColor, fillOnActive }) => {
                         const isActive = intent === type;
                         return (
-                          <Pressable
+                          // Two-layer approach: outer View owns the border (no background),
+                          // inner Pressable owns the background (no border). Keeps both
+                          // layers out of the Android compositing path that makes borders
+                          // invisible when borderColor + backgroundColor + borderRadius
+                          // all live on the same View inside an overflow:hidden parent.
+                          <View
                             key={type}
-                            style={({ pressed }) => [
-                              styles.relBtn,
+                            style={[
+                              styles.relBtnBorder,
                               isActive && {
                                 borderColor: activeColor,
-                                backgroundColor: `${activeColor}38`,
                                 elevation: 6,
                                 shadowColor: activeColor,
                                 shadowOpacity: 0.50,
                                 shadowRadius: 16,
                                 shadowOffset: { width: 0, height: 0 },
                               },
-                              pressed && !isPendingIntent && { opacity: 0.70 },
                             ]}
-                            onPress={() => { if (!isPendingIntent) onToggleIntent(type); }}
-                            accessibilityRole="button"
-                            accessibilityLabel={isActive ? `Remove ${label}` : label}
-                            accessibilityState={{ checked: isActive, busy: isPendingIntent && isActive }}
                           >
-                            {isPendingIntent && isActive ? (
-                              <ActivityIndicator size={18} color={activeColor} />
-                            ) : (
-                              <Icon
-                                size={18}
-                                color={isActive ? activeColor : Colors.textSecondary}
-                                fill={fillOnActive && isActive ? activeColor : 'transparent'}
-                                strokeWidth={1.5}
-                              />
-                            )}
-                            <Text style={[styles.relLabel, isActive && { color: activeColor }]}>
-                              {label}
-                            </Text>
-                          </Pressable>
+                            <Pressable
+                              style={({ pressed }) => [
+                                styles.relBtn,
+                                isActive && { backgroundColor: `${activeColor}38` },
+                                pressed && !isPendingIntent && { opacity: 0.70 },
+                              ]}
+                              onPress={() => { if (!isPendingIntent) onToggleIntent(type); }}
+                              accessibilityRole="button"
+                              accessibilityLabel={isActive ? `Remove ${label}` : label}
+                              accessibilityState={{ checked: isActive, busy: isPendingIntent && isActive }}
+                            >
+                              {isPendingIntent && isActive ? (
+                                <ActivityIndicator size={18} color={activeColor} />
+                              ) : (
+                                <Icon
+                                  size={18}
+                                  color={isActive ? activeColor : Colors.textSecondary}
+                                  fill={fillOnActive && isActive ? activeColor : 'transparent'}
+                                  strokeWidth={1.5}
+                                />
+                              )}
+                              <Text style={[styles.relLabel, isActive && { color: activeColor }]}>
+                                {label}
+                              </Text>
+                            </Pressable>
+                          </View>
                         );
                       })}
                     </View>
@@ -469,24 +480,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
-  relBtn: {
+  relBtnBorder: {
     flex: 1,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.purpleGlow,  // rgba(168,85,247,0.45) — colored border, visible on dark bg
+    elevation: 3,                    // Android raised-surface shadow
+  },
+  relBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Colors.purpleGlow,     // rgba(168,85,247,0.45) — same range as category badges
-    backgroundColor: Colors.purpleDim,  // rgba(168,85,247,0.20) — purple glass surface
-    elevation: 3,                       // Android raised-surface shadow, visible on any background
+    borderRadius: 13,                // 1px inside the border so bg doesn't overlap it
+    backgroundColor: Colors.purpleDim,  // rgba(168,85,247,0.20) — purple glass fill
   },
   relLabel: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 13,
     letterSpacing: 0.3,
-    color: Colors.textSecondary,        // rgba(255,255,255,0.60) — clearly readable
+    color: Colors.textSecondary,     // rgba(255,255,255,0.60)
   },
   actionRow: {
     flexDirection: 'row',

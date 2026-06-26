@@ -20,7 +20,7 @@ import {
 } from '../../components/ui';
 import { useAuth } from '../../hooks/use-auth';
 import { useMyEvents } from '../../hooks/use-my-events';
-import { useRelationshipState } from '../../hooks/use-relationship-state';
+import { useRelationshipContext } from '../../providers/relationship-state-provider';
 import { Colors, Radii, Spacing, Typography } from '../../theme';
 import type { EventIntent, UiEvent } from '../../types/ui';
 
@@ -162,7 +162,7 @@ export default function MyEventsScreen() {
     toggle: toggleIntent,
     isPending,
     intentFor,
-  } = useRelationshipState(accessToken);
+  } = useRelationshipContext();
 
   // Merge both hooks' relationship seeds into intentState.
   // Backend mutual exclusivity means the two hooks will never return conflicting

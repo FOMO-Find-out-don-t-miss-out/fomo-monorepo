@@ -8,7 +8,7 @@ import { useAuth } from '../../hooks/use-auth';
 import { useDeviceLocation } from '../../hooks/use-device-location';
 import { useDiscovery } from '../../hooks/use-discovery';
 import { useEventRelationships } from '../../hooks/use-event-relationships';
-import { useRelationshipState } from '../../hooks/use-relationship-state';
+import { useRelationshipContext } from '../../providers/relationship-state-provider';
 import { DEFAULT_DISCOVERY_RADIUS } from '../../utils/location-config';
 import { haversineKm, formatDistanceKm, hasValidCoords } from '../../utils/geo';
 import type { UiEvent } from '../../types/ui';
@@ -94,7 +94,7 @@ export default function DiscoveryScreen() {
   // Relationship state: batch-fetched from backend, managed optimistically locally.
   const eventIds = useMemo(() => eventsWithDistance.map((e) => e.id), [eventsWithDistance]);
   const { relationships: serverRels } = useEventRelationships(eventIds, accessToken);
-  const { syncFromServer, toggle: toggleIntent, isPending, intentFor } = useRelationshipState(accessToken);
+  const { syncFromServer, toggle: toggleIntent, isPending, intentFor } = useRelationshipContext();
 
   useEffect(() => {
     syncFromServer(serverRels);

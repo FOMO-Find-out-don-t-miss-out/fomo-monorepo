@@ -4,6 +4,7 @@ import { Heart, Map, Search, User } from 'lucide-react-native';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { RelationshipStateProvider } from '../../providers/relationship-state-provider';
 
 // ─── Route metadata ───────────────────────────────────────────────────────────
 
@@ -101,18 +102,20 @@ function CustomTabBar({ state, navigation }: any) {
 
 export default function TabsLayout() {
   return (
-    <Tabs
-      tabBar={(props) => <CustomTabBar {...props} />}
-      screenOptions={{
-        headerShown: false,
-        sceneStyle: { backgroundColor: 'transparent' },
-      }}
-    >
-      <Tabs.Screen name="index"   options={{ title: 'Discover' }} />
-      <Tabs.Screen name="search"  options={{ title: 'Search'   }} />
-      <Tabs.Screen name="saved"   options={{ title: 'My Events' }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profile'  }} />
-    </Tabs>
+    <RelationshipStateProvider>
+      <Tabs
+        tabBar={(props) => <CustomTabBar {...props} />}
+        screenOptions={{
+          headerShown: false,
+          sceneStyle: { backgroundColor: 'transparent' },
+        }}
+      >
+        <Tabs.Screen name="index"   options={{ title: 'Discover' }} />
+        <Tabs.Screen name="search"  options={{ title: 'Search'   }} />
+        <Tabs.Screen name="saved"   options={{ title: 'My Events' }} />
+        <Tabs.Screen name="profile" options={{ title: 'Profile'  }} />
+      </Tabs>
+    </RelationshipStateProvider>
   );
 }
 
