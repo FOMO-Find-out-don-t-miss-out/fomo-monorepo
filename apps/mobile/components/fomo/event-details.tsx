@@ -247,11 +247,10 @@ export function EventDetails({
                               styles.relBtn,
                               isActive && {
                                 borderColor: activeColor,
-                                backgroundColor: `${activeColor}18`,
-                                // iOS neon glow — no elevation so Android stays clean
+                                backgroundColor: `${activeColor}40`,
                                 shadowColor: activeColor,
-                                shadowOpacity: 0.30,
-                                shadowRadius: 10,
+                                shadowOpacity: 0.45,
+                                shadowRadius: 12,
                                 shadowOffset: { width: 0, height: 0 },
                               },
                               pressed && !isPendingIntent && { opacity: 0.72 },
@@ -477,16 +476,15 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 13,
     borderRadius: 12,
-    // Fixed 1.5px border — avoids layout shift when active state changes borderWidth
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.10)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(255,255,255,0.07)',
   },
   relLabel: {
     fontFamily: 'Inter_600SemiBold',
-    fontSize: 12,
-    letterSpacing: 0.3,
-    color: 'rgba(255,255,255,0.35)',
+    fontSize: 13,
+    letterSpacing: 0.2,
+    color: 'rgba(255,255,255,0.55)',
   },
   actionRow: {
     flexDirection: 'row',
