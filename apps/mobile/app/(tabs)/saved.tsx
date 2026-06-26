@@ -22,18 +22,12 @@ import { useAuth } from '../../hooks/use-auth';
 import { useMyEvents } from '../../hooks/use-my-events';
 import { useRelationshipState } from '../../hooks/use-relationship-state';
 import { Colors, Radii, Spacing, Typography } from '../../theme';
-import type { RelationshipType } from '../../utils/event-relationships-api';
 import type { EventIntent, UiEvent } from '../../types/ui';
 
 // ─── Tab config ───────────────────────────────────────────────────────────────
 
 const TABS = ['Interested', 'Going'] as const;
 type TabLabel = (typeof TABS)[number];
-
-const TAB_TYPE: Record<TabLabel, RelationshipType> = {
-  Interested: 'interested',
-  Going:      'going',
-};
 
 const TAB_INTENT: Record<TabLabel, EventIntent> = {
   Interested: 'interested',
@@ -78,27 +72,19 @@ function localDateKey(date: Date): string {
 }
 
 function dateLabel(isoDate: string): { label: string; dateRight: string } {
-  const d = new Date(isoDate);
-  const today    = localDateKey(new Date());
-  const tomorrow = localDateKey(new Date(Date.now() + 86_400_000));
-  const key      = localDateKey(d);
+  const d       = new Date(isoDate);
+  const today   = localDateKey(new Date());
+  const tmrw    = localDateKey(new Date(Date.now() + 86_400_000));
+  const key     = localDateKey(d);
+  const dateRight = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-  const dateRight = d.toLocaleDateString('en-US', {
-    month: 'short',
-    day:   'numeric',
-    year:  'numeric',
-  });
+  if (key === today) return { label: 'Today',    dateRight };
+  if (key === tmrw)  return { label: 'Tomorrow', dateRight };
 
-  if (key === today)    return { label: 'Today',    dateRight };
-  if (key === tomorrow) return { label: 'Tomorrow', dateRight };
-
-  const label = d.toLocaleDateString('en-US', {
-    weekday: 'short',
-    day:     'numeric',
-    month:   'short',
-    year:    'numeric',
-  });
-  return { label, dateRight };
+  return {
+    label: d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }),
+    dateRight,
+  };
 }
 
 function groupAndSort(events: UiEvent[]): DateSection[] {
@@ -106,10 +92,7 @@ function groupAndSort(events: UiEvent[]): DateSection[] {
   const noDate: UiEvent[] = [];
 
   for (const event of events) {
-    if (!event.startTime) {
-      noDate.push(event);
-      continue;
-    }
+    if (!event.startTime) { noDate.push(event); continue; }
     const key = localDateKey(new Date(event.startTime));
     if (!sections.has(key)) {
       const { label, dateRight } = dateLabel(event.startTime);
@@ -118,29 +101,60 @@ function groupAndSort(events: UiEvent[]): DateSection[] {
     sections.get(key)!.events.push(event);
   }
 
-  for (const section of sections.values()) {
-    section.events.sort((a, b) => (a.startTime ?? '').localeCompare(b.startTime ?? ''));
+  for (const s of sections.values()) {
+    s.events.sort((a, b) => (a.startTime ?? '').localeCompare(b.startTime ?? ''));
   }
 
   const sorted = [...sections.values()].sort((a, b) => a.key.localeCompare(b.key));
-  if (noDate.length > 0) {
-    sorted.push({ key: 'zzzz', label: 'Date TBA', dateRight: '', events: noDate });
-  }
+  if (noDate.length > 0) sorted.push({ key: 'zzzz', label: 'Date TBA', dateRight: '', events: noDate });
   return sorted;
+}
+
+// ─── Visible events helper ────────────────────────────────────────────────────
+//
+// Pure function — same logic for both tabs. Returns server events whose intent
+// matches `tabIntent`, plus any registry events optimistically moved here that
+// aren't in the server response yet.
+
+function computeVisibleEvents(
+  serverEvents: UiEvent[],
+  intentState: Record<string, EventIntent>,
+  registry:    Record<string, UiEvent>,
+  tabIntent:   EventIntent,
+): UiEvent[] {
+  const currentIds = new Set(serverEvents.map((e) => e.id));
+
+  // Pre-sync guard: keep events that haven't been synced into intentState yet
+  // (one-render gap before the syncFromServer useEffect fires after a fresh fetch).
+  const fromCurrentTab = serverEvents.filter((e) => {
+    if (!(e.id in intentState)) return true;
+    return intentState[e.id] === tabIntent;
+  });
+
+  // Registry events optimistically moved to this tab but not yet in server response.
+  const fromOtherTabs = Object.values(registry).filter(
+    (e) => !currentIds.has(e.id) && intentState[e.id] === tabIntent,
+  );
+
+  return [...fromCurrentTab, ...fromOtherTabs];
 }
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function MyEventsScreen() {
-  const insets          = useSafeAreaInsets();
+  const insets                                  = useSafeAreaInsets();
   const { accessToken, isLoading: authLoading } = useAuth();
   const [activeTab, setActiveTab]               = useState<TabLabel>('Interested');
   const [selectedEvent, setSelectedEvent]       = useState<UiEvent | null>(null);
 
-  const { events, relationships: rawRels, isLoading, error, refetch } = useMyEvents(
-    TAB_TYPE[activeTab],
-    accessToken,
-  );
+  // ── Two parallel hooks — one per tab, both fetch on mount ────────────────────
+  //
+  // Each hook is fixed to its relationship type — tab switching never triggers
+  // a new network request. Both hooks fetch in parallel so both badge counts
+  // are available immediately without requiring the user to visit each tab.
+
+  const interestedHook = useMyEvents('interested', accessToken);
+  const goingHook      = useMyEvents('going',      accessToken);
 
   const {
     state: intentState,
@@ -150,94 +164,92 @@ export default function MyEventsScreen() {
     intentFor,
   } = useRelationshipState(accessToken);
 
+  // Merge both hooks' relationship seeds into intentState.
+  // Backend mutual exclusivity means the two hooks will never return conflicting
+  // intents for the same event.
+  useEffect(() => {
+    syncFromServer(interestedHook.relationships);
+  }, [interestedHook.relationships, syncFromServer]);
+
+  useEffect(() => {
+    syncFromServer(goingHook.relationships);
+  }, [goingHook.relationships, syncFromServer]);
+
   // ── Event registry ───────────────────────────────────────────────────────────
   //
-  // Accumulates event objects across ALL tab fetches so that an event moved via
-  // optimistic update (e.g. Interested → Going) appears in the destination tab
-  // immediately, without waiting for the server to respond to that tab's fetch.
-  //
-  // intentState is the single source of truth for which tab an event belongs to.
-  // The registry is only the pool of known UiEvent objects.
+  // Accumulates UiEvent objects from both hooks so computeVisibleEvents can
+  // surface events in the other tab after an optimistic intent change, before
+  // the server response for that tab has been refetched.
 
   const [eventRegistry, setEventRegistry] = useState<Record<string, UiEvent>>({});
 
   useEffect(() => {
-    if (!accessToken) setEventRegistry({});
+    if (!accessToken) { setEventRegistry({}); return; }
   }, [accessToken]);
 
   useEffect(() => {
-    if (events.length === 0) return;
+    if (interestedHook.events.length === 0) return;
     setEventRegistry((prev) => {
       const next = { ...prev };
-      for (const e of events) next[e.id] = e;
+      for (const e of interestedHook.events) next[e.id] = e;
       return next;
     });
-  }, [events]);
-
-  // ── Server sync ──────────────────────────────────────────────────────────────
+  }, [interestedHook.events]);
 
   useEffect(() => {
-    syncFromServer(rawRels);
-  }, [rawRels, syncFromServer]);
+    if (goingHook.events.length === 0) return;
+    setEventRegistry((prev) => {
+      const next = { ...prev };
+      for (const e of goingHook.events) next[e.id] = e;
+      return next;
+    });
+  }, [goingHook.events]);
 
-  // ── Screen focus refetch ─────────────────────────────────────────────────────
-  //
-  // Fires only when the screen gains focus (e.g. user navigates here from another
-  // app tab). Internal tab switches are already handled by useMyEvents responding
-  // to the `relationshipType` argument changing — no second fetch needed.
-  //
-  // Previously `[activeTab]` was in deps which caused useFocusEffect to re-fire
-  // on every internal tab switch while focused, duplicating every fetch.
+  // ── Refetch on screen focus ──────────────────────────────────────────────────
+
+  const refetchBoth = useCallback(() => {
+    interestedHook.refetch();
+    goingHook.refetch();
+  }, [interestedHook.refetch, goingHook.refetch]);
 
   useFocusEffect(
-    useCallback(() => {
-      refetch();
-    }, [refetch]),
+    useCallback(() => { refetchBoth(); }, [refetchBoth]),
   );
 
-  // ── Visible events ───────────────────────────────────────────────────────────
+  // ── Visible events for each tab ──────────────────────────────────────────────
   //
-  // Two sources combined:
-  //
-  // 1. `events` (current tab server response): filtered with a pre-sync guard
-  //    (!(id in intentState) → keep) to avoid a blank flash during the one-render
-  //    gap between `events` arriving and syncFromServer running.
-  //
-  // 2. `eventRegistry` entries NOT in the current server response: events known
-  //    from OTHER tab fetches that have been moved here via optimistic update.
-  //    Strictly filtered (intentState[id] === tabIntent) since they were hydrated
-  //    when originally loaded on the other tab.
+  // Computed for BOTH tabs so badge counts reflect optimistic intent changes
+  // immediately (e.g. Interested count drops the moment an event is marked Going).
 
-  const tabIntent = TAB_INTENT[activeTab];
-  const visibleEvents = useMemo(() => {
-    const currentIds = new Set(events.map((e) => e.id));
+  const interestedVisible = useMemo(
+    () => computeVisibleEvents(interestedHook.events, intentState, eventRegistry, 'interested'),
+    [interestedHook.events, intentState, eventRegistry],
+  );
 
-    const fromCurrentTab = events.filter((e) => {
-      if (!(e.id in intentState)) return true;
-      return intentState[e.id] === tabIntent;
-    });
+  const goingVisible = useMemo(
+    () => computeVisibleEvents(goingHook.events, intentState, eventRegistry, 'going'),
+    [goingHook.events, intentState, eventRegistry],
+  );
 
-    const fromOtherTabs = Object.values(eventRegistry).filter(
-      (e) => !currentIds.has(e.id) && intentState[e.id] === tabIntent,
-    );
-
-    return [...fromCurrentTab, ...fromOtherTabs];
-  }, [events, eventRegistry, intentState, tabIntent]);
+  const visibleEvents = activeTab === 'Interested' ? interestedVisible : goingVisible;
 
   const sections = useMemo(() => groupAndSort(visibleEvents), [visibleEvents]);
 
-  // Per-tab event count — persists across tab switches so the inactive tab always
-  // shows its last known count. null = tab not yet loaded (no badge shown).
-  const [tabCounts, setTabCounts] = useState<Record<TabLabel, number | null>>({
-    Interested: null,
-    Going:      null,
-  });
+  // ── Tab counts ───────────────────────────────────────────────────────────────
+  //
+  // Null while loading so the badge renders nothing (not "0") during initial
+  // fetch. Once loaded, reflects the visible count — matching what each list shows.
 
-  useEffect(() => {
-    if (!isLoading) {
-      setTabCounts((prev) => ({ ...prev, [activeTab]: visibleEvents.length }));
-    }
-  }, [activeTab, visibleEvents.length, isLoading]);
+  const tabCounts: Record<TabLabel, number | null> = {
+    Interested: interestedHook.isLoading ? null : interestedVisible.length,
+    Going:      goingHook.isLoading      ? null : goingVisible.length,
+  };
+
+  // Active tab's loading / error states for the content area.
+  const isLoading = activeTab === 'Interested' ? interestedHook.isLoading : goingHook.isLoading;
+  const error     = activeTab === 'Interested' ? interestedHook.error     : goingHook.error;
+
+  const tabIntent = TAB_INTENT[activeTab];
 
   const handleTabPress = useCallback((tab: TabLabel) => {
     setActiveTab(tab);
@@ -247,11 +259,7 @@ export default function MyEventsScreen() {
   // ── Auth guards ─────────────────────────────────────────────────────────────
 
   if (authLoading) {
-    return (
-      <FomoScreen>
-        <FomoLoadingState />
-      </FomoScreen>
-    );
+    return <FomoScreen><FomoLoadingState /></FomoScreen>;
   }
 
   if (!accessToken) {
@@ -283,8 +291,7 @@ export default function MyEventsScreen() {
           const tabColor  = TAB_COLOR[tab];
           const color     = isActive ? tabColor : Colors.textMuted;
           const bgColor   = isActive ? `${tabColor}18` : 'transparent';
-          // Active tab: live count. Inactive tab: last-known cached count.
-          const count     = isActive ? visibleEvents.length : tabCounts[tab];
+          const count     = tabCounts[tab];
 
           return (
             <Pressable
@@ -298,18 +305,13 @@ export default function MyEventsScreen() {
               accessibilityState={{ selected: isActive }}
             >
               {tab === 'Interested' && (
-                <Heart
-                  size={13}
-                  color={color}
-                  fill={isActive ? color : 'transparent'}
-                  strokeWidth={1.5}
-                />
+                <Heart size={13} color={color} fill={isActive ? color : 'transparent'} strokeWidth={1.5} />
               )}
               {tab === 'Going' && (
                 <CheckCircle size={13} color={color} strokeWidth={1.5} />
               )}
               <Text style={[styles.tabLabel, { color }]}>{tab}</Text>
-              {/* Always show badge when count is known (including 0) */}
+              {/* Badge renders only when count is known (null = loading = no badge) */}
               {count !== null && (
                 <View style={[
                   styles.countBadge,
@@ -317,10 +319,7 @@ export default function MyEventsScreen() {
                     ? { backgroundColor: tabColor }
                     : { backgroundColor: Colors.borderSubtle },
                 ]}>
-                  <Text style={[
-                    styles.countText,
-                    !isActive && { color: Colors.textMuted },
-                  ]}>
+                  <Text style={[styles.countText, !isActive && { color: Colors.textMuted }]}>
                     {count}
                   </Text>
                 </View>
@@ -334,7 +333,7 @@ export default function MyEventsScreen() {
       {isLoading ? (
         <FomoLoadingState />
       ) : error ? (
-        <FomoErrorState message={error} onRetry={refetch} />
+        <FomoErrorState message={error} onRetry={refetchBoth} />
       ) : visibleEvents.length === 0 ? (
         <FomoEmptyState
           icon={TAB_EMPTY_ICON[activeTab]}
@@ -358,7 +357,6 @@ export default function MyEventsScreen() {
                   <Text style={styles.sectionDate}>{section.dateRight}</Text>
                 ) : null}
               </View>
-
               <View style={styles.sectionItems}>
                 {section.events.map((event) => (
                   <MyEventListItem
@@ -434,16 +432,16 @@ const styles = StyleSheet.create({
   },
   countBadge: {
     borderRadius: Radii.full,
-    minWidth: 16,
-    height: 16,
+    minWidth: 18,
+    height: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 5,
     marginLeft: 1,
   },
   countText: {
     fontFamily: Typography.font.bold,
-    fontSize: 9,
+    fontSize: 10,
     color: '#fff',
   },
   scroll: {

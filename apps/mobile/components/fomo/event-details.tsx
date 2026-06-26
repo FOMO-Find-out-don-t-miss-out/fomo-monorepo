@@ -247,9 +247,14 @@ export function EventDetails({
                               styles.relBtn,
                               isActive && {
                                 borderColor: activeColor,
-                                backgroundColor: `${activeColor}28`,
+                                backgroundColor: `${activeColor}18`,
+                                // iOS neon glow — no elevation so Android stays clean
+                                shadowColor: activeColor,
+                                shadowOpacity: 0.30,
+                                shadowRadius: 10,
+                                shadowOffset: { width: 0, height: 0 },
                               },
-                              pressed && !isPendingIntent && styles.relBtnPressed,
+                              pressed && !isPendingIntent && { opacity: 0.72 },
                             ]}
                             onPress={() => { if (!isPendingIntent) onToggleIntent(type); }}
                             accessibilityRole="button"
@@ -257,11 +262,11 @@ export function EventDetails({
                             accessibilityState={{ checked: isActive, busy: isPendingIntent && isActive }}
                           >
                             {isPendingIntent && isActive ? (
-                              <ActivityIndicator size={14} color={activeColor} />
+                              <ActivityIndicator size={16} color={activeColor} />
                             ) : (
                               <Icon
-                                size={15}
-                                color={isActive ? activeColor : 'rgba(255,255,255,0.4)'}
+                                size={16}
+                                color={isActive ? activeColor : 'rgba(255,255,255,0.35)'}
                                 fill={fillOnActive && isActive ? activeColor : 'transparent'}
                                 strokeWidth={1.5}
                               />
@@ -469,20 +474,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
-    paddingVertical: 11,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-  },
-  relBtnPressed: {
-    opacity: 0.7,
+    gap: 6,
+    paddingVertical: 13,
+    borderRadius: 12,
+    // Fixed 1.5px border — avoids layout shift when active state changes borderWidth
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
   },
   relLabel: {
     fontFamily: 'Inter_600SemiBold',
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.40)',
+    fontSize: 12,
+    letterSpacing: 0.3,
+    color: 'rgba(255,255,255,0.35)',
   },
   actionRow: {
     flexDirection: 'row',
