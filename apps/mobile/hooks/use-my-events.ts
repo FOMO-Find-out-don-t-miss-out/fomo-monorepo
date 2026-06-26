@@ -37,6 +37,10 @@ export function useMyEvents(
       return;
     }
     let cancelled = false;
+    // Clear stale data from the previous tab immediately so it cannot leak
+    // into the new tab's visible-events computation before the fetch arrives.
+    setEvents([]);
+    setRelationships({});
     setIsLoading(true);
     setError(null);
 

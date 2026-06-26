@@ -69,11 +69,14 @@ interface IntentActionConfig {
   label: string;
   Icon: React.FC<{ size: number; color: string; fill?: string; strokeWidth?: number }>;
   activeColor: string;
+  // Whether to fill the icon when active. Heart looks good filled; CheckCircle does
+  // not — its disc body renders as a solid block of colour, not a neon outline.
+  fillOnActive: boolean;
 }
 
 const INTENT_ACTIONS: IntentActionConfig[] = [
-  { type: 'interested', label: 'Interested', Icon: Heart,       activeColor: Colors.magenta },
-  { type: 'going',      label: 'Going',      Icon: CheckCircle, activeColor: Colors.success },
+  { type: 'interested', label: 'Interested', Icon: Heart,       activeColor: Colors.magenta, fillOnActive: true },
+  { type: 'going',      label: 'Going',      Icon: CheckCircle, activeColor: Colors.success,  fillOnActive: false },
 ];
 
 interface EventDetailsProps {
@@ -235,7 +238,7 @@ export function EventDetails({
                       <View style={styles.relDividerLine} />
                     </View>
                     <View style={styles.relRow}>
-                      {INTENT_ACTIONS.map(({ type, label, Icon, activeColor }) => {
+                      {INTENT_ACTIONS.map(({ type, label, Icon, activeColor, fillOnActive }) => {
                         const isActive = intent === type;
                         return (
                           <Pressable
@@ -259,7 +262,7 @@ export function EventDetails({
                               <Icon
                                 size={15}
                                 color={isActive ? activeColor : 'rgba(255,255,255,0.4)'}
-                                fill={isActive ? activeColor : 'transparent'}
+                                fill={fillOnActive && isActive ? activeColor : 'transparent'}
                                 strokeWidth={1.5}
                               />
                             )}

@@ -226,6 +226,19 @@ export default function MyEventsScreen() {
 
   const sections = useMemo(() => groupAndSort(visibleEvents), [visibleEvents]);
 
+  // Per-tab event count — persists across tab switches so the inactive tab always
+  // shows its last known count. null = tab not yet loaded (no badge shown).
+  const [tabCounts, setTabCounts] = useState<Record<TabLabel, number | null>>({
+    Interested: null,
+    Going:      null,
+  });
+
+  useEffect(() => {
+    if (!isLoading) {
+      setTabCounts((prev) => ({ ...prev, [activeTab]: visibleEvents.length }));
+    }
+  }, [activeTab, visibleEvents.length, isLoading]);
+
   const handleTabPress = useCallback((tab: TabLabel) => {
     setActiveTab(tab);
     setSelectedEvent(null);
@@ -266,11 +279,12 @@ export default function MyEventsScreen() {
       {/* Segmented tab bar */}
       <View style={styles.tabBar}>
         {TABS.map((tab) => {
-          const isActive = tab === activeTab;
-          const tabColor = TAB_COLOR[tab];
-          const color    = isActive ? tabColor : Colors.textMuted;
-          const bgColor  = isActive ? `${tabColor}18` : 'transparent';
-          const count    = isActive ? visibleEvents.length : 0;
+          const isActive  = tab === activeTab;
+          const tabColor  = TAB_COLOR[tab];
+          const color     = isActive ? tabColor : Colors.textMuted;
+          const bgColor   = isActive ? `${tabColor}18` : 'transparent';
+          // Active tab: live count. Inactive tab: last-known cached count.
+          const count     = isActive ? visibleEvents.length : tabCounts[tab];
 
           return (
             <Pressable
@@ -295,9 +309,20 @@ export default function MyEventsScreen() {
                 <CheckCircle size={13} color={color} strokeWidth={1.5} />
               )}
               <Text style={[styles.tabLabel, { color }]}>{tab}</Text>
-              {isActive && count > 0 && (
-                <View style={[styles.countBadge, { backgroundColor: tabColor }]}>
-                  <Text style={styles.countText}>{count}</Text>
+              {/* Always show badge when count is known (including 0) */}
+              {count !== null && (
+                <View style={[
+                  styles.countBadge,
+                  isActive
+                    ? { backgroundColor: tabColor }
+                    : { backgroundColor: Colors.borderSubtle },
+                ]}>
+                  <Text style={[
+                    styles.countText,
+                    !isActive && { color: Colors.textMuted },
+                  ]}>
+                    {count}
+                  </Text>
                 </View>
               )}
             </Pressable>
