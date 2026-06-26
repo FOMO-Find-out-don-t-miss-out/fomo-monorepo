@@ -64,9 +64,9 @@ const TAB_EMPTY_ICON: Record<TabLabel, React.ReactNode> = {
 // ─── Date grouping ────────────────────────────────────────────────────────────
 
 interface DateSection {
-  key: string;       // YYYY-MM-DD for sort, "zzzz" for no-date
-  label: string;     // "Today", "Tomorrow", "Fri, 27 Jun 2026"
-  dateRight: string; // e.g. "Jun 27, 2026"
+  key: string;
+  label: string;
+  dateRight: string;
   events: UiEvent[];
 }
 
@@ -150,29 +150,79 @@ export default function MyEventsScreen() {
     intentFor,
   } = useRelationshipState(accessToken);
 
+  // ── Event registry ───────────────────────────────────────────────────────────
+  //
+  // Accumulates event objects across ALL tab fetches so that an event moved via
+  // optimistic update (e.g. Interested → Going) appears in the destination tab
+  // immediately, without waiting for the server to respond to that tab's fetch.
+  //
+  // intentState is the single source of truth for which tab an event belongs to.
+  // The registry is only the pool of known UiEvent objects.
+
+  const [eventRegistry, setEventRegistry] = useState<Record<string, UiEvent>>({});
+
+  useEffect(() => {
+    if (!accessToken) setEventRegistry({});
+  }, [accessToken]);
+
+  useEffect(() => {
+    if (events.length === 0) return;
+    setEventRegistry((prev) => {
+      const next = { ...prev };
+      for (const e of events) next[e.id] = e;
+      return next;
+    });
+  }, [events]);
+
+  // ── Server sync ──────────────────────────────────────────────────────────────
+
   useEffect(() => {
     syncFromServer(rawRels);
   }, [rawRels, syncFromServer]);
 
+  // ── Screen focus refetch ─────────────────────────────────────────────────────
+  //
+  // Fires only when the screen gains focus (e.g. user navigates here from another
+  // app tab). Internal tab switches are already handled by useMyEvents responding
+  // to the `relationshipType` argument changing — no second fetch needed.
+  //
+  // Previously `[activeTab]` was in deps which caused useFocusEffect to re-fire
+  // on every internal tab switch while focused, duplicating every fetch.
+
   useFocusEffect(
     useCallback(() => {
       refetch();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeTab]),
+    }, [refetch]),
   );
 
-  // Events still visible: hide any whose optimistic intent no longer matches
-  // the current tab (e.g. user switched from Interested → Going).
+  // ── Visible events ───────────────────────────────────────────────────────────
+  //
+  // Two sources combined:
+  //
+  // 1. `events` (current tab server response): filtered with a pre-sync guard
+  //    (!(id in intentState) → keep) to avoid a blank flash during the one-render
+  //    gap between `events` arriving and syncFromServer running.
+  //
+  // 2. `eventRegistry` entries NOT in the current server response: events known
+  //    from OTHER tab fetches that have been moved here via optimistic update.
+  //    Strictly filtered (intentState[id] === tabIntent) since they were hydrated
+  //    when originally loaded on the other tab.
+
   const tabIntent = TAB_INTENT[activeTab];
-  const visibleEvents = useMemo(
-    () =>
-      events.filter((e) => {
-        // If not yet in intentState, keep (initial load before sync completes).
-        if (!(e.id in intentState)) return true;
-        return intentState[e.id] === tabIntent;
-      }),
-    [events, intentState, tabIntent],
-  );
+  const visibleEvents = useMemo(() => {
+    const currentIds = new Set(events.map((e) => e.id));
+
+    const fromCurrentTab = events.filter((e) => {
+      if (!(e.id in intentState)) return true;
+      return intentState[e.id] === tabIntent;
+    });
+
+    const fromOtherTabs = Object.values(eventRegistry).filter(
+      (e) => !currentIds.has(e.id) && intentState[e.id] === tabIntent,
+    );
+
+    return [...fromCurrentTab, ...fromOtherTabs];
+  }, [events, eventRegistry, intentState, tabIntent]);
 
   const sections = useMemo(() => groupAndSort(visibleEvents), [visibleEvents]);
 
@@ -277,7 +327,6 @@ export default function MyEventsScreen() {
         >
           {sections.map((section) => (
             <View key={section.key} style={styles.section}>
-              {/* Date section header */}
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionLabel}>{section.label.toUpperCase()}</Text>
                 {section.dateRight ? (
@@ -285,7 +334,6 @@ export default function MyEventsScreen() {
                 ) : null}
               </View>
 
-              {/* Event rows */}
               <View style={styles.sectionItems}>
                 {section.events.map((event) => (
                   <MyEventListItem
@@ -319,7 +367,6 @@ export default function MyEventsScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  // ── Header ──────────────────────────────────────────────────────────────────
   header: {
     paddingHorizontal: Spacing.base,
     paddingBottom: Spacing.md,
@@ -337,8 +384,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.size.sm,
     color: Colors.textMuted,
   },
-
-  // ── Tab bar ─────────────────────────────────────────────────────────────────
   tabBar: {
     flexDirection: 'row',
     gap: Spacing.sm,
@@ -376,8 +421,6 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: '#fff',
   },
-
-  // ── List ────────────────────────────────────────────────────────────────────
   scroll: {
     flex: 1,
   },

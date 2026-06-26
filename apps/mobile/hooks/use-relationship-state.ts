@@ -24,7 +24,8 @@ export interface UseRelationshipStateResult {
   /**
    * Merge server relationship data into the local state.
    * Maps RelationshipType[] → EventIntent at the API boundary.
-   * Uses merge (not replace) so optimistic updates for unrelated events survive.
+   * Skips events with in-flight mutations to avoid stale responses overwriting
+   * optimistic updates. Uses merge (not replace) so unrelated events survive.
    */
   syncFromServer: (serverState: Record<string, RelationshipType[]>) => void;
   /**
@@ -50,7 +51,7 @@ export function useRelationshipState(
   const [state, setState] = useState<Record<string, EventIntent>>({});
   const [pending, setPending] = useState<Set<string>>(new Set());
 
-  // Refs so toggle can read current values without being re-created.
+  // Refs so toggle/syncFromServer can read current values without being re-created.
   const stateRef = useRef(state);
   const pendingRef = useRef(pending);
   const tokenRef = useRef(accessToken);
@@ -63,7 +64,12 @@ export function useRelationshipState(
     (serverState: Record<string, RelationshipType[]>) => {
       const updates: Record<string, EventIntent> = {};
       for (const [id, types] of Object.entries(serverState)) {
-        updates[id] = toEventIntent(types);
+        // Never overwrite optimistic state for events with in-flight mutations.
+        // A stale server response arriving after an optimistic update would
+        // otherwise silently revert the user's action.
+        if (!pendingRef.current.has(id)) {
+          updates[id] = toEventIntent(types);
+        }
       }
       setState((prev) => ({ ...prev, ...updates }));
     },
@@ -79,6 +85,10 @@ export function useRelationshipState(
     const isActive = current === type;
     const next: EventIntent = isActive ? null : type;
 
+    if (__DEV__) {
+      console.log('[intent] toggle', { eventId, type, current, next });
+    }
+
     // Optimistic update
     setState((prev) => ({ ...prev, [eventId]: next }));
     setPending((prev) => new Set([...prev, eventId]));
@@ -90,7 +100,10 @@ export function useRelationshipState(
         // Backend atomically removes any conflicting intent (interested ↔ going).
         await markEventRelationship(eventId, type, token);
       }
-    } catch {
+    } catch (err) {
+      if (__DEV__) {
+        console.warn('[intent] rollback', { eventId, type, current, err });
+      }
       // Rollback to prior intent on failure.
       setState((prev) => ({ ...prev, [eventId]: current }));
     } finally {

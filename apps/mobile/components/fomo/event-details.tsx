@@ -240,18 +240,18 @@ export function EventDetails({
                         return (
                           <Pressable
                             key={type}
-                            style={[
+                            style={({ pressed }) => [
                               styles.relBtn,
                               isActive && {
                                 borderColor: activeColor,
                                 backgroundColor: `${activeColor}28`,
                               },
+                              pressed && !isPendingIntent && styles.relBtnPressed,
                             ]}
-                            onPress={() => onToggleIntent(type)}
-                            disabled={isPendingIntent}
+                            onPress={() => { if (!isPendingIntent) onToggleIntent(type); }}
                             accessibilityRole="button"
                             accessibilityLabel={isActive ? `Remove ${label}` : label}
-                            accessibilityState={{ checked: isActive }}
+                            accessibilityState={{ checked: isActive, busy: isPendingIntent && isActive }}
                           >
                             {isPendingIntent && isActive ? (
                               <ActivityIndicator size={14} color={activeColor} />
@@ -472,6 +472,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  relBtnPressed: {
+    opacity: 0.7,
   },
   relLabel: {
     fontFamily: 'Inter_600SemiBold',
