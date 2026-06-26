@@ -247,13 +247,13 @@ export function EventDetails({
                               styles.relBtn,
                               isActive && {
                                 borderColor: activeColor,
-                                backgroundColor: `${activeColor}40`,
+                                backgroundColor: `${activeColor}30`,
                                 shadowColor: activeColor,
-                                shadowOpacity: 0.45,
-                                shadowRadius: 12,
+                                shadowOpacity: 0.55,
+                                shadowRadius: 18,
                                 shadowOffset: { width: 0, height: 0 },
                               },
-                              pressed && !isPendingIntent && { opacity: 0.72 },
+                              pressed && !isPendingIntent && { opacity: 0.65 },
                             ]}
                             onPress={() => { if (!isPendingIntent) onToggleIntent(type); }}
                             accessibilityRole="button"
@@ -261,11 +261,11 @@ export function EventDetails({
                             accessibilityState={{ checked: isActive, busy: isPendingIntent && isActive }}
                           >
                             {isPendingIntent && isActive ? (
-                              <ActivityIndicator size={16} color={activeColor} />
+                              <ActivityIndicator size={20} color={activeColor} />
                             ) : (
                               <Icon
-                                size={16}
-                                color={isActive ? activeColor : 'rgba(255,255,255,0.35)'}
+                                size={20}
+                                color={isActive ? activeColor : 'rgba(255,255,255,0.50)'}
                                 fill={fillOnActive && isActive ? activeColor : 'transparent'}
                                 strokeWidth={1.5}
                               />
@@ -473,18 +473,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 13,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.18)',
-    backgroundColor: 'rgba(255,255,255,0.07)',
+    gap: 8,
+    paddingVertical: 18,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: 'rgba(255,255,255,0.10)',
   },
   relLabel: {
     fontFamily: 'Inter_600SemiBold',
-    fontSize: 13,
-    letterSpacing: 0.2,
-    color: 'rgba(255,255,255,0.55)',
+    fontSize: 14,
+    letterSpacing: 0.3,
+    color: 'rgba(255,255,255,0.65)',
   },
   actionRow: {
     flexDirection: 'row',
