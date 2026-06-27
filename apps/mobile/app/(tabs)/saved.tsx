@@ -112,31 +112,16 @@ function groupAndSort(events: UiEvent[]): DateSection[] {
 
 // ─── Visible events helper ────────────────────────────────────────────────────
 //
-// Pure function — same logic for both tabs. Returns server events whose intent
-// matches `tabIntent`, plus any registry events optimistically moved here that
-// aren't in the server response yet.
+// intentState (from the shared RelationshipStateContext) is the single source of
+// truth for which tab an event belongs to. registry holds the UiEvent objects
+// accumulated from both hooks. The function simply filters the registry by intent.
 
 function computeVisibleEvents(
-  serverEvents: UiEvent[],
   intentState: Record<string, EventIntent>,
   registry:    Record<string, UiEvent>,
   tabIntent:   EventIntent,
 ): UiEvent[] {
-  const currentIds = new Set(serverEvents.map((e) => e.id));
-
-  // Pre-sync guard: keep events that haven't been synced into intentState yet
-  // (one-render gap before the syncFromServer useEffect fires after a fresh fetch).
-  const fromCurrentTab = serverEvents.filter((e) => {
-    if (!(e.id in intentState)) return true;
-    return intentState[e.id] === tabIntent;
-  });
-
-  // Registry events optimistically moved to this tab but not yet in server response.
-  const fromOtherTabs = Object.values(registry).filter(
-    (e) => !currentIds.has(e.id) && intentState[e.id] === tabIntent,
-  );
-
-  return [...fromCurrentTab, ...fromOtherTabs];
+  return Object.values(registry).filter((e) => intentState[e.id] === tabIntent);
 }
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
@@ -222,13 +207,13 @@ export default function MyEventsScreen() {
   // immediately (e.g. Interested count drops the moment an event is marked Going).
 
   const interestedVisible = useMemo(
-    () => computeVisibleEvents(interestedHook.events, intentState, eventRegistry, 'interested'),
-    [interestedHook.events, intentState, eventRegistry],
+    () => computeVisibleEvents(intentState, eventRegistry, 'interested'),
+    [intentState, eventRegistry],
   );
 
   const goingVisible = useMemo(
-    () => computeVisibleEvents(goingHook.events, intentState, eventRegistry, 'going'),
-    [goingHook.events, intentState, eventRegistry],
+    () => computeVisibleEvents(intentState, eventRegistry, 'going'),
+    [intentState, eventRegistry],
   );
 
   const visibleEvents = activeTab === 'Interested' ? interestedVisible : goingVisible;

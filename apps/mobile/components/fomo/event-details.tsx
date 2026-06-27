@@ -488,6 +488,7 @@ const styles = StyleSheet.create({
     elevation: 3,                    // Android raised-surface shadow
   },
   relBtn: {
+    width: '100%',                   // fill the full border-wrapper width
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
