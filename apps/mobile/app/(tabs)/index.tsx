@@ -8,10 +8,10 @@ import { useAuth } from '../../hooks/use-auth';
 import { useDeviceLocation } from '../../hooks/use-device-location';
 import { useDiscovery } from '../../hooks/use-discovery';
 import { useEventRelationships } from '../../hooks/use-event-relationships';
-import { useRelationshipContext } from '../../providers/relationship-state-provider';
+import { setEventIntent } from '../../utils/event-relationships-api';
 import { DEFAULT_DISCOVERY_RADIUS } from '../../utils/location-config';
 import { haversineKm, formatDistanceKm, hasValidCoords } from '../../utils/geo';
-import type { UiEvent } from '../../types/ui';
+import type { EventIntent, UiEvent } from '../../types/ui';
 import { LocateFixed, MapPin } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -56,8 +56,6 @@ export default function DiscoveryScreen() {
   }, [locateMe]);
 
   // pendingLocate: the user tapped Locate Me while permission was not yet granted.
-  // We defer the flyTo until the permission flow completes with 'granted'.
-  // Clear on any terminal status so the spinner doesn't hang when denied again.
   const [pendingLocate, setPendingLocate] = useState(false);
   useEffect(() => {
     if (!pendingLocate) return;
@@ -69,52 +67,77 @@ export default function DiscoveryScreen() {
     }
   }, [pendingLocate, locationStatus]);
 
-  // Discovery fetches from the real API using device coords (or defaults).
-  // Re-fetches automatically when location.lat/lng change (default → real).
   const { events, loading, error, refetch } = useDiscovery({
     lat: location.lat,
     lng: location.lng,
     radiusKm: DEFAULT_DISCOVERY_RADIUS,
   });
 
-  // Attach computed distance to every event based on current origin.
   const eventsWithDistance = useMemo(
     () =>
       events.map((e) => ({
         ...e,
         distance: hasValidCoords(e.lat, e.lng)
-          ? formatDistanceKm(
-              haversineKm(location.lat, location.lng, e.lat!, e.lng!),
-            )
+          ? formatDistanceKm(haversineKm(location.lat, location.lng, e.lat!, e.lng!))
           : undefined,
       })),
     [events, location.lat, location.lng],
   );
 
-  // Relationship state: batch-fetched from backend, managed optimistically locally.
+  // ── Intent state ─────────────────────────────────────────────────────────────
+  //
+  // serverIntents: authoritative batch fetch from backend (cancelled + replaced on
+  // each refetch to prevent stale responses from overwriting newer state).
+  // localIntents: applied immediately after a successful mutation, bridges the gap
+  // before the next server refetch returns.
+
   const eventIds = useMemo(() => eventsWithDistance.map((e) => e.id), [eventsWithDistance]);
-  const { relationships: serverRels } = useEventRelationships(eventIds, accessToken);
-  const { syncFromServer, toggle: toggleIntent, isPending, intentFor } = useRelationshipContext();
+  const { intents: serverIntents, refetch: refetchIntents } = useEventRelationships(eventIds, accessToken);
 
+  const [localIntents, setLocalIntents] = useState<Record<string, EventIntent>>({});
+  const [pendingEventId, setPendingEventId] = useState<string | null>(null);
+
+  // Merged view: local overrides take precedence until the next server response.
+  const intents = useMemo(
+    () => ({ ...serverIntents, ...localIntents }),
+    [serverIntents, localIntents],
+  );
+
+  // Clear local overrides whenever a fresh server response arrives (they agree).
   useEffect(() => {
-    syncFromServer(serverRels);
-  }, [serverRels, syncFromServer]);
+    setLocalIntents({});
+  }, [serverIntents]);
 
-  // Client-side filter: text matches title or venue; categories match UiEventCategory (lowercase).
+  const handleToggleIntent = useCallback(async (type: 'interested' | 'going') => {
+    if (!accessToken || !selectedEvent || pendingEventId) return;
+    const eventId       = selectedEvent.id;
+    const currentIntent = intents[eventId] ?? null;
+    setPendingEventId(eventId);
+    if (__DEV__) console.log(`[intent] toggle start  id=${eventId} ${currentIntent} → ${type}`);
+    try {
+      const nextIntent = await setEventIntent(eventId, currentIntent, type, accessToken);
+      if (__DEV__) console.log(`[intent] toggle ok     id=${eventId} result=${nextIntent}`);
+      setLocalIntents((prev) => ({ ...prev, [eventId]: nextIntent }));
+      refetchIntents();
+    } catch (err) {
+      if (__DEV__) console.warn(`[intent] toggle FAILED id=${eventId}`, err);
+    } finally {
+      setPendingEventId(null);
+    }
+  }, [accessToken, selectedEvent, pendingEventId, intents, refetchIntents]);
+
+  // ── Filtering ─────────────────────────────────────────────────────────────────
+
   const filteredEvents = useMemo(() => {
     let result = eventsWithDistance;
     const q = searchText.trim().toLowerCase();
     if (q) {
       result = result.filter(
-        (e) =>
-          e.title.toLowerCase().includes(q) ||
-          e.venue.toLowerCase().includes(q),
+        (e) => e.title.toLowerCase().includes(q) || e.venue.toLowerCase().includes(q),
       );
     }
     if (activeCategories.length > 0) {
-      result = result.filter((e) =>
-        activeCategories.includes(e.category.toLowerCase()),
-      );
+      result = result.filter((e) => activeCategories.includes(e.category.toLowerCase()));
     }
     return result;
   }, [eventsWithDistance, searchText, activeCategories]);
@@ -123,7 +146,6 @@ export default function DiscoveryScreen() {
     setActiveCategories(filters);
   }, []);
 
-  // Pin tap: find matching event and select it (syncs carousel + detail sheet).
   const handlePinPress = useCallback(
     (eventId: string) => {
       const found = eventsWithDistance.find((e) => e.id === eventId);
@@ -132,8 +154,6 @@ export default function DiscoveryScreen() {
     [eventsWithDistance],
   );
 
-  // Locate-me: fly to real device coords when already granted; otherwise request
-  // permission and defer the flyTo until locationStatus transitions to 'granted'.
   function handleLocateMe() {
     setSelectedEvent(null);
     if (locationStatus === 'granted') {
@@ -153,10 +173,13 @@ export default function DiscoveryScreen() {
         ? Colors.textSecondary
         : Colors.textMuted;
 
+  const selectedIntent = selectedEvent ? (intents[selectedEvent.id] ?? null) : null;
+  const selectedPending = selectedEvent ? pendingEventId === selectedEvent.id : false;
+
   return (
     <View style={styles.screen}>
 
-      {/* Layer 0: Mapbox map with real event pins */}
+      {/* Layer 0: Mapbox map */}
       <FomoMap
         centerLat={location.lat}
         centerLng={location.lng}
@@ -167,7 +190,7 @@ export default function DiscoveryScreen() {
         locateMe={locateMe}
       />
 
-      {/* Layer 1: SearchBar — text search + category chips + view toggle */}
+      {/* Layer 1: SearchBar */}
       <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
         <SearchBar
           isCalendarView={isCalendarView}
@@ -177,7 +200,7 @@ export default function DiscoveryScreen() {
         />
       </View>
 
-      {/* Layer 2: Locate-me button — top-right, below SearchBar (map view only) */}
+      {/* Layer 2: Locate-me button */}
       {!isCalendarView && (
         <Pressable
           style={[styles.locateBtn, { top: insets.top + 68 }]}
@@ -192,7 +215,7 @@ export default function DiscoveryScreen() {
         </Pressable>
       )}
 
-      {/* Location mode label — bottom-left above carousel; hidden while in-flight */}
+      {/* Location mode label */}
       {!isCalendarView && locationStatus !== 'pending' && !pendingLocate && (
         <View style={styles.locationLabel}>
           <View
@@ -220,9 +243,7 @@ export default function DiscoveryScreen() {
         </View>
       )}
 
-      {/* Layer 3a: Map-view carousel — always mounted so EventCard ImageBackgrounds
-          are never torn down and recreated, which caused the 4-5s Android lag.
-          Visibility toggled via opacity + pointerEvents. */}
+      {/* Layer 3a: Map-view carousel */}
       <View
         pointerEvents={isCalendarView ? 'none' : 'auto'}
         style={[styles.carouselAnchor, { opacity: isCalendarView ? 0 : 1 }]}
@@ -265,7 +286,7 @@ export default function DiscoveryScreen() {
         )}
       </View>
 
-      {/* Layer 3b: Calendar view — conditionally mounted (lightweight: no images) */}
+      {/* Layer 3b: Calendar view */}
       {isCalendarView && (
         <CalendarView
           events={filteredEvents}
@@ -273,15 +294,13 @@ export default function DiscoveryScreen() {
         />
       )}
 
-      {/* Layer 4: details modal */}
+      {/* Layer 4: Detail sheet */}
       <EventDetails
         event={selectedEvent}
         onClose={() => setSelectedEvent(null)}
-        intent={selectedEvent && accessToken ? intentFor(selectedEvent.id) : null}
-        onToggleIntent={accessToken && selectedEvent
-          ? (type) => toggleIntent(selectedEvent.id, type)
-          : undefined}
-        isPendingIntent={selectedEvent ? isPending(selectedEvent.id) : false}
+        intent={accessToken ? selectedIntent : null}
+        onToggleIntent={accessToken ? handleToggleIntent : undefined}
+        isPendingIntent={selectedPending}
       />
 
     </View>
@@ -295,7 +314,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  // Locate-me button — top-right map control; `top` is set inline via insets
   locateBtn: {
     position: 'absolute',
     right: 16,
@@ -309,7 +327,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 10,
   },
-  // Small pill showing whether real or default location is active
   locationLabel: {
     position: 'absolute',
     bottom: 116 + 200 + 8,

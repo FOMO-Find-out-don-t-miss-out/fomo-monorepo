@@ -1,19 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { fetchMyEvents } from '../utils/event-relationships-api';
-import type { RelationshipType } from '../utils/event-relationships-api';
+import { fetchMyEvents, type RelationshipType } from '../utils/event-relationships-api';
 import { apiEventToUiEvent } from '../utils/mappers';
 import type { UiEvent } from '../types/ui';
 
 export interface UseMyEventsResult {
   events: UiEvent[];
-  /**
-   * Seed data for useRelationshipState.syncFromServer.
-   * All returned events have intent = the requested relationship type.
-   * No secondary batch fetch is needed because the backend list endpoint
-   * already guarantees this invariant.
-   */
-  relationships: Record<string, RelationshipType[]>;
   isLoading: boolean;
   error: string | null;
   refetch: () => void;
@@ -24,7 +16,6 @@ export function useMyEvents(
   accessToken: string | null,
 ): UseMyEventsResult {
   const [events, setEvents] = useState<UiEvent[]>([]);
-  const [relationships, setRelationships] = useState<Record<string, RelationshipType[]>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
@@ -32,31 +23,17 @@ export function useMyEvents(
   useEffect(() => {
     if (!accessToken) {
       setEvents([]);
-      setRelationships({});
       setIsLoading(false);
       return;
     }
     let cancelled = false;
-    // Clear stale data from the previous tab immediately so it cannot leak
-    // into the new tab's visible-events computation before the fetch arrives.
-    setEvents([]);
-    setRelationships({});
     setIsLoading(true);
     setError(null);
 
     fetchMyEvents(relationshipType, accessToken)
       .then((raw) => {
         if (cancelled) return;
-        const uiEvents = raw.map(apiEventToUiEvent);
-        setEvents(uiEvents);
-
-        // Seed intent directly from the tab type — every event returned here
-        // has exactly this relationship type (backend exclusivity guarantees it).
-        const seeds: Record<string, RelationshipType[]> = {};
-        for (const e of uiEvents) {
-          seeds[e.id] = [relationshipType];
-        }
-        setRelationships(seeds);
+        setEvents(raw.map(apiEventToUiEvent));
       })
       .catch((err: unknown) => {
         if (!cancelled) {
@@ -74,5 +51,5 @@ export function useMyEvents(
 
   const refetch = useCallback(() => setTick((n) => n + 1), []);
 
-  return { events, relationships, isLoading, error, refetch };
+  return { events, isLoading, error, refetch };
 }

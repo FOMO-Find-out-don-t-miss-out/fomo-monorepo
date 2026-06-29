@@ -1,47 +1,42 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { fetchEventRelationshipState, type RelationshipType } from '../utils/event-relationships-api';
+import { fetchEventIntents } from '../utils/event-relationships-api';
+import type { EventIntent } from '../types/ui';
 
-export interface UseEventRelationshipsResult {
-  relationships: Record<string, RelationshipType[]>;
-  isLoading: boolean;
-  error: string | null;
-  refetch: () => void;
-}
-
-/**
- * Batch-fetches relationship state for the given event IDs.
- * Only runs when accessToken is available and eventIds is non-empty.
- * Re-fetches when eventIds or tick changes.
- */
 export function useEventRelationships(
   eventIds: string[],
   accessToken: string | null,
-): UseEventRelationshipsResult {
-  const [relationships, setRelationships] = useState<Record<string, RelationshipType[]>>({});
+): {
+  intents: Record<string, EventIntent>;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const [intents, setIntents] = useState<Record<string, EventIntent>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
 
-  // Join into a stable key so the effect doesn't fire on every render
+  // Stable key avoids re-running the effect on every render when the array
+  // reference changes but the contents are identical.
   const idsKey = eventIds.join(',');
 
   useEffect(() => {
     if (!accessToken || eventIds.length === 0) {
-      setRelationships({});
+      setIntents({});
       return;
     }
     let cancelled = false;
     setIsLoading(true);
     setError(null);
 
-    fetchEventRelationshipState(eventIds, accessToken)
+    fetchEventIntents(eventIds, accessToken)
       .then((data) => {
-        if (!cancelled) setRelationships(data);
+        if (!cancelled) setIntents(data);
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load relationship state');
+          setError(err instanceof Error ? err.message : 'Failed to load intents');
         }
       })
       .finally(() => {
@@ -55,7 +50,7 @@ export function useEventRelationships(
   }, [idsKey, accessToken, tick]);
 
   return {
-    relationships,
+    intents,
     isLoading,
     error,
     refetch: useCallback(() => setTick((n) => n + 1), []),

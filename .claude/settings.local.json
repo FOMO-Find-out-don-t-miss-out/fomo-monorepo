@@ -137,7 +137,8 @@
       "PowerShell(adb logcat -d --pid=$\\(adb shell pidof com.fomo.mobile\\) 2>$null | Select-String \"FATAL|AndroidRuntime|NoClassDef|AnyTypeCache|CryptoModule|Error\" | Select-Object -First 20)",
       "PowerShell(Select-String *)",
       "PowerShell(Start-Sleep -Seconds 3; adb logcat -d --pid=$\\(adb shell pidof com.fomo.mobile\\) 2>$null | Select-String \"ReactNativeJS|Error|WARN\" | Select-String -NotMatch \"SchedAssist|Oplus|Mapbox|nativeloader|jni_lib|Dynamite|OplusActivity|OplusApp|OplusPredic|OplusScroll|VMRuntime|BridgelessReact|Packager connection\" | Select-Object -First 20)",
-      "PowerShell(cd C:\\\\fomo-monorepo; git add apps/mobile/.env.example apps/mobile/app.json apps/mobile/app/\\(tabs\\)/profile.tsx apps/mobile/app/_layout.tsx apps/mobile/package.json pnpm-lock.yaml apps/mobile/hooks/use-auth.ts apps/mobile/providers/ apps/mobile/utils/auth-client.ts docs/mobile/mobile-auth-keycloak.md)"
+      "PowerShell(cd C:\\\\fomo-monorepo; git add apps/mobile/.env.example apps/mobile/app.json apps/mobile/app/\\(tabs\\)/profile.tsx apps/mobile/app/_layout.tsx apps/mobile/package.json pnpm-lock.yaml apps/mobile/hooks/use-auth.ts apps/mobile/providers/ apps/mobile/utils/auth-client.ts docs/mobile/mobile-auth-keycloak.md)",
+      "Bash(git *)"
     ]
   }
 }

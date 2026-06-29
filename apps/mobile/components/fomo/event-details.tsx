@@ -2,9 +2,7 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   Calendar,
-  CheckCircle,
   Clock,
-  Heart,
   MapPin,
   Navigation,
   Share2,
@@ -14,7 +12,6 @@ import {
 } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Animated,
   Dimensions,
   Easing,
@@ -29,6 +26,7 @@ import {
 } from 'react-native';
 import { Colors, Gradients, Shadows } from '../../theme';
 import { hasValidCoords } from '../../utils/geo';
+import { IntentSelector } from './IntentSelector';
 import type { EventIntent, Event } from '../../types/ui';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -64,29 +62,11 @@ async function shareEvent(event: Event): Promise<void> {
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
-interface IntentActionConfig {
-  type: 'interested' | 'going';
-  label: string;
-  Icon: React.FC<{ size: number; color: string; fill?: string; strokeWidth?: number }>;
-  activeColor: string;
-  // Whether to fill the icon when active. Heart looks good filled; CheckCircle does
-  // not — its disc body renders as a solid block of colour, not a neon outline.
-  fillOnActive: boolean;
-}
-
-const INTENT_ACTIONS: IntentActionConfig[] = [
-  { type: 'interested', label: 'Interested', Icon: Heart,       activeColor: Colors.magenta, fillOnActive: true },
-  { type: 'going',      label: 'Going',      Icon: CheckCircle, activeColor: Colors.success,  fillOnActive: false },
-];
-
 interface EventDetailsProps {
   event: Event | null;
   onClose: () => void;
-  /** Current user intent for this event (null = no intent set). */
   intent?: EventIntent;
-  /** Called when the user taps an intent button. */
   onToggleIntent?: (type: 'interested' | 'going') => void;
-  /** True while an intent mutation is in-flight for this event. */
   isPendingIntent?: boolean;
 }
 
@@ -149,7 +129,7 @@ export function EventDetails({
     } else if (!event && isOpen && !isClosingRef.current) {
       animateOut();
     }
-  }, [event, isOpen]);
+  }, [event, isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const catColors = displayEvent
     ? Colors.category[displayEvent.category]
@@ -167,12 +147,12 @@ export function EventDetails({
     >
       <View style={styles.overlay}>
 
-        {/* Backdrop — covers entire screen, fades in/out independently of sheet */}
+        {/* Backdrop */}
         <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
         </Animated.View>
 
-        {/* Bottom sheet — slides up from below the visible area */}
+        {/* Bottom sheet */}
         <Animated.View style={[styles.sheet, { transform: [{ translateY: sheetTranslateY }] }]}>
           <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
 
@@ -190,7 +170,7 @@ export function EventDetails({
                 showsVerticalScrollIndicator={false}
                 bounces={false}
               >
-                {/* Header: category badge + hype badge */}
+                {/* Category + hype badges */}
                 <View style={styles.badgeRow}>
                   <View style={[styles.categoryBadge, { borderColor: catColors.border }]}>
                     <Text style={[styles.categoryText, { color: catColors.text }]}>
@@ -208,7 +188,7 @@ export function EventDetails({
                 {/* Title */}
                 <Text style={styles.title}>{displayEvent.title}</Text>
 
-                {/* Venue + distance */}
+                {/* Venue */}
                 <View style={styles.venueRow}>
                   <MapPin size={14} color="rgba(255,255,255,0.6)" strokeWidth={1.5} />
                   <Text style={styles.venueText} numberOfLines={1}>{displayEvent.venue}</Text>
@@ -217,7 +197,7 @@ export function EventDetails({
                   )}
                 </View>
 
-                {/* Date / Time pills */}
+                {/* Date / Time */}
                 <View style={styles.pillRow}>
                   <View style={styles.pill}>
                     <Calendar size={14} color="#22D3EE" strokeWidth={1.5} />
@@ -229,70 +209,16 @@ export function EventDetails({
                   </View>
                 </View>
 
-                {/* Intent selector: Interested / Going */}
+                {/* Intent selector */}
                 {onToggleIntent && (
-                  <View style={styles.relSection}>
-                    <View style={styles.relDivider}>
-                      <View style={styles.relDividerLine} />
-                      <Text style={styles.relDividerLabel}>YOUR INTENT</Text>
-                      <View style={styles.relDividerLine} />
-                    </View>
-                    <View style={styles.relRow}>
-                      {INTENT_ACTIONS.map(({ type, label, Icon, activeColor, fillOnActive }) => {
-                        const isActive = intent === type;
-                        return (
-                          // Two-layer approach: outer View owns the border (no background),
-                          // inner Pressable owns the background (no border). Keeps both
-                          // layers out of the Android compositing path that makes borders
-                          // invisible when borderColor + backgroundColor + borderRadius
-                          // all live on the same View inside an overflow:hidden parent.
-                          <View
-                            key={type}
-                            style={[
-                              styles.relBtnBorder,
-                              isActive && {
-                                borderColor: activeColor,
-                                elevation: 6,
-                                shadowColor: activeColor,
-                                shadowOpacity: 0.50,
-                                shadowRadius: 16,
-                                shadowOffset: { width: 0, height: 0 },
-                              },
-                            ]}
-                          >
-                            <Pressable
-                              style={({ pressed }) => [
-                                styles.relBtn,
-                                isActive && { backgroundColor: `${activeColor}38` },
-                                pressed && !isPendingIntent && { opacity: 0.70 },
-                              ]}
-                              onPress={() => { if (!isPendingIntent) onToggleIntent(type); }}
-                              accessibilityRole="button"
-                              accessibilityLabel={isActive ? `Remove ${label}` : label}
-                              accessibilityState={{ checked: isActive, busy: isPendingIntent && isActive }}
-                            >
-                              {isPendingIntent && isActive ? (
-                                <ActivityIndicator size={18} color={activeColor} />
-                              ) : (
-                                <Icon
-                                  size={18}
-                                  color={isActive ? activeColor : Colors.textSecondary}
-                                  fill={fillOnActive && isActive ? activeColor : 'transparent'}
-                                  strokeWidth={1.5}
-                                />
-                              )}
-                              <Text style={[styles.relLabel, isActive && { color: activeColor }]}>
-                                {label}
-                              </Text>
-                            </Pressable>
-                          </View>
-                        );
-                      })}
-                    </View>
-                  </View>
+                  <IntentSelector
+                    intent={intent}
+                    pending={isPendingIntent}
+                    onSelect={onToggleIntent}
+                  />
                 )}
 
-                {/* Action row — Directions (when valid coords) + Share */}
+                {/* Action row */}
                 <View style={styles.actionRow}>
                   {canOpenDirections && (
                     <Pressable style={styles.actionBtn} onPress={() => openDirections(displayEvent)}>
@@ -306,7 +232,7 @@ export function EventDetails({
 
               </ScrollView>
 
-              {/* Get Tickets CTA — only when ticketUrl is available */}
+              {/* Get Tickets CTA */}
               {displayEvent.ticketUrl && (
                 <View style={styles.ctaWrapper}>
                   <LinearGradient
@@ -455,53 +381,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_600SemiBold',
     fontSize: 11,
     color: '#22D3EE',
-  },
-  relSection: {
-    marginBottom: 12,
-    gap: 10,
-  },
-  relDivider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  relDividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  relDividerLabel: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 9,
-    letterSpacing: 1.4,
-    color: 'rgba(255,255,255,0.30)',
-  },
-  relRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  relBtnBorder: {
-    flex: 1,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Colors.purpleGlow,  // rgba(168,85,247,0.45) — colored border, visible on dark bg
-    elevation: 3,                    // Android raised-surface shadow
-  },
-  relBtn: {
-    width: '100%',                   // fill the full border-wrapper width
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 13,                // 1px inside the border so bg doesn't overlap it
-    backgroundColor: Colors.purpleDim,  // rgba(168,85,247,0.20) — purple glass fill
-  },
-  relLabel: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 13,
-    letterSpacing: 0.3,
-    color: Colors.textSecondary,     // rgba(255,255,255,0.60)
   },
   actionRow: {
     flexDirection: 'row',

@@ -1,6 +1,6 @@
 import { CalendarDays, CheckCircle, Heart } from 'lucide-react-native';
 import { useFocusEffect } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -20,7 +20,7 @@ import {
 } from '../../components/ui';
 import { useAuth } from '../../hooks/use-auth';
 import { useMyEvents } from '../../hooks/use-my-events';
-import { useRelationshipContext } from '../../providers/relationship-state-provider';
+import { setEventIntent } from '../../utils/event-relationships-api';
 import { Colors, Radii, Spacing, Typography } from '../../theme';
 import type { EventIntent, UiEvent } from '../../types/ui';
 
@@ -29,7 +29,7 @@ import type { EventIntent, UiEvent } from '../../types/ui';
 const TABS = ['Interested', 'Going'] as const;
 type TabLabel = (typeof TABS)[number];
 
-const TAB_INTENT: Record<TabLabel, EventIntent> = {
+const TAB_INTENT: Record<TabLabel, 'interested' | 'going'> = {
   Interested: 'interested',
   Going:      'going',
 };
@@ -110,20 +110,6 @@ function groupAndSort(events: UiEvent[]): DateSection[] {
   return sorted;
 }
 
-// ─── Visible events helper ────────────────────────────────────────────────────
-//
-// intentState (from the shared RelationshipStateContext) is the single source of
-// truth for which tab an event belongs to. registry holds the UiEvent objects
-// accumulated from both hooks. The function simply filters the registry by intent.
-
-function computeVisibleEvents(
-  intentState: Record<string, EventIntent>,
-  registry:    Record<string, UiEvent>,
-  tabIntent:   EventIntent,
-): UiEvent[] {
-  return Object.values(registry).filter((e) => intentState[e.id] === tabIntent);
-}
-
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function MyEventsScreen() {
@@ -131,110 +117,97 @@ export default function MyEventsScreen() {
   const { accessToken, isLoading: authLoading } = useAuth();
   const [activeTab, setActiveTab]               = useState<TabLabel>('Interested');
   const [selectedEvent, setSelectedEvent]       = useState<UiEvent | null>(null);
+  const [pendingEventId, setPendingEventId]     = useState<string | null>(null);
 
-  // ── Two parallel hooks — one per tab, both fetch on mount ────────────────────
-  //
-  // Each hook is fixed to its relationship type — tab switching never triggers
-  // a new network request. Both hooks fetch in parallel so both badge counts
-  // are available immediately without requiring the user to visit each tab.
-
+  // Two independent hooks — one per relationship type.
+  // Both fetch in parallel so badge counts are available without tab switching.
   const interestedHook = useMyEvents('interested', accessToken);
   const goingHook      = useMyEvents('going',      accessToken);
 
-  const {
-    state: intentState,
-    syncFromServer,
-    toggle: toggleIntent,
-    isPending,
-    intentFor,
-  } = useRelationshipContext();
-
-  // Merge both hooks' relationship seeds into intentState.
-  // Backend mutual exclusivity means the two hooks will never return conflicting
-  // intents for the same event.
-  useEffect(() => {
-    syncFromServer(interestedHook.relationships);
-  }, [interestedHook.relationships, syncFromServer]);
-
-  useEffect(() => {
-    syncFromServer(goingHook.relationships);
-  }, [goingHook.relationships, syncFromServer]);
-
-  // ── Event registry ───────────────────────────────────────────────────────────
-  //
-  // Accumulates UiEvent objects from both hooks so computeVisibleEvents can
-  // surface events in the other tab after an optimistic intent change, before
-  // the server response for that tab has been refetched.
-
-  const [eventRegistry, setEventRegistry] = useState<Record<string, UiEvent>>({});
-
-  useEffect(() => {
-    if (!accessToken) { setEventRegistry({}); return; }
-  }, [accessToken]);
-
-  useEffect(() => {
-    if (interestedHook.events.length === 0) return;
-    setEventRegistry((prev) => {
-      const next = { ...prev };
-      for (const e of interestedHook.events) next[e.id] = e;
-      return next;
-    });
-  }, [interestedHook.events]);
-
-  useEffect(() => {
-    if (goingHook.events.length === 0) return;
-    setEventRegistry((prev) => {
-      const next = { ...prev };
-      for (const e of goingHook.events) next[e.id] = e;
-      return next;
-    });
-  }, [goingHook.events]);
-
-  // ── Refetch on screen focus ──────────────────────────────────────────────────
-
+  const refetchInterested = interestedHook.refetch;
+  const refetchGoing      = goingHook.refetch;
   const refetchBoth = useCallback(() => {
-    interestedHook.refetch();
-    goingHook.refetch();
-  }, [interestedHook.refetch, goingHook.refetch]);
+    if (__DEV__) console.log('[myevents] refetchBoth triggered');
+    refetchInterested();
+    refetchGoing();
+  }, [refetchInterested, refetchGoing]);
 
-  useFocusEffect(
-    useCallback(() => { refetchBoth(); }, [refetchBoth]),
-  );
+  // Replace both lists from server whenever My Events gains focus.
+  useFocusEffect(useCallback(() => {
+    if (__DEV__) console.log('[myevents] screen focused → refetchBoth');
+    refetchBoth();
+  }, [refetchBoth]));
 
-  // ── Visible events for each tab ──────────────────────────────────────────────
+  // ── Intent for the selected event ────────────────────────────────────────────
   //
-  // Computed for BOTH tabs so badge counts reflect optimistic intent changes
-  // immediately (e.g. Interested count drops the moment an event is marked Going).
+  // Derived from list membership, not a separate state. An event is either
+  // in the interested list, the going list, or neither.
 
-  const interestedVisible = useMemo(
-    () => computeVisibleEvents(intentState, eventRegistry, 'interested'),
-    [intentState, eventRegistry],
-  );
+  const selectedEventIntent = useMemo((): EventIntent => {
+    if (!selectedEvent) return null;
+    // going wins (matches dedup rule above)
+    if (goingHook.events.some((e) => e.id === selectedEvent.id))       return 'going';
+    if (interestedHook.events.some((e) => e.id === selectedEvent.id))  return 'interested';
+    return null;
+  }, [selectedEvent, interestedHook.events, goingHook.events]);
 
-  const goingVisible = useMemo(
-    () => computeVisibleEvents(intentState, eventRegistry, 'going'),
-    [intentState, eventRegistry],
-  );
-
-  const visibleEvents = activeTab === 'Interested' ? interestedVisible : goingVisible;
-
-  const sections = useMemo(() => groupAndSort(visibleEvents), [visibleEvents]);
-
-  // ── Tab counts ───────────────────────────────────────────────────────────────
+  // ── Toggle ───────────────────────────────────────────────────────────────────
   //
-  // Null while loading so the badge renders nothing (not "0") during initial
-  // fetch. Once loaded, reflects the visible count — matching what each list shows.
+  // Server-authoritative: mutation → close sheet → refetch both lists.
+  // No optimistic cross-tab moves. Correctness first.
 
+  const handleToggleIntent = useCallback(async (type: 'interested' | 'going') => {
+    if (!accessToken || !selectedEvent || pendingEventId) return;
+    const eventId       = selectedEvent.id;
+    const currentIntent = selectedEventIntent;
+    setPendingEventId(eventId);
+    if (__DEV__) console.log(`[intent] myevents toggle start  id=${eventId} ${currentIntent} → ${type}`);
+    try {
+      await setEventIntent(eventId, currentIntent, type, accessToken);
+      if (__DEV__) console.log(`[intent] myevents toggle ok     id=${eventId}`);
+      setSelectedEvent(null);
+      refetchBoth();
+    } catch (err) {
+      if (__DEV__) console.warn(`[intent] myevents toggle FAILED id=${eventId}`, err);
+    } finally {
+      setPendingEventId(null);
+    }
+  }, [accessToken, selectedEvent, pendingEventId, selectedEventIntent, refetchBoth]);
+
+  // ── Derived state ─────────────────────────────────────────────────────────────
+  //
+  // Defensive dedup: if backend returns an event in both lists (only possible
+  // with stale legacy DB rows — the service enforces mutual exclusivity on every
+  // write), going wins (mirrors the backend's own normalization rule) and the
+  // event is removed from the interested list.
+
+  const goingIds = useMemo(
+    () => new Set(goingHook.events.map((e) => e.id)),
+    [goingHook.events],
+  );
+
+  const deduplicatedInterested = useMemo(() => {
+    const dupes = interestedHook.events.filter((e) => goingIds.has(e.id));
+    if (__DEV__ && dupes.length > 0) {
+      console.warn('[myevents] dedup: events in BOTH lists (backend inconsistency):', dupes.map((e) => e.id));
+    }
+    return interestedHook.events.filter((e) => !goingIds.has(e.id));
+  }, [interestedHook.events, goingIds]);
+
+  const interestedEvents = deduplicatedInterested;
+  const goingEvents      = goingHook.events;
+
+  const visibleEvents = activeTab === 'Interested' ? interestedEvents : goingEvents;
+  const isLoading     = activeTab === 'Interested' ? interestedHook.isLoading : goingHook.isLoading;
+  const error         = activeTab === 'Interested' ? interestedHook.error     : goingHook.error;
+
+  // Counts derived from authoritative list lengths; null while loading.
   const tabCounts: Record<TabLabel, number | null> = {
-    Interested: interestedHook.isLoading ? null : interestedVisible.length,
-    Going:      goingHook.isLoading      ? null : goingVisible.length,
+    Interested: interestedHook.isLoading ? null : interestedEvents.length,
+    Going:      goingHook.isLoading      ? null : goingEvents.length,
   };
 
-  // Active tab's loading / error states for the content area.
-  const isLoading = activeTab === 'Interested' ? interestedHook.isLoading : goingHook.isLoading;
-  const error     = activeTab === 'Interested' ? interestedHook.error     : goingHook.error;
-
-  const tabIntent = TAB_INTENT[activeTab];
+  const sections = useMemo(() => groupAndSort(visibleEvents), [visibleEvents]);
 
   const handleTabPress = useCallback((tab: TabLabel) => {
     setActiveTab(tab);
@@ -296,7 +269,6 @@ export default function MyEventsScreen() {
                 <CheckCircle size={13} color={color} strokeWidth={1.5} />
               )}
               <Text style={[styles.tabLabel, { color }]}>{tab}</Text>
-              {/* Badge renders only when count is known (null = loading = no badge) */}
               {count !== null && (
                 <View style={[
                   styles.countBadge,
@@ -347,8 +319,8 @@ export default function MyEventsScreen() {
                   <MyEventListItem
                     key={event.id}
                     event={event}
-                    intent={intentFor(event.id) ?? tabIntent}
-                    isPending={isPending(event.id)}
+                    intent={TAB_INTENT[activeTab]}
+                    isPending={pendingEventId === event.id}
                     onPress={() => setSelectedEvent(event)}
                   />
                 ))}
@@ -362,13 +334,9 @@ export default function MyEventsScreen() {
       <EventDetails
         event={selectedEvent}
         onClose={() => setSelectedEvent(null)}
-        intent={selectedEvent ? intentFor(selectedEvent.id) : null}
-        onToggleIntent={
-          selectedEvent
-            ? (type) => { void toggleIntent(selectedEvent.id, type).finally(refetchBoth); }
-            : undefined
-        }
-        isPendingIntent={selectedEvent ? isPending(selectedEvent.id) : false}
+        intent={selectedEventIntent}
+        onToggleIntent={handleToggleIntent}
+        isPendingIntent={selectedEvent ? pendingEventId === selectedEvent.id : false}
       />
     </FomoScreen>
   );
