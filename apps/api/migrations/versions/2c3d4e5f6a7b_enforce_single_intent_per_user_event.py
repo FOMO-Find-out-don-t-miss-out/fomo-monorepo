@@ -56,7 +56,7 @@ def upgrade() -> None:
             """
             CREATE UNIQUE INDEX IF NOT EXISTS uq_event_relationships_single_intent
             ON event_relationships (user_id, event_id)
-            WHERE relationship_type::text IN ('interested', 'going')
+            WHERE relationship_type IN ('interested', 'going')
             """
         )
     )
