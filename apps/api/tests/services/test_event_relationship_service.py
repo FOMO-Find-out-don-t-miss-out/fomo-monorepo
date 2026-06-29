@@ -364,6 +364,154 @@ def test_batch_state_normalizes_going_wins_over_interested_legacy(session: Sessi
     assert RelationshipType.interested not in types
 
 
+# ---------------------------------------------------------------------------
+# Legacy dual-row scenarios (both interested + going in DB simultaneously)
+# These simulate data that existed before mutual exclusivity was enforced.
+# ---------------------------------------------------------------------------
+
+
+def _seed_both_intents(
+    session: Session, user: User, event: Event
+) -> None:
+    """Insert both interested and going rows directly, bypassing the service."""
+    session.add(
+        EventRelationship(
+            user_id=user.id,
+            event_id=event.id,
+            relationship_type=RelationshipType.interested,
+        )
+    )
+    session.add(
+        EventRelationship(
+            user_id=user.id,
+            event_id=event.id,
+            relationship_type=RelationshipType.going,
+        )
+    )
+    session.commit()
+
+
+def test_mark_interested_when_both_rows_exist_removes_going(session: Session) -> None:
+    """Legacy: both rows exist → mark interested → only interested remains."""
+    user = create_user(session)
+    event = create_event(session, "Legacy Both → Interested")
+    _seed_both_intents(session, user, event)
+
+    service = EventRelationshipService(session)
+    result = service.mark_relationship(
+        user_id=user.id,
+        event_id=event.id,
+        relationship_type=RelationshipType.interested,
+    )
+
+    assert result is not None
+    assert result.relationship_type == RelationshipType.interested
+    assert _types(session, user, event) == {RelationshipType.interested}
+
+
+def test_mark_going_when_both_rows_exist_removes_interested(session: Session) -> None:
+    """Legacy: both rows exist → mark going → only going remains."""
+    user = create_user(session)
+    event = create_event(session, "Legacy Both → Going")
+    _seed_both_intents(session, user, event)
+
+    service = EventRelationshipService(session)
+    result = service.mark_relationship(
+        user_id=user.id,
+        event_id=event.id,
+        relationship_type=RelationshipType.going,
+    )
+
+    assert result is not None
+    assert result.relationship_type == RelationshipType.going
+    assert _types(session, user, event) == {RelationshipType.going}
+
+
+def test_mark_interested_when_going_already_exists_removes_going_and_keeps_interested(
+    session: Session,
+) -> None:
+    """Legacy: interested already exists AND going exists → mark interested →
+    going is deleted, existing interested row is returned (idempotent path)."""
+    user = create_user(session)
+    event = create_event(session, "Idempotent Legacy Both → Interested")
+    _seed_both_intents(session, user, event)
+
+    service = EventRelationshipService(session)
+    # Calling mark_relationship with the already-existing type triggers the
+    # early-return path. The conflict (going) must still be deleted.
+    result = service.mark_relationship(
+        user_id=user.id,
+        event_id=event.id,
+        relationship_type=RelationshipType.interested,
+    )
+
+    assert result is not None
+    rows = _types(session, user, event)
+    assert rows == {RelationshipType.interested}, (
+        f"Expected only interested, got {rows}. Going row was not cleaned up."
+    )
+
+
+def test_mark_going_when_interested_already_exists_removes_interested_and_keeps_going(
+    session: Session,
+) -> None:
+    """Legacy: going already exists AND interested exists → mark going →
+    interested is deleted, existing going row is returned (idempotent path)."""
+    user = create_user(session)
+    event = create_event(session, "Idempotent Legacy Both → Going")
+    _seed_both_intents(session, user, event)
+
+    service = EventRelationshipService(session)
+    result = service.mark_relationship(
+        user_id=user.id,
+        event_id=event.id,
+        relationship_type=RelationshipType.going,
+    )
+
+    assert result is not None
+    rows = _types(session, user, event)
+    assert rows == {RelationshipType.going}, (
+        f"Expected only going, got {rows}. Interested row was not cleaned up."
+    )
+
+
+# ---------------------------------------------------------------------------
+# List endpoint exclusivity: no event may appear in both interested and going
+# ---------------------------------------------------------------------------
+
+
+def test_list_interested_never_contains_events_in_going_list(session: Session) -> None:
+    user = create_user(session)
+    event = create_event(session, "Interested Only")
+    service = EventRelationshipService(session)
+    _mark(service, user, event, RelationshipType.going)
+    _mark(service, user, event, RelationshipType.interested)
+
+    interested = service.list_interested_events(user_id=user.id)
+    going = service.list_going_events(user_id=user.id)
+
+    interested_ids = {e.id for e in interested}
+    going_ids = {e.id for e in going}
+    overlap = interested_ids & going_ids
+    assert not overlap, f"Event(s) appeared in both lists: {overlap}"
+
+
+def test_list_going_never_contains_events_in_interested_list(session: Session) -> None:
+    user = create_user(session)
+    event = create_event(session, "Going Only")
+    service = EventRelationshipService(session)
+    _mark(service, user, event, RelationshipType.interested)
+    _mark(service, user, event, RelationshipType.going)
+
+    interested = service.list_interested_events(user_id=user.id)
+    going = service.list_going_events(user_id=user.id)
+
+    interested_ids = {e.id for e in interested}
+    going_ids = {e.id for e in going}
+    overlap = interested_ids & going_ids
+    assert not overlap, f"Event(s) appeared in both lists: {overlap}"
+
+
 def test_list_saved_events_for_user_filters_visibility_and_other_users(session: Session) -> None:
     user = create_user(session)
     other_user = create_user(session, "other@example.com")

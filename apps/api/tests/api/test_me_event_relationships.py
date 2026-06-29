@@ -567,6 +567,145 @@ async def test_batch_state_never_returns_both_interested_and_going(
     assert not ("interested" in types and "going" in types), "must not return both"
 
 
+# ---------------------------------------------------------------------------
+# List endpoint exclusivity: same event must never appear in both lists
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_my_events_after_marking_interested_event_not_in_going(
+    client: AsyncClient, auth_user: User, session: Session
+) -> None:
+    """After PUT interested, event is in interested list but NOT in going."""
+    event = make_event(session, "Interested Only List")
+    await client.put(f"/api/v1/me/events/{event.id}/relationships/going")
+    await client.put(f"/api/v1/me/events/{event.id}/relationships/interested")
+
+    interested = await client.get("/api/v1/me/events?relationship_type=interested")
+    going = await client.get("/api/v1/me/events?relationship_type=going")
+
+    assert interested.status_code == 200
+    assert going.status_code == 200
+    interested_ids = {e["id"] for e in interested.json()}
+    going_ids = {e["id"] for e in going.json()}
+
+    assert str(event.id) in interested_ids, "event should be in interested list"
+    assert str(event.id) not in going_ids, "event must not be in going list"
+
+
+@pytest.mark.asyncio
+async def test_my_events_after_marking_going_event_not_in_interested(
+    client: AsyncClient, auth_user: User, session: Session
+) -> None:
+    """After PUT going, event is in going list but NOT in interested."""
+    event = make_event(session, "Going Only List")
+    await client.put(f"/api/v1/me/events/{event.id}/relationships/interested")
+    await client.put(f"/api/v1/me/events/{event.id}/relationships/going")
+
+    interested = await client.get("/api/v1/me/events?relationship_type=interested")
+    going = await client.get("/api/v1/me/events?relationship_type=going")
+
+    assert interested.status_code == 200
+    assert going.status_code == 200
+    interested_ids = {e["id"] for e in interested.json()}
+    going_ids = {e["id"] for e in going.json()}
+
+    assert str(event.id) in going_ids, "event should be in going list"
+    assert str(event.id) not in interested_ids, "event must not be in interested list"
+
+
+@pytest.mark.asyncio
+async def test_my_events_same_event_never_in_both_interested_and_going(
+    client: AsyncClient, auth_user: User, session: Session
+) -> None:
+    """After any mark operation, no event may appear in both lists simultaneously."""
+    event1 = make_event(session, "Exclusive A")
+    event2 = make_event(session, "Exclusive B")
+
+    await client.put(f"/api/v1/me/events/{event1.id}/relationships/interested")
+    await client.put(f"/api/v1/me/events/{event2.id}/relationships/going")
+
+    interested = await client.get("/api/v1/me/events?relationship_type=interested")
+    going = await client.get("/api/v1/me/events?relationship_type=going")
+
+    interested_ids = {e["id"] for e in interested.json()}
+    going_ids = {e["id"] for e in going.json()}
+    overlap = interested_ids & going_ids
+
+    assert not overlap, f"Event(s) in BOTH lists (backend invariant violated): {overlap}"
+
+
+@pytest.mark.asyncio
+async def test_my_events_legacy_both_rows_repaired_by_mark(
+    client: AsyncClient, auth_user: User, session: Session
+) -> None:
+    """Legacy rows with both interested+going: after any mark call, the event
+    appears in exactly one list and never in both."""
+    event = make_event(session, "Legacy Both Repaired List")
+    # Seed legacy dual-row state directly, bypassing the service.
+    session.add(
+        EventRelationship(
+            user_id=auth_user.id,
+            event_id=event.id,
+            relationship_type=RelationshipType.interested,
+        )
+    )
+    session.add(
+        EventRelationship(
+            user_id=auth_user.id,
+            event_id=event.id,
+            relationship_type=RelationshipType.going,
+        )
+    )
+    session.commit()
+
+    # A mark call must repair the invariant.
+    await client.put(f"/api/v1/me/events/{event.id}/relationships/interested")
+
+    interested = await client.get("/api/v1/me/events?relationship_type=interested")
+    going = await client.get("/api/v1/me/events?relationship_type=going")
+
+    interested_ids = {e["id"] for e in interested.json()}
+    going_ids = {e["id"] for e in going.json()}
+
+    assert str(event.id) in interested_ids, "event must be in interested list after mark"
+    assert str(event.id) not in going_ids, "going row must be removed after mark interested"
+
+
+@pytest.mark.asyncio
+async def test_my_events_legacy_both_rows_repaired_by_mark_going(
+    client: AsyncClient, auth_user: User, session: Session
+) -> None:
+    """Legacy rows with both interested+going: marking going removes interested."""
+    event = make_event(session, "Legacy Both Repaired List Going")
+    session.add(
+        EventRelationship(
+            user_id=auth_user.id,
+            event_id=event.id,
+            relationship_type=RelationshipType.interested,
+        )
+    )
+    session.add(
+        EventRelationship(
+            user_id=auth_user.id,
+            event_id=event.id,
+            relationship_type=RelationshipType.going,
+        )
+    )
+    session.commit()
+
+    await client.put(f"/api/v1/me/events/{event.id}/relationships/going")
+
+    interested = await client.get("/api/v1/me/events?relationship_type=interested")
+    going = await client.get("/api/v1/me/events?relationship_type=going")
+
+    interested_ids = {e["id"] for e in interested.json()}
+    going_ids = {e["id"] for e in going.json()}
+
+    assert str(event.id) in going_ids, "event must be in going list after mark"
+    assert str(event.id) not in interested_ids, "interested row must be removed after mark going"
+
+
 @pytest.mark.asyncio
 async def test_batch_state_going_wins_over_interested_for_legacy_data(
     client: AsyncClient, auth_user: User, session: Session

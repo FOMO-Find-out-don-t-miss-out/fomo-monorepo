@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from sqlalchemy import delete as sql_delete
 from sqlmodel import Session, select
 
 from packages.domain.models import Event, EventRelationship, RelationshipType
@@ -36,18 +37,20 @@ class EventRelationshipService:
         if self._get_public_event(event_id) is None:
             return None
 
-        # Enforce mutual exclusivity between interested and going.
+        # For intent types (interested/going), unconditionally DELETE the
+        # conflicting type FIRST — before checking whether the target already
+        # exists. A bulk DELETE is used (rather than load-then-delete) so the
+        # SQL is emitted immediately and cannot be skipped by an early return
+        # path. This also repairs any legacy dual-row state in a single write.
         conflicting = _EXCLUSIVE_INTENT.get(relationship_type)
         if conflicting is not None:
-            conflict_row = self.session.exec(
-                select(EventRelationship).where(
+            self.session.execute(
+                sql_delete(EventRelationship).where(
                     EventRelationship.user_id == user_id,
                     EventRelationship.event_id == event_id,
                     EventRelationship.relationship_type == conflicting,
                 )
-            ).first()
-            if conflict_row:
-                self.session.delete(conflict_row)
+            )
 
         existing = self.session.exec(
             select(EventRelationship).where(
@@ -57,7 +60,6 @@ class EventRelationshipService:
             )
         ).first()
         if existing:
-            # Commit the conflict deletion even in the idempotent case.
             self.session.commit()
             return existing
 
