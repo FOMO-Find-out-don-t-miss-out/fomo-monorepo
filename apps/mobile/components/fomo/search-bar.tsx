@@ -158,15 +158,13 @@ export function SearchBar({
 
   const handleToggleCategory = useCallback(
     (id: string) => {
-      setSelectedFilters((prev) => {
-        const next = prev.includes(id)
-          ? prev.filter((f) => f !== id)
-          : [...prev, id];
-        onFilterChange?.(next);
-        return next;
-      });
+      const next = selectedFilters.includes(id)
+        ? selectedFilters.filter((f) => f !== id)
+        : [...selectedFilters, id];
+      setSelectedFilters(next);
+      onFilterChange?.(next);
     },
-    [onFilterChange],
+    [selectedFilters, onFilterChange],
   );
 
   // ── Render ─────────────────────────────────────────────────────────────────

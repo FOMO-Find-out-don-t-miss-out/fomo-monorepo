@@ -2,102 +2,76 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { CheckCircle, Heart } from 'lucide-react-native';
 import React from 'react';
 
-import { Colors, Radii, Spacing, Typography } from '../../theme';
+import { Colors, Radii, Typography } from '../../theme';
 import type { EventIntent } from '../../types/ui';
 
-// ── Config ────────────────────────────────────────────────────────────────────
-
-interface ButtonConfig {
-  type: 'interested' | 'going';
-  label: string;
-  Icon: React.FC<{ size: number; color: string; fill?: string; strokeWidth?: number }>;
-  activeColor: string;
+type ButtonDef = {
+  type:         'interested' | 'going';
+  label:        string;
+  Icon:         React.FC<{ size: number; color: string; fill?: string; strokeWidth?: number }>;
+  color:        string;
   fillOnActive: boolean;
-}
+};
 
-const BUTTONS: ButtonConfig[] = [
-  {
-    type:         'interested',
-    label:        'Interested',
-    Icon:         Heart,
-    activeColor:  Colors.magenta,
-    fillOnActive: true,
-  },
-  {
-    type:         'going',
-    label:        'Going',
-    Icon:         CheckCircle,
-    activeColor:  Colors.success,
-    fillOnActive: false,
-  },
+const BUTTONS: ButtonDef[] = [
+  { type: 'interested', label: 'Interested', Icon: Heart,       color: Colors.magenta, fillOnActive: true  },
+  { type: 'going',      label: 'Going',      Icon: CheckCircle, color: Colors.cyan,    fillOnActive: false },
 ];
 
-// ── Props ─────────────────────────────────────────────────────────────────────
-
 export interface IntentSelectorProps {
-  intent: EventIntent;
+  intent:   EventIntent;
   pending?: boolean;
   onSelect: (intent: 'interested' | 'going') => void;
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
-
 export function IntentSelector({ intent, pending = false, onSelect }: IntentSelectorProps) {
   return (
     <View style={styles.section}>
-      {/* Section label */}
-      <View style={styles.divider}>
-        <View style={styles.dividerLine} />
-        <Text style={styles.dividerLabel}>YOUR INTENT</Text>
-        <View style={styles.dividerLine} />
-      </View>
+      <Text style={styles.label}>YOUR INTENT</Text>
 
-      {/* Two equal-width buttons */}
       <View style={styles.row}>
-        {BUTTONS.map(({ type, label, Icon, activeColor, fillOnActive }) => {
+        {BUTTONS.map(({ type, label, Icon, color, fillOnActive }) => {
           const isActive    = intent === type;
           const showSpinner = pending && isActive;
+          const isDimmed    = pending && !isActive;
 
           return (
+            // Pressable = touch target only (no visual styles here — avoids
+            // Android issues where styles on Pressable itself can be ignored).
             <Pressable
               key={type}
-              // android_ripple disabled — we use opacity on press instead, which
-              // is consistent across platforms and avoids ripple overflowing
-              // the border radius on older Android versions.
               android_ripple={null}
-              style={({ pressed }) => [
-                styles.btn,
-                isActive
-                  ? {
-                      borderColor: activeColor,
-                      backgroundColor: `${activeColor}28`,
-                    }
-                  : styles.btnInactive,
-                pressed && !pending && styles.btnPressed,
-              ]}
               onPress={() => { if (!pending) onSelect(type); }}
+              style={styles.pressable}
               accessibilityRole="button"
-              accessibilityLabel={isActive ? `Remove ${label}` : label}
-              accessibilityState={{ checked: isActive, busy: pending }}
+              accessibilityLabel={isActive ? `Remove ${label}` : `Mark as ${label}`}
+              accessibilityState={{ checked: isActive, busy: showSpinner }}
             >
-              {showSpinner ? (
-                <ActivityIndicator size={16} color={activeColor} />
-              ) : (
-                <Icon
-                  size={18}
-                  color={isActive ? activeColor : Colors.textSecondary}
-                  fill={fillOnActive && isActive ? activeColor : 'transparent'}
-                  strokeWidth={1.5}
-                />
+              {({ pressed }) => (
+                // Inner View carries all visual styling.
+                <View
+                  style={[
+                    styles.btn,
+                    isActive && { borderColor: color, backgroundColor: `${color}33` },
+                    isDimmed && styles.btnDimmed,
+                    pressed && !pending && styles.btnPressed,
+                  ]}
+                >
+                  {showSpinner ? (
+                    <ActivityIndicator size={16} color={color} />
+                  ) : (
+                    <Icon
+                      size={18}
+                      color={isActive ? color : Colors.textSecondary}
+                      fill={fillOnActive && isActive ? color : 'transparent'}
+                      strokeWidth={2}
+                    />
+                  )}
+                  <Text style={[styles.btnLabel, isActive && { color, fontFamily: Typography.font.semiBold }]}>
+                    {label}
+                  </Text>
+                </View>
               )}
-              <Text
-                style={[
-                  styles.btnLabel,
-                  isActive && { color: activeColor },
-                ]}
-              >
-                {label}
-              </Text>
             </Pressable>
           );
         })}
@@ -106,55 +80,54 @@ export function IntentSelector({ intent, pending = false, onSelect }: IntentSele
   );
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
   section: {
-    marginBottom: Spacing.md,
-    gap: 10,
+    gap:          10,
+    marginBottom: 12,
   },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+
+  label: {
+    fontFamily:    Typography.font.semiBold,
+    fontSize:      9,
+    letterSpacing: 1.6,
+    color:         'rgba(255,255,255,0.35)',
   },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-  },
-  dividerLabel: {
-    fontFamily: Typography.font.semiBold,
-    fontSize: 9,
-    letterSpacing: 1.4,
-    color: 'rgba(255,255,255,0.40)',
-  },
+
   row: {
     flexDirection: 'row',
-    gap: 10,
+    gap:           10,
   },
-  btn: {
+
+  // Touch target — flex:1 so both buttons share equal width.
+  pressable: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-    height: 48,
-    borderRadius: Radii.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.20)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
   },
-  btnInactive: {
-    borderColor: 'rgba(255,255,255,0.20)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+
+  // Visual button shell — all border/bg/layout lives here, not on Pressable.
+  btn: {
+    flexDirection:   'row',
+    alignItems:      'center',
+    justifyContent:  'center',
+    gap:             8,
+    paddingVertical: 13,
+    borderRadius:    Radii.md,
+    borderWidth:     1.5,
+    borderColor:     'rgba(255,255,255,0.35)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
+
   btnPressed: {
     opacity: 0.60,
   },
+
+  btnDimmed: {
+    opacity: 0.35,
+  },
+
   btnLabel: {
-    fontFamily: Typography.font.semiBold,
-    fontSize: 13,
-    color: Colors.textSecondary,
+    fontFamily:    Typography.font.medium,
+    fontSize:      13,
+    letterSpacing: 0.3,
+    color:         Colors.textSecondary,
   },
 });

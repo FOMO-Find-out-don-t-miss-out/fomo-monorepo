@@ -127,14 +127,12 @@ export default function MyEventsScreen() {
   const refetchInterested = interestedHook.refetch;
   const refetchGoing      = goingHook.refetch;
   const refetchBoth = useCallback(() => {
-    if (__DEV__) console.log('[myevents] refetchBoth triggered');
     refetchInterested();
     refetchGoing();
   }, [refetchInterested, refetchGoing]);
 
   // Replace both lists from server whenever My Events gains focus.
   useFocusEffect(useCallback(() => {
-    if (__DEV__) console.log('[myevents] screen focused → refetchBoth');
     refetchBoth();
   }, [refetchBoth]));
 
@@ -161,14 +159,12 @@ export default function MyEventsScreen() {
     const eventId       = selectedEvent.id;
     const currentIntent = selectedEventIntent;
     setPendingEventId(eventId);
-    if (__DEV__) console.log(`[intent] myevents toggle start  id=${eventId} ${currentIntent} → ${type}`);
     try {
       await setEventIntent(eventId, currentIntent, type, accessToken);
-      if (__DEV__) console.log(`[intent] myevents toggle ok     id=${eventId}`);
       setSelectedEvent(null);
       refetchBoth();
-    } catch (err) {
-      if (__DEV__) console.warn(`[intent] myevents toggle FAILED id=${eventId}`, err);
+    } catch {
+      // silent — user can retry by tapping again
     } finally {
       setPendingEventId(null);
     }
@@ -186,13 +182,10 @@ export default function MyEventsScreen() {
     [goingHook.events],
   );
 
-  const deduplicatedInterested = useMemo(() => {
-    const dupes = interestedHook.events.filter((e) => goingIds.has(e.id));
-    if (__DEV__ && dupes.length > 0) {
-      console.warn('[myevents] dedup: events in BOTH lists (backend inconsistency):', dupes.map((e) => e.id));
-    }
-    return interestedHook.events.filter((e) => !goingIds.has(e.id));
-  }, [interestedHook.events, goingIds]);
+  const deduplicatedInterested = useMemo(
+    () => interestedHook.events.filter((e) => !goingIds.has(e.id)),
+    [interestedHook.events, goingIds],
+  );
 
   const interestedEvents = deduplicatedInterested;
   const goingEvents      = goingHook.events;

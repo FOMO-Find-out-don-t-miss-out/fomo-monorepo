@@ -264,6 +264,103 @@ Fix: delete the `.cxx` directory manually (see above) instead of relying on `gra
 
 ## Common Errors
 
+### Intent / UI changes not appearing on device after Metro reload
+
+**Symptom**: `start:clear` + shake-reload still shows the old UI. Styles look like plain text or are completely absent.
+
+**Root cause**: Two distinct scenarios both produce this symptom.
+
+1. **The APK has a bundled JS snapshot.** Some build paths (e.g. `gradlew assembleRelease`, or an old dev build whose embedded bundle was never cleared) include a pre-packed bundle inside the APK. Metro never gets contacted; the app loads the stale bundle directly from disk.
+
+2. **Metro's transform cache is stale even after `start:clear`.** This is rarer but happens when the cache directory itself is partially corrupt.
+
+**Fix — definitive sequence (in this order):**
+```powershell
+# 1. Kill any running Metro
+
+# Terminal 1 — start Metro with a fully cleared cache
+cd apps/mobile
+pnpm start:clear
+
+# Terminal 2 — once Metro shows "waiting on exp://..."
+adb reverse tcp:8081 tcp:8081
+
+# Build a fresh debug APK (debug builds always load JS from Metro)
+cd apps/mobile/android
+.\gradlew assembleDebug
+
+# Install, replacing whatever was there
+adb install -r app\build\outputs\apk\debug\app-debug.apk
+```
+
+A debug APK built this way always fetches JS from Metro at runtime — there is no embedded bundle. Changes are now guaranteed to be live.
+
+**Diagnosis shortcut**: add a temporary `backgroundColor: 'red'` to any root container. If the screen is still not red after a Metro reload + shake, the device is not talking to Metro at all and the full rebuild above is needed.
+
+**History**: this issue surfaced repeatedly during FOMO-171 intent button work. Commits `5969abb`, `f7b8870`, `487d561` were all created specifically to diagnose stale-cache symptoms by making styling "unmistakably different." The root cause was always a pre-built APK ignoring Metro.
+
+---
+
+### `Pressable` visual styles silently ignored on Android
+
+**Symptom**: `borderWidth`, `borderColor`, `backgroundColor` set on a `Pressable` have no visible effect on Android. The component renders as unstyled text/icon with no button shape, even though the same code appears to work in the simulator or on iOS.
+
+**Root cause**: On Android, the `Pressable` component's internal touch handling layer can intercept or override visual styles applied directly to the `Pressable` node — particularly border and background properties. This is a known React Native platform inconsistency.
+
+**Fix**: Use a `Pressable > View` pattern. The `Pressable` is a bare touch target only; all visual styling lives on an inner `View`.
+
+```tsx
+// ❌ Unreliable on Android — border/background may be ignored
+<Pressable style={[styles.btn, isActive && styles.btnActive]} onPress={...}>
+  <Icon />
+  <Text>Label</Text>
+</Pressable>
+
+// ✅ Reliable cross-platform
+<Pressable onPress={...} style={styles.pressable}>   {/* touch target only */}
+  {({ pressed }) => (
+    <View style={[styles.btn, isActive && styles.btnActive, pressed && styles.btnPressed]}>
+      <Icon />
+      <Text>Label</Text>
+    </View>
+  )}
+</Pressable>
+```
+
+Also set `android_ripple={null}` to suppress the platform ink ripple, which overflows `borderRadius` on older API levels when inside a `BlurView`.
+
+**Affected component**: `components/fomo/IntentSelector.tsx` — fixed in FOMO-171 UI polish.
+
+---
+
+### React 19: "Cannot update a component while rendering a different component"
+
+**Symptom**: A full-screen red error overlay appears immediately on launch or when tapping a filter chip. The stack trace shows `setState` being called inside `basicStateReducer` during another component's render.
+
+**Root cause**: React 19 (used via RN 0.81) treats calling a parent's `setState` inside a `useState` functional updater as a hard error. Functional updaters (`setState(prev => ...)`) are called during the render phase, so any parent state dispatch inside them violates the rule.
+
+**Specific instance (FOMO, 2026-06)**: `SearchBar.handleToggleCategory` called `onFilterChange(next)` (which calls `setActiveCategories` in `DiscoveryScreen`) inside the `setSelectedFilters` functional updater.
+
+```tsx
+// ❌ Triggers the React 19 error — onFilterChange runs during render
+setSelectedFilters((prev) => {
+  const next = [...prev, id];
+  onFilterChange?.(next);   // parent setState called inside updater = ERROR
+  return next;
+});
+
+// ✅ Compute next value first, then call both setters in the event handler
+const next = selectedFilters.includes(id)
+  ? selectedFilters.filter((f) => f !== id)
+  : [...selectedFilters, id];
+setSelectedFilters(next);
+onFilterChange?.(next);
+```
+
+**File fixed**: `components/fomo/search-bar.tsx` — `handleToggleCategory`.
+
+---
+
 ### `NoClassDefFoundError: expo.modules.kotlin.types.AnyTypeCache`
 
 **Cause**: Expo packages installed at a version incompatible with the installed `expo` SDK.

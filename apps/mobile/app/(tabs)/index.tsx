@@ -1,3 +1,4 @@
+import { useFocusEffect } from 'expo-router';
 import { CalendarView } from '../../components/fomo/calendar-view';
 import { EventCard } from '../../components/fomo/event-card';
 import { EventDetails } from '../../components/fomo/event-details';
@@ -103,24 +104,31 @@ export default function DiscoveryScreen() {
     [serverIntents, localIntents],
   );
 
-  // Clear local overrides whenever a fresh server response arrives (they agree).
+  // Clear local overrides whenever a fresh server response arrives.
   useEffect(() => {
     setLocalIntents({});
   }, [serverIntents]);
+
+  // Refetch intents whenever Discover gains focus so that changes made in My
+  // Events (remove Going, switch to Interested, etc.) are reflected as soon
+  // as the user returns here — without waiting for a manual toggle.
+  useFocusEffect(
+    useCallback(() => {
+      refetchIntents();
+    }, [refetchIntents]),
+  );
 
   const handleToggleIntent = useCallback(async (type: 'interested' | 'going') => {
     if (!accessToken || !selectedEvent || pendingEventId) return;
     const eventId       = selectedEvent.id;
     const currentIntent = intents[eventId] ?? null;
     setPendingEventId(eventId);
-    if (__DEV__) console.log(`[intent] toggle start  id=${eventId} ${currentIntent} → ${type}`);
     try {
       const nextIntent = await setEventIntent(eventId, currentIntent, type, accessToken);
-      if (__DEV__) console.log(`[intent] toggle ok     id=${eventId} result=${nextIntent}`);
       setLocalIntents((prev) => ({ ...prev, [eventId]: nextIntent }));
       refetchIntents();
-    } catch (err) {
-      if (__DEV__) console.warn(`[intent] toggle FAILED id=${eventId}`, err);
+    } catch {
+      // silent — user can retry by tapping again
     } finally {
       setPendingEventId(null);
     }
