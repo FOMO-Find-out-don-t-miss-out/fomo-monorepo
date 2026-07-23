@@ -2,6 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/domain.iml" filepath="$PROJECT_DIR$/.idea/domain.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/fomo-api.iml" filepath="$PROJECT_DIR$/.idea/fomo-api.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/fomo-monorepo.iml" filepath="$PROJECT_DIR$/.idea/fomo-monorepo.iml" />
     </modules>
   </component>
