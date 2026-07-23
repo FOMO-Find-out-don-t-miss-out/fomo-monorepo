@@ -1,12 +1,26 @@
 // Central, gated performance instrumentation (FOMO-174).
 //
-// Every helper in this file is a no-op unless BOTH conditions hold:
-//   1. __DEV__ (never active in a release bundle)
-//   2. EXPO_PUBLIC_PERF_DEBUG=true in apps/mobile/.env
+// Two independent gates, both requiring __DEV__ (never active in a release
+// bundle):
 //
-// Enable:  add EXPO_PUBLIC_PERF_DEBUG=true to apps/mobile/.env, restart Metro
-//          with `pnpm --filter @fomo/mobile start:clear` (env vars are inlined
-//          at bundle time).
+//   EXPO_PUBLIC_PERF_DEBUG=true         — timing, request, focus, count and
+//                                         lifecycle logs (milestones, requests,
+//                                         screen focus, sheet/map/image timing,
+//                                         intent phases).
+//   EXPO_PUBLIC_PERF_RENDER_DEBUG=true  — per-component render counters ONLY.
+//                                         Kept separate because logging every
+//                                         render adds measurable observer
+//                                         overhead (a smoke run showed ~350
+//                                         EventCard renders during one Discover
+//                                         load) that would distort the timing
+//                                         logs above. OFF by default; enable
+//                                         only for dedicated re-render
+//                                         investigations, never during timing
+//                                         benchmark runs.
+//
+// Enable:  add the flag(s) to apps/mobile/.env, restart Metro with
+//          `pnpm --filter @fomo/mobile start:clear` (env vars are inlined at
+//          bundle time).
 // Disable: remove the var (or set it to anything other than "true") and
 //          restart Metro the same way.
 //
@@ -19,7 +33,11 @@ import { useCallback } from 'react';
 const PERF_DEBUG =
   __DEV__ && process.env.EXPO_PUBLIC_PERF_DEBUG === 'true';
 
+const PERF_RENDER_DEBUG =
+  __DEV__ && process.env.EXPO_PUBLIC_PERF_RENDER_DEBUG === 'true';
+
 export const perfEnabled: boolean = PERF_DEBUG;
+export const perfRenderEnabled: boolean = PERF_RENDER_DEBUG;
 
 type PerfFields = Record<string, string | number | boolean | null | undefined>;
 
@@ -91,12 +109,16 @@ const renderCounters: Record<string, number> = {};
  * render counter; logs every render, or every `sampleEvery`-th render for
  * high-cardinality components (e.g. list cards).
  * Not a React hook — no hook calls inside — so it is safe anywhere.
+ *
+ * Gated by EXPO_PUBLIC_PERF_RENDER_DEBUG (NOT the main timing flag): render
+ * logging is high-volume observer overhead and must stay silent during timing
+ * benchmark runs.
  */
 export function perfCountRender(name: string, sampleEvery = 1): void {
-  if (!PERF_DEBUG) return;
+  if (!PERF_RENDER_DEBUG) return;
   const count = (renderCounters[name] = (renderCounters[name] ?? 0) + 1);
   if (count === 1 || count % sampleEvery === 0) {
-    perfLog('render', { component: name, count });
+    console.log(`[perf] flow=render component=${name} count=${count}`);
   }
 }
 

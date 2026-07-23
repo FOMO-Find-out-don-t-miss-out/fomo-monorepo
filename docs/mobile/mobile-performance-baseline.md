@@ -1,12 +1,16 @@
 # Mobile Performance Baseline & Responsiveness RCA (FOMO-174)
 
-Status: **instrumentation complete, physical-device measurements pending**.
+Status: **instrumentation complete; physical-device smoke run captured; full
+repeated baseline and release comparison pending**.
 App commit at time of audit: `74e40e3` (plus the FOMO-174 instrumentation changes).
 
-This document separates three classes of statements throughout:
+This document separates these classes of statements throughout:
 
-- **[MEASURED]** — backed by a captured run on a device. None exist yet; every
-  runtime number in this document is `Pending physical-device run`.
+- **[MEASURED — SMOKE]** — captured on the physical device during the initial
+  smoke run (§1a). Sample size 1–2 per flow, debug build, Metro attached — a
+  sanity pass, **not** suitable for median/min/max conclusions.
+- **[MEASURED]** — backed by the repeated (5-run) protocol of §12. None exist
+  yet; the §4 results table is still `Pending physical-device run`.
 - **[STATIC]** — directly observable in the committed source code (file/line
   cited). These are facts about what the code does, not about how slow it is.
 - **[HYPOTHESIS]** — a plausible performance consequence of a static finding
@@ -39,8 +43,75 @@ perceived sluggishness, in rough order of expected impact:
 7. **Debug-build overhead** (Metro, dev-mode JS, Mapbox/Reanimated/BlurView in
    dev) inflates everything; a local release build exists to quantify this (§8).
 
-None of these are confirmed bottlenecks until the benchmark protocol below has
-been run on the physical device.
+A first smoke run (§1a) has since confirmed the *mechanisms* behind items 1, 2,
+3 and 5 with preliminary numbers, and surfaced one new finding (duplicate My
+Events requests on first focus). Final ranking still waits for the repeated
+§12 protocol and the release comparison.
+
+---
+
+## 1a. Preliminary physical-device smoke results [MEASURED — SMOKE]
+
+Conditions: physical Android device, **debug build, Metro attached**, staging
+API, `EXPO_PUBLIC_PERF_DEBUG=true`, render counters enabled (see the observer
+caveat below). Sample size: **1–2 captures per flow** — treat every number as
+preliminary; none of this feeds the §4 median/min/max table.
+
+**Authenticated startup** (2 runs)
+- JS init → `auth-gate-resolved`: 1649 ms / 2652 ms.
+- `auth-bootstrap-resolved duration_ms`: 1157 ms / 902 ms — of which
+  refresh exchange 440 ms / 307 ms and `GET /users/me` 463 ms / 424 ms,
+  confirming the sequential chain adds two full network round-trips before
+  the first screen.
+- `fonts-ready`: 329 ms vs 1492 ms — high variance between runs; cause not yet
+  isolated (dev-mode asset loading is a suspect, not a finding).
+
+**Discover**
+- Discovery returned **70 events**; `discover-render cards_rendered=70` — the
+  carousel mounts **all** returned events. Promoted from hypothesis.
+- Discover focus → `discover-render`: ~1817 ms / ~1705 ms.
+- Startup showed **duplicate discovery + intents request cycles**, matching the
+  location-resolution double-fetch identified statically. Promoted.
+- Intent batch requests: `id_batch=70`, `query_len=3290`; durations
+  **496–1247 ms**. Promoted — the full-batch refetch is real and slow enough
+  to matter.
+- `EventCard` render counter reached ~350 during initial load ≈ **five full
+  70-card render passes**. Promoted — repeated full-carousel renders happen.
+
+**Intent action (one interaction)**
+- Mutation round trip: 624 ms; a full 70-ID intents refetch followed it —
+  server-authoritative latency confirmed as measured behavior.
+- The single interaction added another ~350 EventCard renders (~5 more full
+  carousel passes) and re-rendered `DiscoverScreen`, `FomoMap`, `EventDetails`
+  and `IntentSelector`.
+
+**Event Details**
+- open-start → modal-shown: 182 ms; → animation-done: 303 ms. **Not currently
+  indicated as a primary bottleneck.**
+
+**Navigation**
+- Discover tab-tap → My Events focus ≈ 73 ms; My Events → Discover ≈ 43 ms.
+  **Navigation itself is not currently indicated as a bottleneck.**
+
+**My Events**
+- **Four** `GET /api/v1/me/events` calls on first focus — two per relationship
+  type instead of the expected total of two. Preliminary attribution: the
+  mount-time hook effect plus the focus-triggered refetch both firing
+  (`use-my-events.ts` effect on `accessToken` + `useFocusEffect` tick bump)
+  — kept **preliminary until cycle-correlated logs confirm the source**.
+- Focus → stable rendered list ≈ 435 ms.
+
+**Map**
+- `style-loaded` ≈ 743 ms after mount; **no** second `style-loaded` after
+  leaving and returning to Discover — map remounting is not indicated.
+
+**Observer-effect caveat**: this smoke run had per-component render logging
+enabled, which itself emits hundreds of console lines during Discover load and
+inflates JS-thread timings by an unquantified amount. Render counting has since
+been moved behind its own flag (`EXPO_PUBLIC_PERF_RENDER_DEBUG`, §14) so the
+repeated timing runs are not distorted; the ~350-render counts remain valid as
+render-behavior evidence, but the timing numbers above should be re-captured
+without render logging.
 
 ---
 
@@ -59,6 +130,7 @@ To be filled in by the person running the protocol. Record for **every** run:
 | API environment | staging |
 | App commit | `git rev-parse --short HEAD` |
 | `EXPO_PUBLIC_PERF_DEBUG` | true/false |
+| `EXPO_PUBLIC_PERF_RENDER_DEBUG` | true/false (**must be false for timing runs**) |
 
 ---
 
@@ -84,7 +156,7 @@ All instrumentation is gated behind `EXPO_PUBLIC_PERF_DEBUG=true` **and**
 | `my-events-fetch type=… count=…` | — | list response parsed | `hooks/use-my-events.ts` |
 | `my-events-render tab=… rows=…` | — | commit after loading settles | `app/(tabs)/saved.tsx` |
 | `map phase=style-loaded/fully-rendered since_mount_ms=… markers=…` | first `FomoMap` render | Mapbox `onDidFinishLoadingMap` / `onDidFinishRenderingMapFully` | `components/fomo/fomo-map.tsx` |
-| `render component=… count=…` | — | cumulative render count per component. `EventCard` sampled every 25 renders, `MyEventListItem` every 10; all others logged every render | `perfCountRender` |
+| `render component=… count=…` | — | cumulative render count per component. `EventCard` sampled every 25 renders, `MyEventListItem` every 10; all others logged every render. **Gated by `EXPO_PUBLIC_PERF_RENDER_DEBUG`, not the main timing flag** — high-volume render logging distorts timing measurements (observer effect), so it stays off during benchmark runs | `perfCountRender` |
 | `image sample=… duration_ms` | `ImageBackground.onLoadStart` | `onLoadEnd`; capped at 6 sampled card images per session so the measurement doesn't perturb the run | `components/fomo/event-card.tsx` |
 
 Honest limitations:
@@ -141,12 +213,10 @@ All values `Pending physical-device run`. Fill from the protocol in §12.
 ### Largest ID batches / query strings [STATIC]
 
 `fetchEventIntents` builds one `event_ids=<uuid>` pair per loaded event
-(`utils/event-relationships-api.ts:29`). A UUID plus the key is ~46 bytes, so
-70 events ≈ a 3.3 KB query string, growing linearly and re-sent on **every**
-Discover focus and after every intent toggle. The instrumented `id_batch` and
-`query_len` fields will record real values. Whether the server-side cost or
-payload is material is **[HYPOTHESIS]** until measured — but the request count
-and size growth are facts.
+(`utils/event-relationships-api.ts:29`), re-sent on **every** Discover focus
+and after every intent toggle. [MEASURED — SMOKE]: with 70 events the request
+carried `id_batch=70`, `query_len=3290`, and took **496–1247 ms** against
+staging — promoted from hypothesis to preliminary measured finding.
 
 - The batch always covers **all events returned by the discovery API** — not
   just visible cards (`eventIds` is built from the full `eventsWithDistance`
@@ -154,10 +224,17 @@ and size growth are facts.
 
 ### Duplicates / races [STATIC]
 
-- Startup double discovery fetch described above is the only structural
-  duplicate found. Both `use-discovery` and `use-event-relationships` have
-  correct `cancelled` cleanup, so late responses don't overwrite newer state,
-  but the wasted request still costs time and (dev) JS work.
+- Startup double discovery fetch described above. [MEASURED — SMOKE]: the
+  smoke run observed duplicate discovery **and** intents request cycles at
+  startup — promoted from hypothesis. Both `use-discovery` and
+  `use-event-relationships` have correct `cancelled` cleanup, so late
+  responses don't overwrite newer state, but the wasted requests still cost
+  time and (dev) JS work.
+- [MEASURED — SMOKE, attribution preliminary]: **four** `GET /api/v1/me/events`
+  calls on first My Events focus — two per relationship type, double the
+  expected count. Consistent with the mount-time effect and the
+  focus-refetch tick both firing, but the exact source awaits
+  cycle-correlated confirmation in the repeated run.
 - `useEffect(() => setLocalIntents({}), [serverIntents])`
   (`app/(tabs)/index.tsx:108-110`) fires an extra state update after **every**
   intents response, even a no-op one, because `serverIntents` is always a new
@@ -180,8 +257,15 @@ performance impact until correlated with measurements.
 - The carousel is a plain horizontal `ScrollView` mapping over
   `filteredEvents` — **no virtualization**: every event becomes a mounted
   `EventCard`, and every card image starts downloading immediately
-  (`index.tsx:274-293`). With N events this is N cards, N `Animated.Value`s,
-  N gradients and up to N image downloads on first load.
+  (`index.tsx:274-293`). [MEASURED — SMOKE]: `cards_rendered=70` of 70 events
+  returned — all cards mount. Promoted from hypothesis.
+- [MEASURED — SMOKE]: the `EventCard` render counter reached ~350 during one
+  initial Discover load (≈ five full 70-card render passes), and a single
+  intent interaction added another ~350 while also re-rendering
+  `DiscoverScreen`, `FomoMap`, `EventDetails` and `IntentSelector` — the
+  whole-tree re-render fan-out is real, not just theoretical. (Counts were
+  captured with render logging on, which adds its own overhead; the counts
+  are valid, the co-captured timings are inflated — see §1a caveat.)
 - `EventCard` is **not memoized** and receives a new inline
   `onPress={() => setSelectedEvent(event)}` closure each render. Consequently
   every Discover state change re-renders all cards. State changes include:
@@ -300,18 +384,27 @@ code citations are certain).
 
 | # | Symptom | Root cause (mechanism) | Evidence | Confidence | Affected flows | Recommended fix (follow-up) |
 | - | ------- | ---------------------- | -------- | ---------- | -------------- | --------------------------- |
-| 1 | Delay/network chatter on every Discover focus | Unconditional full-batch intents refetch for all loaded events | [STATIC] `index.tsx:115-119`, `event-relationships-api.ts:29` | medium | Discover refocus, intent toggle | T1 |
-| 2 | Slow first Discover paint, heavy image traffic | Non-virtualized carousel mounts all cards + starts all image loads | [STATIC] `index.tsx:274-293` | medium | Discover initial load | T3, T4 |
-| 3 | Sluggish typing/interactions on Discover | Screen-level state + unmemoized cards → whole-tree re-renders incl. Mapbox | [STATIC] §6 | medium | Discover interactions | T2 |
-| 4 | Long wait on app open | Sequential auth chain blocks first screen behind 2 network round-trips | [STATIC] `auth-provider.tsx:127-165` | medium | Cold/warm start | T5 |
-| 5 | Intent buttons feel slow to "commit"; My Events sheet hangs before closing | Server-authoritative toggles: state settles only after mutation (+refetches) | [STATIC] `index.tsx:121-150`, `saved.tsx:157-183` | medium | Interested/Going | T6 |
+| 1 | Delay/network chatter on every Discover focus | Unconditional full-batch intents refetch for all loaded events | [STATIC] `index.tsx:115-119` + [MEASURED — SMOKE] id_batch=70, query_len=3290, 496–1247 ms | medium-high (preliminary) | Discover refocus, intent toggle | T1 |
+| 2 | Slow first Discover paint, heavy image traffic | Non-virtualized carousel mounts all cards + starts all image loads | [STATIC] `index.tsx:274-293` + [MEASURED — SMOKE] cards_rendered=70; focus→render ~1.7–1.8 s (render-logging inflated) | medium-high (preliminary) | Discover initial load | T3, T4 |
+| 3 | Sluggish typing/interactions on Discover | Screen-level state + unmemoized cards → whole-tree re-renders incl. Mapbox | [STATIC] §6 + [MEASURED — SMOKE] ~350 EventCard renders per load and per intent interaction | medium-high (preliminary) | Discover interactions | T2 |
+| 4 | Long wait on app open | Sequential auth chain blocks first screen behind 2 network round-trips | [STATIC] `auth-provider.tsx:127-165` + [MEASURED — SMOKE] bootstrap 902–1157 ms (exchange 307–440 + /users/me 424–463) | medium-high (preliminary) | Cold/warm start | T5 |
+| 5 | Intent buttons feel slow to "commit"; My Events sheet hangs before closing | Server-authoritative toggles: state settles only after mutation (+refetches) | [STATIC] `index.tsx:121-150`, `saved.tsx:157-183` + [MEASURED — SMOKE] mutation 624 ms + full 70-ID refetch after | medium-high (preliminary) | Interested/Going | T6 |
 | 6 | Content flash/spinner on every My Events visit | Refetch-on-focus discards the rendered list while loading | [STATIC] `saved.tsx:283-291` | **high** (mechanism directly visible; no timing needed for the flash itself) | My Events focus | T7 |
-| 7 | Everything feels slower than it will in production | Dev-mode JS + Metro + dev Mapbox/Reanimated/Blur | [STATIC] build config; magnitude pending | high that it exists, magnitude pending | all | T8 |
-| 8 | Wasted startup work | Duplicate discovery+intents fetch when device location resolves | [STATIC] `use-discovery.ts:53` + `use-device-location.ts` | medium | Cold start → Discover | T1/T5 |
+| 7 | Everything feels slower than it will in production | Dev-mode JS + Metro + dev Mapbox/Reanimated/Blur | [STATIC] build config; magnitude pending release run | high that it exists, magnitude pending | all | T8 |
+| 8 | Wasted startup work | Duplicate discovery+intents fetch when device location resolves | [STATIC] `use-discovery.ts:53` + [MEASURED — SMOKE] duplicate cycles observed at startup | medium-high (preliminary) | Cold start → Discover | T1/T5 |
+| 9 | Doubled My Events network cost on first focus | Mount-effect fetch + focus refetch both fire (attribution preliminary) | [MEASURED — SMOKE] 4× `GET /me/events` on first focus | medium (source unconfirmed) | My Events first focus | T7 |
+
+"(preliminary)" = supported by the 1–2-sample smoke run; final ranking and
+magnitudes wait for the repeated §12 protocol and the release comparison.
 
 ---
 
-## 10. Top bottlenecks (ranked by expected user impact, pending confirmation)
+## 10. Top bottlenecks (expected user impact; ranking remains provisional until the repeated benchmark completes)
+
+The smoke run supports the items below with preliminary numbers and has
+additionally **cleared two suspects**: Event Details opening (182/303 ms) and
+tab navigation itself (43–73 ms) are not currently indicated as primary
+bottlenecks.
 
 1. **Intent-state refetch storm on Discover focus/toggle** (RCA #1, #5) — it
    sits on the hot path of the two most frequent user actions.
@@ -342,7 +435,12 @@ code citations are certain).
 
 Preparation:
 
-1. `apps/mobile/.env`: add `EXPO_PUBLIC_PERF_DEBUG=true`.
+1. `apps/mobile/.env`: add `EXPO_PUBLIC_PERF_DEBUG=true`. Leave
+   `EXPO_PUBLIC_PERF_RENDER_DEBUG` **unset/false** for all timing runs — render
+   logging is its own observer overhead and distorts the timings. Run the
+   render-count observations (steps 5 and 7 render notes) as a **separate
+   pass** with `EXPO_PUBLIC_PERF_RENDER_DEBUG=true`, and do not use timings
+   from that pass.
 2. `pnpm --filter @fomo/mobile start:clear` (env vars are inlined at bundle
    time — a plain reload is not enough), `adb reverse tcp:8081 tcp:8081`,
    `pnpm --filter @fomo/mobile android`.
@@ -442,13 +540,21 @@ relevant pending measurement.
 
 ## 14. Instrumentation lifecycle
 
-- **Single gate**: everything routes through
-  `apps/mobile/utils/performance-debug.ts`; every helper no-ops unless
-  `__DEV__ && process.env.EXPO_PUBLIC_PERF_DEBUG === 'true'`.
-- **Enable**: `EXPO_PUBLIC_PERF_DEBUG=true` in `apps/mobile/.env`, then restart
-  Metro with `pnpm --filter @fomo/mobile start:clear`.
-- **Disable**: remove the var (or set `false`) and restart Metro the same way.
-  Default state is **off**; `.env.example` documents the flag as `false`.
+- **Two central gates**, both in `apps/mobile/utils/performance-debug.ts` and
+  both requiring `__DEV__`:
+  - `EXPO_PUBLIC_PERF_DEBUG=true` — timing, request, focus, count and
+    lifecycle logs (milestones, requests, screen focus/blur, nav-tap, sheet,
+    map, image samples, intent phases, fetch counts).
+  - `EXPO_PUBLIC_PERF_RENDER_DEBUG=true` — per-component render counters
+    **only** (`perfCountRender`). Split out after the smoke run showed render
+    logging emits hundreds of lines per Discover load, distorting the very
+    timings being measured. Normal timing benchmarks must run with this flag
+    off; enable it only for dedicated re-render investigations.
+- **Enable**: set the flag(s) in `apps/mobile/.env`, then restart Metro with
+  `pnpm --filter @fomo/mobile start:clear`.
+- **Disable**: remove the var(s) (or set `false`) and restart Metro the same
+  way. Default state for both is **off**; `.env.example` documents both flags
+  as `false`.
 - **Release safety**: the `__DEV__` guard means release bundles never log,
   regardless of env.
 - **Privacy**: no tokens, credentials, payloads or event-ID arrays are logged —
