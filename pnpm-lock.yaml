@@ -10,6 +10,7 @@ overrides:
   '@types/react': 19.1.10
   '@types/react-dom': 19.1.5
   shell-quote: '>=1.8.4'
+  tar: 7.5.19
 
 importers:
 
@@ -6861,8 +6862,8 @@ packages:
     resolution: {integrity: sha512-1MOpMXuhGzGL5TTCZFItxCc0AARf1EZFQkGqMm7ERKj8+Hgr5oLvJOVFcC+lRmR8hCe2S3jC4T5D7Vg/d7/fhA==}
     engines: {node: '>=6'}
 
-  tar@7.5.13:
-    resolution: {integrity: sha512-tOG/7GyXpFevhXVh8jOPJrmtRpOTsYqUIkVdVooZYJS/z8WhfQUX8RJILmeuJNinGAMSu1veBr4asSHFt5/hng==}
+  tar@7.5.19:
+    resolution: {integrity: sha512-4LeEWl96twnS2Q7Bz4MGqgazLqO+hJN63GZxXoIqh1T3VweYD997gbU1ItNsQafqqXTXd5WFyFdReLtwvRBNiw==}
     engines: {node: '>=18'}
 
   terminal-link@2.1.1:
@@ -8680,7 +8681,7 @@ snapshots:
       source-map-support: 0.5.21
       stacktrace-parser: 0.1.11
       structured-headers: 0.4.1
-      tar: 7.5.13
+      tar: 7.5.19
       terminal-link: 2.1.1
       undici: 6.25.0
       wrap-ansi: 7.0.0
@@ -15538,7 +15539,7 @@ snapshots:
 
   tapable@2.3.2: {}
 
-  tar@7.5.13:
+  tar@7.5.19:
     dependencies:
       '@isaacs/fs-minipass': 4.0.1
       chownr: 3.0.0
