@@ -26,6 +26,14 @@ import {
 } from 'react-native';
 import { Colors, Gradients, Shadows } from '../../theme';
 import { hasValidCoords } from '../../utils/geo';
+import {
+  perfCountRender,
+  perfEnabled,
+  perfLog,
+  perfMark,
+  perfNextCycle,
+  perfSince,
+} from '../../utils/performance-debug';
 import { IntentSelector } from './IntentSelector';
 import type { EventIntent, Event } from '../../types/ui';
 
@@ -79,8 +87,12 @@ export function EventDetails({
   onToggleIntent,
   isPendingIntent = false,
 }: EventDetailsProps) {
+  perfCountRender('EventDetails');
+
   const [isOpen, setIsOpen] = useState(false);
   const isClosingRef = useRef(false);
+  const openMarkRef = useRef(0);
+  const openCycleRef = useRef(0);
 
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
@@ -114,6 +126,11 @@ export function EventDetails({
 
   useEffect(() => {
     if (event && !isOpen && !isClosingRef.current) {
+      // open-start ≈ card/pin press: the parent sets `event` in the press
+      // handler, so this effect runs in the very next commit after the tap.
+      openMarkRef.current = perfMark();
+      openCycleRef.current = perfNextCycle('sheet-open');
+      perfLog('sheet', { phase: 'open-start', cycle: openCycleRef.current });
       setIsOpen(true);
       sheetTranslateY.setValue(SHEET_HEIGHT);
       backdropOpacity.setValue(0);
@@ -125,7 +142,13 @@ export function EventDetails({
           easing: Easing.out(Easing.poly(4)),
           useNativeDriver: true,
         }),
-      ]).start();
+      ]).start(() => {
+        perfLog('sheet', {
+          phase: 'open-anim-done',
+          cycle: openCycleRef.current,
+          duration_ms: perfSince(openMarkRef.current),
+        });
+      });
     } else if (!event && isOpen && !isClosingRef.current) {
       animateOut();
     }
@@ -144,6 +167,16 @@ export function EventDetails({
       animationType="none"
       statusBarTranslucent
       onRequestClose={handleClose}
+      onShow={
+        perfEnabled
+          ? () =>
+              perfLog('sheet', {
+                phase: 'modal-shown',
+                cycle: openCycleRef.current,
+                duration_ms: perfSince(openMarkRef.current),
+              })
+          : undefined
+      }
     >
       <View style={styles.overlay}>
 

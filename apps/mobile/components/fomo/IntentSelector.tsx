@@ -3,6 +3,7 @@ import { CheckCircle, Heart } from 'lucide-react-native';
 import React from 'react';
 
 import { Colors, Radii, Typography } from '../../theme';
+import { perfCountRender } from '../../utils/performance-debug';
 import type { EventIntent } from '../../types/ui';
 
 type ButtonDef = {
@@ -25,6 +26,7 @@ export interface IntentSelectorProps {
 }
 
 export function IntentSelector({ intent, pending = false, onSelect }: IntentSelectorProps) {
+  perfCountRender('IntentSelector');
   return (
     <View style={styles.section}>
       <Text style={styles.label}>YOUR INTENT</Text>

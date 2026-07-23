@@ -11,6 +11,14 @@ import { useDiscovery } from '../../hooks/use-discovery';
 import { useEventRelationships } from '../../hooks/use-event-relationships';
 import { setEventIntent } from '../../utils/event-relationships-api';
 import { DEFAULT_DISCOVERY_RADIUS } from '../../utils/location-config';
+import {
+  perfCountRender,
+  perfEnabled,
+  perfLog,
+  perfMark,
+  perfSince,
+  usePerfScreenFocus,
+} from '../../utils/performance-debug';
 import { haversineKm, formatDistanceKm, hasValidCoords } from '../../utils/geo';
 import type { EventIntent, UiEvent } from '../../types/ui';
 import { LocateFixed, MapPin } from 'lucide-react-native';
@@ -36,6 +44,9 @@ const CARD_GAP   = 16;
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function DiscoveryScreen() {
+  perfCountRender('DiscoverScreen');
+  usePerfScreenFocus('discover');
+
   const [selectedEvent, setSelectedEvent] = useState<UiEvent | null>(null);
   const [isCalendarView, setIsCalendarView] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -122,15 +133,27 @@ export default function DiscoveryScreen() {
     if (!accessToken || !selectedEvent || pendingEventId) return;
     const eventId       = selectedEvent.id;
     const currentIntent = intents[eventId] ?? null;
+    const tapMark       = perfMark();
+    perfLog('intent-toggle', { screen: 'discover', phase: 'tap', type });
     setPendingEventId(eventId);
     try {
       const nextIntent = await setEventIntent(eventId, currentIntent, type, accessToken);
+      perfLog('intent-toggle', {
+        screen: 'discover',
+        phase: 'mutation-done',
+        duration_ms: perfSince(tapMark),
+      });
       setLocalIntents((prev) => ({ ...prev, [eventId]: nextIntent }));
       refetchIntents();
     } catch {
       // silent — user can retry by tapping again
     } finally {
       setPendingEventId(null);
+      perfLog('intent-toggle', {
+        screen: 'discover',
+        phase: 'settled',
+        duration_ms: perfSince(tapMark),
+      });
     }
   }, [accessToken, selectedEvent, pendingEventId, intents, refetchIntents]);
 
@@ -153,6 +176,16 @@ export default function DiscoveryScreen() {
   const handleFilterChange = useCallback((filters: string[]) => {
     setActiveCategories(filters);
   }, []);
+
+  // How many cards the (non-virtualized) carousel actually mounts once loaded.
+  useEffect(() => {
+    if (perfEnabled && !loading && !error) {
+      perfLog('discover-render', {
+        events_total: events.length,
+        cards_rendered: filteredEvents.length,
+      });
+    }
+  }, [loading, error, events.length, filteredEvents.length]);
 
   const handlePinPress = useCallback(
     (eventId: string) => {

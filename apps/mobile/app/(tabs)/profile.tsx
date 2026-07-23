@@ -8,9 +8,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FomoButton, FomoLoadingState, FomoScreen } from '../../components/ui';
+import { usePerfScreenFocus } from '../../utils/performance-debug';
 import { Colors, Typography, Spacing } from '../../theme';
 
 export default function ProfileScreen() {
+  usePerfScreenFocus('profile');
   const { isAuthenticated, isLoading, user, authError, login, logout } = useAuth();
   const insets = useSafeAreaInsets();
 

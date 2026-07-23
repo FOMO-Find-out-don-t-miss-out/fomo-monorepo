@@ -4,6 +4,7 @@ import { Heart, Map, Search, User } from 'lucide-react-native';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { perfLog, perfMark } from '../../utils/performance-debug';
 
 // ─── Route metadata ───────────────────────────────────────────────────────────
 
@@ -64,6 +65,9 @@ function CustomTabBar({ state, navigation }: any) {
                     canPreventDefault: true,
                   });
                   if (!isFocused && !event.defaultPrevented) {
+                    // Correlate with the destination screen's `screen-focus` log
+                    // to measure tab-press → focus latency.
+                    perfLog('nav-tap', { to: route.name, t: Math.round(perfMark()) });
                     navigation.navigate(route.name);
                   }
                 }}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { fetchEventIntents } from '../utils/event-relationships-api';
+import { perfLog } from '../utils/performance-debug';
 import type { EventIntent } from '../types/ui';
 
 export function useEventRelationships(
@@ -29,6 +30,7 @@ export function useEventRelationships(
     let cancelled = false;
     setIsLoading(true);
     setError(null);
+    perfLog('intents-fetch', { phase: 'start', count: eventIds.length, tick });
 
     fetchEventIntents(eventIds, accessToken)
       .then((data) => {

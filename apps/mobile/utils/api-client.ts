@@ -1,3 +1,5 @@
+import { perfEnabled, perfLog, perfMark, perfSince } from './performance-debug';
+
 const BASE_URL = (
   (globalThis as { process?: { env?: Record<string, string | undefined> } })
     .process?.env?.EXPO_PUBLIC_API_URL ?? ''
@@ -13,9 +15,61 @@ export class ApiError extends Error {
   }
 }
 
+// ── Perf instrumentation (no-op unless EXPO_PUBLIC_PERF_DEBUG=true) ──────────
+
+// Strip query string and collapse UUID path segments so logs never contain
+// event IDs or personal data — only the route shape.
+function normalizeEndpoint(path: string): string {
+  const qIndex = path.indexOf('?');
+  const base = qIndex === -1 ? path : path.slice(0, qIndex);
+  return base.replace(
+    /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi,
+    ':id',
+  );
+}
+
+function logRequest(
+  method: string,
+  path: string,
+  mark: number,
+  status: number | 'network-error',
+  res?: Response,
+): void {
+  if (!perfEnabled) return;
+  // Batch size of ?event_ids=… requests, logged as a count (never the IDs).
+  const idBatch = (path.match(/event_ids=/g) ?? []).length;
+  const contentLength = res?.headers.get('content-length');
+  perfLog('request', {
+    method,
+    endpoint: normalizeEndpoint(path),
+    duration_ms: perfSince(mark),
+    status,
+    id_batch: idBatch > 0 ? idBatch : undefined,
+    query_len: path.includes('?') ? path.length - path.indexOf('?') : undefined,
+    bytes: contentLength ?? undefined,
+  });
+}
+
+async function instrumentedFetch(
+  path: string,
+  init: RequestInit,
+): Promise<Response> {
+  const method = init.method ?? 'GET';
+  const mark = perfMark();
+  try {
+    const res = await fetch(`${BASE_URL}${path}`, init);
+    logRequest(method, path, mark, res.status, res);
+    return res;
+  } catch (err) {
+    logRequest(method, path, mark, 'network-error');
+    throw err;
+  }
+}
+
+// ── Public API helpers ────────────────────────────────────────────────────────
+
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const url = `${BASE_URL}${path}`;
-  const res = await fetch(url, {
+  const res = await instrumentedFetch(path, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
@@ -33,8 +87,7 @@ export async function apiFetchAuth<T>(
   accessToken: string,
   init?: RequestInit,
 ): Promise<T> {
-  const url = `${BASE_URL}${path}`;
-  const res = await fetch(url, {
+  const res = await instrumentedFetch(path, {
     ...init,
     headers: {
       'Content-Type': 'application/json',

@@ -17,6 +17,7 @@ import { AuthProvider } from '../providers/auth-provider';
 import { useAuth } from '../hooks/use-auth';
 import { FomoLoadingState } from '../components/ui';
 import { Colors } from '../theme';
+import { perfMilestone } from '../utils/performance-debug';
 
 // Hold the splash screen until Inter fonts are ready
 SplashScreen.preventAutoHideAsync();
@@ -29,6 +30,13 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+
+  // First moment the app can show real (non-loading) content.
+  useEffect(() => {
+    if (!isLoading) {
+      perfMilestone('auth-gate-resolved', { authenticated: isAuthenticated });
+    }
+  }, [isLoading, isAuthenticated]);
 
   const onLoginScreen = segments[0] === 'login';
   // On Android, Expo Router receives the fomo://auth/callback deep link at the
@@ -78,7 +86,12 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
+    perfMilestone('root-layout-mounted');
+  }, []);
+
+  useEffect(() => {
     if (fontsLoaded || fontError) {
+      perfMilestone('fonts-ready', { error: !!fontError });
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);

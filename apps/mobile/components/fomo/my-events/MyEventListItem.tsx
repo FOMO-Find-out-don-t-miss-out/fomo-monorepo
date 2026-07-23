@@ -3,6 +3,7 @@ import { MapPin } from 'lucide-react-native';
 import React from 'react';
 
 import { Colors, Radii, Spacing, Typography } from '../../../theme';
+import { perfCountRender } from '../../../utils/performance-debug';
 import type { EventIntent, UiEvent } from '../../../types/ui';
 
 // ─── Intent dot config ───────────────────────────────────────────────────────
@@ -29,6 +30,7 @@ export function MyEventListItem({
   isPending = false,
   onPress,
 }: MyEventListItemProps) {
+  perfCountRender('MyEventListItem', 10);
   const catColors = Colors.category[event.category];
   const accentColor = catColors.text;
   const dotColor = intent ? INTENT_DOT[intent] : null;

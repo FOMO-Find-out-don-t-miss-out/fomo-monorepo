@@ -21,6 +21,14 @@ import {
 import { useAuth } from '../../hooks/use-auth';
 import { useMyEvents } from '../../hooks/use-my-events';
 import { setEventIntent } from '../../utils/event-relationships-api';
+import {
+  perfCountRender,
+  perfEnabled,
+  perfLog,
+  perfMark,
+  perfSince,
+  usePerfScreenFocus,
+} from '../../utils/performance-debug';
 import { Colors, Radii, Spacing, Typography } from '../../theme';
 import type { EventIntent, UiEvent } from '../../types/ui';
 
@@ -113,6 +121,9 @@ function groupAndSort(events: UiEvent[]): DateSection[] {
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function MyEventsScreen() {
+  perfCountRender('MyEventsScreen');
+  usePerfScreenFocus('my-events');
+
   const insets                                  = useSafeAreaInsets();
   const { accessToken, isLoading: authLoading } = useAuth();
   const [activeTab, setActiveTab]               = useState<TabLabel>('Interested');
@@ -158,15 +169,27 @@ export default function MyEventsScreen() {
     if (!accessToken || !selectedEvent || pendingEventId) return;
     const eventId       = selectedEvent.id;
     const currentIntent = selectedEventIntent;
+    const tapMark       = perfMark();
+    perfLog('intent-toggle', { screen: 'my-events', phase: 'tap', type });
     setPendingEventId(eventId);
     try {
       await setEventIntent(eventId, currentIntent, type, accessToken);
+      perfLog('intent-toggle', {
+        screen: 'my-events',
+        phase: 'mutation-done',
+        duration_ms: perfSince(tapMark),
+      });
       setSelectedEvent(null);
       refetchBoth();
     } catch {
       // silent — user can retry by tapping again
     } finally {
       setPendingEventId(null);
+      perfLog('intent-toggle', {
+        screen: 'my-events',
+        phase: 'settled',
+        duration_ms: perfSince(tapMark),
+      });
     }
   }, [accessToken, selectedEvent, pendingEventId, selectedEventIntent, refetchBoth]);
 
@@ -201,6 +224,13 @@ export default function MyEventsScreen() {
   };
 
   const sections = useMemo(() => groupAndSort(visibleEvents), [visibleEvents]);
+
+  // Rows actually mounted for the active tab once loading settles.
+  React.useEffect(() => {
+    if (perfEnabled && !isLoading && !error) {
+      perfLog('my-events-render', { tab: activeTab, rows: visibleEvents.length });
+    }
+  }, [isLoading, error, activeTab, visibleEvents.length]);
 
   const handleTabPress = useCallback((tab: TabLabel) => {
     setActiveTab(tab);

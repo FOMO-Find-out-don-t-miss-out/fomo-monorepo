@@ -19,6 +19,7 @@ import {
   REDIRECT_SCHEME,
   storeTokens,
 } from '../utils/auth-client';
+import { perfLog, perfMark, perfMilestone, perfSince } from '../utils/performance-debug';
 
 // Required for Android: closes the auth browser tab after redirect.
 WebBrowser.maybeCompleteAuthSession();
@@ -58,9 +59,16 @@ export function useAuth(): AuthContextValue {
 const BASE_URL = (process.env.EXPO_PUBLIC_API_URL ?? '').replace(/\/$/, '');
 
 async function fetchUserMe(accessToken: string): Promise<UserMe | null> {
+  const mark = perfMark();
   try {
     const res = await fetch(`${BASE_URL}/api/v1/users/me`, {
       headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    perfLog('request', {
+      method: 'GET',
+      endpoint: '/api/v1/users/me',
+      duration_ms: perfSince(mark),
+      status: res.status,
     });
     if (!res.ok) {
       if (__DEV__) {
@@ -126,14 +134,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     (async () => {
+      const bootMark = perfMark();
+      let bootPath = 'no-session';
       try {
         const refresh = await loadRefreshToken();
         if (refresh) {
+          const exchangeMark = perfMark();
           const refreshed = await exchangeRefreshToken(refresh);
+          perfLog('auth-bootstrap', {
+            phase: 'refresh-exchange',
+            duration_ms: perfSince(exchangeMark),
+            ok: !!refreshed,
+          });
           if (refreshed) {
+            bootPath = 'refresh-exchange';
             await applySession(refreshed.access, refreshed.refresh);
             return;
           }
+          bootPath = 'refresh-failed';
           await clearTokens();
           return;
         }
@@ -141,12 +159,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // No refresh token — check if stored access token is still valid.
         const access = await loadAccessToken();
         if (access && !isTokenExpired(access)) {
+          bootPath = 'stored-access';
           setAccessToken(access);
           const me = await fetchUserMe(access);
           setUser(me);
         }
       } finally {
         setIsLoading(false);
+        perfMilestone('auth-bootstrap-resolved', {
+          path: bootPath,
+          duration_ms: perfSince(bootMark),
+        });
       }
     })();
   }, [applySession]);

@@ -10,6 +10,13 @@ import {
   View,
 } from 'react-native';
 import { Colors, Gradients, Shadows } from '../../theme';
+import {
+  perfClaimImageSample,
+  perfCountRender,
+  perfLog,
+  perfMark,
+  perfSince,
+} from '../../utils/performance-debug';
 
 // ─── Types (canonical definitions live in types/ui) ──────────────────────────
 import type { Event } from '../../types/ui';
@@ -38,8 +45,17 @@ export function EventCard({
   isActive = false,
   onPress,
 }: EventCardProps) {
+  perfCountRender('EventCard', 25);
+
   const scale = useRef(new Animated.Value(1)).current;
   const catColors = Colors.category[event.category];
+
+  // Image-load timing for a small capped sample of cards (see performance-debug).
+  const imageSampleRef = useRef<number | null | undefined>(undefined);
+  if (imageSampleRef.current === undefined) {
+    imageSampleRef.current = event.imageUri ? perfClaimImageSample() : null;
+  }
+  const imageMarkRef = useRef(0);
 
   function pressIn() {
     Animated.spring(scale, {
@@ -81,6 +97,19 @@ export function EventCard({
             source={{ uri: event.imageUri }}
             style={StyleSheet.absoluteFill}
             imageStyle={styles.coverImageStyle}
+            {...(imageSampleRef.current != null
+              ? {
+                  onLoadStart: () => {
+                    imageMarkRef.current = perfMark();
+                  },
+                  onLoadEnd: () => {
+                    perfLog('image', {
+                      sample: imageSampleRef.current,
+                      duration_ms: perfSince(imageMarkRef.current),
+                    });
+                  },
+                }
+              : {})}
           />
         ) : null}
 

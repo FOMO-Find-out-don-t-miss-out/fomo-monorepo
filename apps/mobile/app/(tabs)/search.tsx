@@ -1,9 +1,11 @@
 import { Search } from 'lucide-react-native';
 import React from 'react';
 import { FomoEmptyState, FomoScreen } from '../../components/ui';
+import { usePerfScreenFocus } from '../../utils/performance-debug';
 import { Colors } from '../../theme';
 
 export default function SearchScreen() {
+  usePerfScreenFocus('search');
   return (
     <FomoScreen>
       <FomoEmptyState

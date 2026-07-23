@@ -1,7 +1,14 @@
 import { DEFAULT_DISCOVERY_LAT, DEFAULT_DISCOVERY_LNG } from '../../utils/location-config';
 import { hasValidCoords } from '../../utils/geo';
 import type { UiEvent } from '../../types/ui';
-import React, { useMemo } from 'react';
+import {
+  perfCountRender,
+  perfEnabled,
+  perfLog,
+  perfMark,
+  perfSince,
+} from '../../utils/performance-debug';
+import React, { useMemo, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 const ACCESS_TOKEN =
@@ -102,6 +109,13 @@ export function FomoMap({
   onPinPress,
   locateMe = false,
 }: FomoMapProps = {}) {
+  perfCountRender('FomoMap');
+  // Set once on first render; compared against onDidFinishLoadingMap below.
+  const mountMarkRef = useRef(0);
+  if (perfEnabled && mountMarkRef.current === 0) {
+    mountMarkRef.current = perfMark();
+  }
+
   const defaultCenter: [number, number] = [
     centerLng ?? DEFAULT_DISCOVERY_LNG,
     centerLat ?? DEFAULT_DISCOVERY_LAT,
@@ -181,6 +195,22 @@ export function FomoMap({
         scaleBarEnabled={false}
         rotateEnabled={false}
         pitchEnabled={false}
+        {...(perfEnabled
+          ? {
+              onDidFinishLoadingMap: () =>
+                perfLog('map', {
+                  phase: 'style-loaded',
+                  since_mount_ms: perfSince(mountMarkRef.current),
+                  markers: allGeojson.features.length,
+                }),
+              onDidFinishRenderingMapFully: () =>
+                perfLog('map', {
+                  phase: 'fully-rendered',
+                  since_mount_ms: perfSince(mountMarkRef.current),
+                  markers: allGeojson.features.length,
+                }),
+            }
+          : {})}
       >
         <Camera
           zoomLevel={cameraZoom}

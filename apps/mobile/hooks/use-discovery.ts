@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { apiFetch } from '../utils/api-client';
 import { apiEventToUiEvent } from '../utils/mappers';
+import { perfLog } from '../utils/performance-debug';
 import type { ApiEvent, UiEvent } from '../types/ui';
 
 export interface DiscoveryParams {
@@ -34,6 +35,7 @@ export function useDiscovery(params: DiscoveryParams): UseDiscoveryResult {
     apiFetch<ApiEvent[]>(path)
       .then((raw) => {
         if (!cancelled) {
+          perfLog('discover-events', { count: raw.length, tick });
           setEvents(raw.map(apiEventToUiEvent));
         }
       })

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { fetchMyEvents, type RelationshipType } from '../utils/event-relationships-api';
 import { apiEventToUiEvent } from '../utils/mappers';
+import { perfLog } from '../utils/performance-debug';
 import type { UiEvent } from '../types/ui';
 
 export interface UseMyEventsResult {
@@ -33,6 +34,7 @@ export function useMyEvents(
     fetchMyEvents(relationshipType, accessToken)
       .then((raw) => {
         if (cancelled) return;
+        perfLog('my-events-fetch', { type: relationshipType, count: raw.length, tick });
         setEvents(raw.map(apiEventToUiEvent));
       })
       .catch((err: unknown) => {
