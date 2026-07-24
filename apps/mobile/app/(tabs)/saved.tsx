@@ -43,8 +43,8 @@ const TAB_INTENT: Record<TabLabel, 'interested' | 'going'> = {
 };
 
 const TAB_COLOR: Record<TabLabel, string> = {
-  Interested: Colors.magenta,
-  Going:      Colors.success,
+  Interested: Colors.intentInterested,
+  Going:      Colors.intentGoing,
 };
 
 const EMPTY_COPY: Record<TabLabel, { message: string; sub: string }> = {
@@ -59,8 +59,8 @@ const EMPTY_COPY: Record<TabLabel, { message: string; sub: string }> = {
 };
 
 const TAB_EMPTY_ICON: Record<TabLabel, React.ReactNode> = {
-  Interested: <Heart       size={44} color={Colors.magenta} strokeWidth={1.2} />,
-  Going:      <CheckCircle size={44} color={Colors.success} strokeWidth={1.2} />,
+  Interested: <Heart       size={44} color={Colors.intentInterested} strokeWidth={1.2} />,
+  Going:      <CheckCircle size={44} color={Colors.intentGoing} strokeWidth={1.2} />,
 };
 
 // ─── Date grouping ────────────────────────────────────────────────────────────

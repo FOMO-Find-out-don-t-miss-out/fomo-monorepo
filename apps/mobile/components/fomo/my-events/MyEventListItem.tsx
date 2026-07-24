@@ -9,8 +9,8 @@ import type { EventIntent, UiEvent } from '../../../types/ui';
 // ─── Intent dot config ───────────────────────────────────────────────────────
 
 const INTENT_DOT: Record<'interested' | 'going', string> = {
-  interested: Colors.magenta,
-  going:      Colors.success,
+  interested: Colors.intentInterested,
+  going:      Colors.intentGoing,
 };
 
 // ─── Props ───────────────────────────────────────────────────────────────────
@@ -92,7 +92,7 @@ function MyEventListItemBase({
           {/* Intent indicator */}
           <View style={styles.indicator}>
             {isPending ? (
-              <ActivityIndicator size={12} color={Colors.magenta} />
+              <ActivityIndicator size={12} color={dotColor ?? Colors.intentInterested} />
             ) : dotColor ? (
               <View style={[styles.dot, { backgroundColor: dotColor }]} />
             ) : null}

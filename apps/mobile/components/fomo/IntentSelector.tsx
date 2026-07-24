@@ -15,8 +15,8 @@ type ButtonDef = {
 };
 
 const BUTTONS: ButtonDef[] = [
-  { type: 'interested', label: 'Interested', Icon: Heart,       color: Colors.magenta, fillOnActive: true  },
-  { type: 'going',      label: 'Going',      Icon: CheckCircle, color: Colors.cyan,    fillOnActive: false },
+  { type: 'interested', label: 'Interested', Icon: Heart,       color: Colors.intentInterested, fillOnActive: true  },
+  { type: 'going',      label: 'Going',      Icon: CheckCircle, color: Colors.intentGoing,     fillOnActive: false },
 ];
 
 export interface IntentSelectorProps {
