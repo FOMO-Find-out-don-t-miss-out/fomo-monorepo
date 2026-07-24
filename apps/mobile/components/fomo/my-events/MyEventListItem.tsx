@@ -19,12 +19,23 @@ interface MyEventListItemProps {
   event: UiEvent;
   intent: EventIntent;
   isPending?: boolean;
-  onPress: () => void;
+  /**
+   * Receives the event's id rather than being called with no args, so the
+   * parent can pass one stable function to every row instead of a fresh
+   * closure per row per render — required for React.memo below to actually
+   * skip re-renders (FOMO-178, mirrors the FOMO-175 EventCard pattern).
+   */
+  onPress: (id: string) => void;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
+//
+// Memoized (FOMO-178): with a stable `onPress` reference and a stable
+// `event` object identity from the hook's data layer, this bails out of
+// re-render for rows unaffected by an unrelated state change (e.g. the
+// other tab's background refresh).
 
-export function MyEventListItem({
+function MyEventListItemBase({
   event,
   intent,
   isPending = false,
@@ -38,7 +49,7 @@ export function MyEventListItem({
   return (
     <Pressable
       style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-      onPress={onPress}
+      onPress={() => onPress(event.id)}
       accessibilityRole="button"
       accessibilityLabel={`View details for ${event.title}`}
     >
@@ -91,6 +102,8 @@ export function MyEventListItem({
     </Pressable>
   );
 }
+
+export const MyEventListItem = React.memo(MyEventListItemBase);
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 

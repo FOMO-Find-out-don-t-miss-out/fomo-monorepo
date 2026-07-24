@@ -1,6 +1,6 @@
 import { CalendarDays, CheckCircle, Heart } from 'lucide-react-native';
 import { useFocusEffect } from 'expo-router';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -20,7 +20,7 @@ import {
 } from '../../components/ui';
 import { useAuth } from '../../hooks/use-auth';
 import { useMyEvents } from '../../hooks/use-my-events';
-import { setEventIntent } from '../../utils/event-relationships-api';
+import { getRelationshipRevision, setEventIntent } from '../../utils/event-relationships-api';
 import {
   perfCountRender,
   perfEnabled,
@@ -137,15 +137,29 @@ export default function MyEventsScreen() {
 
   const refetchInterested = interestedHook.refetch;
   const refetchGoing      = goingHook.refetch;
-  const refetchBoth = useCallback(() => {
-    refetchInterested();
-    refetchGoing();
+  const refetchBoth = useCallback((reason?: string) => {
+    refetchInterested(reason);
+    refetchGoing(reason);
   }, [refetchInterested, refetchGoing]);
 
-  // Replace both lists from server whenever My Events gains focus.
-  useFocusEffect(useCallback(() => {
-    refetchBoth();
-  }, [refetchBoth]));
+  // Cross-screen relationship consistency (FOMO-178, mirrors the FOMO-177
+  // Discover mechanism): rather than unconditionally refetching both lists on
+  // every focus, track the shared mutation-revision counter (bumped by any
+  // successful setEventIntent call, from Discover or My Events) and only
+  // refetch when it has moved past what My Events last synchronized to — a
+  // My-Events-originated mutation advances this ref itself (see
+  // handleToggleIntent) so it never refetches its own already-applied change.
+  const lastSyncedRevisionRef = useRef(getRelationshipRevision());
+
+  useFocusEffect(
+    useCallback(() => {
+      const currentRevision = getRelationshipRevision();
+      if (currentRevision !== lastSyncedRevisionRef.current) {
+        lastSyncedRevisionRef.current = currentRevision;
+        refetchBoth('external-invalidation');
+      }
+    }, [refetchBoth]),
+  );
 
   // ── Intent for the selected event ────────────────────────────────────────────
   //
@@ -162,8 +176,11 @@ export default function MyEventsScreen() {
 
   // ── Toggle ───────────────────────────────────────────────────────────────────
   //
-  // Server-authoritative: mutation → close sheet → refetch both lists.
-  // No optimistic cross-tab moves. Correctness first.
+  // Server-authoritative: setEventIntent only resolves on a server-confirmed
+  // success, so its result is already canonical. The mutated event is always
+  // already fully known here (it's already rendered in one of the two lists),
+  // so the result is applied by moving that exact event object between the
+  // two hooks' local state — no refetch needed (FOMO-178).
 
   const handleToggleIntent = useCallback(async (type: 'interested' | 'going') => {
     if (!accessToken || !selectedEvent || pendingEventId) return;
@@ -173,14 +190,36 @@ export default function MyEventsScreen() {
     perfLog('intent-toggle', { screen: 'my-events', phase: 'tap', type });
     setPendingEventId(eventId);
     try {
-      await setEventIntent(eventId, currentIntent, type, accessToken);
+      const nextIntent = await setEventIntent(eventId, currentIntent, type, accessToken);
       perfLog('intent-toggle', {
         screen: 'my-events',
         phase: 'mutation-done',
         duration_ms: perfSince(tapMark),
       });
+
+      if (currentIntent === 'interested' && nextIntent !== 'interested') {
+        interestedHook.setEvents((prev) => prev.filter((e) => e.id !== eventId));
+      }
+      if (currentIntent === 'going' && nextIntent !== 'going') {
+        goingHook.setEvents((prev) => prev.filter((e) => e.id !== eventId));
+      }
+      if (nextIntent === 'interested' && currentIntent !== 'interested') {
+        interestedHook.setEvents((prev) =>
+          prev.some((e) => e.id === eventId) ? prev : [...prev, selectedEvent],
+        );
+      }
+      if (nextIntent === 'going' && currentIntent !== 'going') {
+        goingHook.setEvents((prev) =>
+          prev.some((e) => e.id === eventId) ? prev : [...prev, selectedEvent],
+        );
+      }
+      // Advance our synced revision past the bump setEventIntent just made,
+      // so the next focus doesn't treat this self-originated change as an
+      // external invalidation requiring a refetch.
+      lastSyncedRevisionRef.current = getRelationshipRevision();
+      perfLog('intents-reconcile', { screen: 'my-events', mode: 'local' });
+
       setSelectedEvent(null);
-      refetchBoth();
     } catch {
       // silent — user can retry by tapping again
     } finally {
@@ -191,7 +230,18 @@ export default function MyEventsScreen() {
         duration_ms: perfSince(tapMark),
       });
     }
-  }, [accessToken, selectedEvent, pendingEventId, selectedEventIntent, refetchBoth]);
+  // interestedHook.setEvents / goingHook.setEvents are useState setters —
+  // referentially stable across renders — so depending on the whole hook
+  // objects (which are new literals every render) would defeat memoization.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    accessToken,
+    selectedEvent,
+    pendingEventId,
+    selectedEventIntent,
+    interestedHook.setEvents,
+    goingHook.setEvents,
+  ]);
 
   // ── Derived state ─────────────────────────────────────────────────────────────
   //
@@ -214,28 +264,50 @@ export default function MyEventsScreen() {
   const goingEvents      = goingHook.events;
 
   const visibleEvents = activeTab === 'Interested' ? interestedEvents : goingEvents;
-  const isLoading     = activeTab === 'Interested' ? interestedHook.isLoading : goingHook.isLoading;
-  const error         = activeTab === 'Interested' ? interestedHook.error     : goingHook.error;
+  // isInitialLoading is only true before this tab's data has EVER loaded —
+  // a background refresh (e.g. external-invalidation refetch) never flips it
+  // back true, so previously loaded rows stay visible during refetch
+  // (FOMO-178, requirement: don't replace a populated list with a spinner).
+  const isInitialLoading =
+    activeTab === 'Interested' ? interestedHook.isInitialLoading : goingHook.isInitialLoading;
+  const error = activeTab === 'Interested' ? interestedHook.error : goingHook.error;
+  // Only treat an error as screen-replacing when there's no cached data to
+  // fall back to — a background refresh failure with existing rows keeps
+  // showing those rows instead of a false empty/error state.
+  const showError = error != null && visibleEvents.length === 0;
 
-  // Counts derived from authoritative list lengths; null while loading.
+  // Counts derived from authoritative list lengths; null while never-loaded.
   const tabCounts: Record<TabLabel, number | null> = {
-    Interested: interestedHook.isLoading ? null : interestedEvents.length,
-    Going:      goingHook.isLoading      ? null : goingEvents.length,
+    Interested: interestedHook.isInitialLoading ? null : interestedEvents.length,
+    Going:      goingHook.isInitialLoading      ? null : goingEvents.length,
   };
 
   const sections = useMemo(() => groupAndSort(visibleEvents), [visibleEvents]);
 
-  // Rows actually mounted for the active tab once loading settles.
+  // Rows actually stable/rendered for the active tab — distinct from initial
+  // loading and from a background refresh in flight (FOMO-178).
   React.useEffect(() => {
-    if (perfEnabled && !isLoading && !error) {
+    if (perfEnabled && !isInitialLoading && !showError) {
       perfLog('my-events-render', { tab: activeTab, rows: visibleEvents.length });
     }
-  }, [isLoading, error, activeTab, visibleEvents.length]);
+  }, [isInitialLoading, showError, activeTab, visibleEvents.length]);
 
   const handleTabPress = useCallback((tab: TabLabel) => {
     setActiveTab(tab);
     setSelectedEvent(null);
   }, []);
+
+  // Stable across renders unless the active tab's own event list changes —
+  // lets memoized MyEventListItem rows bail out of re-render when an
+  // unrelated background refresh (e.g. the other tab's data) updates
+  // (FOMO-178, mirrors the FOMO-175 Discover card-press pattern).
+  const handleRowSelect = useCallback(
+    (eventId: string) => {
+      const found = visibleEvents.find((e) => e.id === eventId);
+      if (found) setSelectedEvent(found);
+    },
+    [visibleEvents],
+  );
 
   // ── Auth guards ─────────────────────────────────────────────────────────────
 
@@ -310,10 +382,10 @@ export default function MyEventsScreen() {
       </View>
 
       {/* Content */}
-      {isLoading ? (
+      {isInitialLoading ? (
         <FomoLoadingState />
-      ) : error ? (
-        <FomoErrorState message={error} onRetry={refetchBoth} />
+      ) : showError ? (
+        <FomoErrorState message={error ?? 'Failed to load events'} onRetry={() => refetchBoth('manual-refresh')} />
       ) : visibleEvents.length === 0 ? (
         <FomoEmptyState
           icon={TAB_EMPTY_ICON[activeTab]}
@@ -344,7 +416,7 @@ export default function MyEventsScreen() {
                     event={event}
                     intent={TAB_INTENT[activeTab]}
                     isPending={pendingEventId === event.id}
-                    onPress={() => setSelectedEvent(event)}
+                    onPress={handleRowSelect}
                   />
                 ))}
               </View>

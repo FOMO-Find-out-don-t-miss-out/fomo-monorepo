@@ -1171,7 +1171,188 @@ above, per protocol.
 
 ### Explicitly deferred
 
-FOMO-178 (My Events duplicate fetch / spinner-on-refocus), FOMO-179
-(sequential auth boot), image loading/caching, release-build comparison.
-FlatList/EventCard virtualization (FOMO-175) and location bootstrap
-(FOMO-176) untouched by this task.
+FOMO-178 (My Events duplicate fetch / spinner-on-refocus) — **resolved, see
+§19** —, FOMO-179 (sequential auth boot), image loading/caching,
+release-build comparison. FlatList/EventCard virtualization (FOMO-175) and
+location bootstrap (FOMO-176) untouched by this task.
+
+---
+
+## 19. FOMO-178 — Remove duplicate My Events fetching (before/after)
+
+### Root cause / trigger analysis
+
+- **Each of the four first-focus requests**: `useMyEvents('interested', ...)`
+  and `useMyEvents('going', ...)` each fire their own mount-effect once
+  (requests 1–2). Separately, `saved.tsx`'s `useFocusEffect(() =>
+  refetchBoth())` fired unconditionally on *every* focus — including the
+  very first focus, which React Navigation dispatches immediately alongside
+  mount — bumping both hooks' `tick` and firing 2 more requests (3–4).
+- **Screen mount persistence**: confirmed (again) mounted across tab
+  switches — no remounts observed in `screen-focus`/`screen-blur` cycle
+  counters across this task's testing.
+- **Loading state derivation (before)**: a single `isLoading` boolean per
+  hook, flipped `true` on *every* fetch (initial or redundant refresh alike),
+  with no memory of "has this ever loaded."
+- **Why rows=0/empty flashed**: `isLoading` was the only render gate, checked
+  before `visibleEvents.length`; since the redundant second fetch reset
+  `isLoading` shortly after the first one resolved, a loading/empty window
+  could reappear even after real data had already arrived once.
+- **Refreshes required after a My-Events mutation**: none, structurally — any
+  event mutated from My Events is already fully known locally (it's already
+  rendered in one of the two lists), so the mutation's server-confirmed
+  result can be applied by moving the event object between the two hooks'
+  local arrays, with zero network refetch.
+- **Minimum fix**: mirror the FOMO-177 Discover mechanism exactly — gate the
+  focus-triggered refetch on the shared `getRelationshipRevision()` counter,
+  and apply My-Events-own mutations locally while advancing the synced
+  revision ref.
+
+### Initial-load and refresh state model
+
+`useMyEvents` now returns `isInitialLoading` (true only until this hook's
+first fetch for the current identity has ever settled — success or failure —
+and never true again afterward) and `isRefreshing` (true during any
+subsequent fetch, informational). `saved.tsx`'s render gate uses
+`isInitialLoading` for the full-screen spinner and only replaces content with
+`FomoErrorState` when there is also no cached data (`error && visibleEvents.length
+=== 0`) — a background refresh failure with existing rows keeps showing
+those rows instead of a false empty/error state.
+
+### Invalidation strategy
+
+Identical mechanism to FOMO-177: `saved.tsx` tracks `lastSyncedRevisionRef`
+(initialized once at mount to `getRelationshipRevision()`) and, on focus,
+calls `refetchBoth('external-invalidation')` only when the shared revision
+counter has moved past that. A My-Events-originated mutation advances the
+same ref immediately after reconciling locally, so it never refetches its own
+already-applied change on the next focus.
+
+### Mutation behavior
+
+`setEventIntent`'s resolved value (`nextIntent`) is applied by moving the
+exact `selectedEvent` object between `interestedHook`/`goingHook`'s local
+`events` arrays (now exposed via a plain `setEvents` state setter on each
+hook) — remove from the list the event is leaving, add to the list it's
+entering (deduped by id), matching whatever `currentIntent`/`nextIntent`
+implies. No refresh pair follows. Exclusivity is unaffected: still
+enforced server-side, and structurally guaranteed client-side (an event is
+in at most one of the two arrays after reconciliation). On failure, the
+existing `catch { /* silent */ }` is untouched — `setEvents` is never called,
+so cached rows remain and the pending spinner still clears in `finally`.
+
+### Stale-response and identity-change handling
+
+`useMyEvents` gained the same accessToken-change guard as FOMO-177's
+`useEventRelationships`: a different, non-null access token than last render
+clears `events` synchronously and resets the "loaded once" tracking, before
+the next fetch even starts — closing the same kind of cross-user leak (two
+different users could otherwise briefly see the previous user's My Events
+rows). The existing per-effect `cancelled` closure flag (unchanged) continues
+to guard against a superseded request's response overwriting newer state.
+
+### Rendering
+
+`MyEventListItem` is now wrapped in `React.memo` with an id-based `onPress`
+(mirrors the FOMO-175 `EventCard` pattern) fed by one stable
+`handleRowSelect` callback in `saved.tsx`, rather than a fresh inline closure
+per row per render — a background refresh of the *other* tab's hook no
+longer forces the currently-rendered rows to re-render.
+
+### Files changed
+
+`apps/mobile/hooks/use-my-events.ts` (new state model, reason tagging,
+accessToken-change reset, exposed `setEvents`), `apps/mobile/app/(tabs)/saved.tsx`
+(revision-gated focus refetch, local mutation reconciliation, cache-aware
+error gate, stable row callback), `apps/mobile/components/fomo/my-events/MyEventListItem.tsx`
+(`React.memo`, id-based `onPress`), `docs/mobile/mobile-performance-baseline.md`.
+
+### Manual validation results (physical device, OnePlus CPH2581)
+
+All performed live except case 9:
+
+1. **First authenticated visit**: exactly one Interested + one Going request
+   (`reason=initial`), no premature empty state, correct rows appeared.
+2. **Both lists empty**: verified via the Going tab reaching a genuine
+   zero-row state mid-session — loading showed only during the fetch, empty
+   state appeared only after it settled, no flash.
+3. **Switch Interested ↔ Going**: zero network requests logged for the tab
+   switch itself; correct rows displayed immediately from already-loaded
+   local state.
+4. **Leave and return, no mutation**: zero `my-events-fetch`/request lines
+   logged on return, across two consecutive round-trips.
+5. **Mutate in Discover, then open My Events**: exactly one request per list
+   (`reason=external-invalidation`); row correctly moved between lists
+   (Interested 3→2, Going 0→1 in the captured run).
+6. **Change Interested → Going inside My Events**: one PUT, `intents-reconcile
+   mode=local` logged, zero follow-up `my-events-fetch` lines; Interested
+   count and Going count updated correctly and immediately.
+7. **Toggle current relationship off**: one DELETE, local reconciliation, row
+   disappeared from the correct list, no stale entry, no duplicate request
+   pair.
+8. **Mutation failure**: not force-triggered live (no reliable way to fail a
+   single request on demand without a proxy); verified by code inspection —
+   the `catch` path never calls `setEvents`, so cached rows are structurally
+   preserved and the pending spinner still clears.
+9. **Logout/login as another user**: not live-tested this pass (would have
+   disrupted the session used for the rest of this validation); verified by
+   code inspection — the new accessToken-change branch in `use-my-events.ts`
+   clears `events` synchronously before the next fetch. Flagged here rather
+   than claimed as device-verified.
+10. **API error during background refresh**: covered by the same code path
+    as case 8 — `showError` only triggers when `visibleEvents.length === 0`,
+    so a background refresh failure with cached rows present continues
+    showing those rows.
+
+### Five-run measurements [MEASURED — DEBUG PHYSICAL DEVICE, N=5]
+
+Same device as FOMO-175/176/177 (OnePlus CPH2581, Android 16).
+
+**A. First My Events visit:**
+
+| Metric | Runs | Median | Min | Max |
+| ------ | ---: | -----: | --: | --: |
+| Requests by type | 5 | **1 Interested + 1 Going** | — | — |
+| Tab tap → focus | 5 | 55 ms | 49 ms | 69 ms |
+| Focus → first stable list | 5 | 234 ms | 209 ms | 294 ms |
+| Tab tap → first stable list | 5 | 292 ms | 265 ms | 348 ms |
+
+Versus the FOMO-174 baseline (four requests, tab tap → stable list 500 ms
+median): request count 4→**2**, tab tap → stable list 500 ms→**292 ms**
+median (~42% reduction) — consistent with removing one full redundant
+fetch pair rather than any change to network/render cost per request.
+
+**B. Unchanged return:**
+
+| Metric | Runs | Result |
+| ------ | ---: | ------ |
+| Requests | 5 | **0** |
+| Tab tap → visible cached list | 5 | ~35 ms (no network wait; instant from local state) |
+
+**C. External invalidation** (mutate in Discover, then open My Events):
+
+| Metric | Runs | Median | Min | Max |
+| ------ | ---: | -----: | --: | --: |
+| Requests | 5 | **1 per list (2 total)** | — | — |
+| Time to synchronized rows (focus → render) | 5 | 268 ms | 205 ms | 377 ms |
+
+Reason logged: `external-invalidation` in 5/5 runs. Cached rows remained
+visible throughout (no full-screen spinner observed — `isInitialLoading`
+never re-triggers after the first successful load).
+
+### Render-debug observations [MEASURED — DEBUG PHYSICAL DEVICE, render-debug]
+
+`EXPO_PUBLIC_PERF_DEBUG=false`, `EXPO_PUBLIC_PERF_RENDER_DEBUG=true`, 1
+investigation pass. A mutation performed inside My Events (card tap → toggle
+intent) produced: `MyEventsScreen` +3, `EventDetails` +3, `IntentSelector`
++3 — and **no new sampled `MyEventListItem` line** (render counter sampled
+at count=1 and every 10th thereafter, unchanged from its startup sample).
+Confirms requirement 20/22/23: a mutation does not force unnecessary
+full-screen row-render churn, and memoized rows bail out correctly. Timing
+values from this pass are not used in the baseline above, per protocol.
+
+### Explicitly deferred
+
+FOMO-179 (sequential auth boot), image loading/caching, release-build
+comparison. Discover virtualization (FOMO-175), location bootstrap
+(FOMO-176), and intent synchronization (FOMO-177) untouched by this task.
