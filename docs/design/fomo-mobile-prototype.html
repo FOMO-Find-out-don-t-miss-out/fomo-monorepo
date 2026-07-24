@@ -1,0 +1,706 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FOMO Mobile — Design Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ── Tokens ────────────────────────────────── */
+:root {
+  --bg: #0B0B0F;
+  --surface: rgba(12, 12, 18, 0.95);
+  --surface-glass: rgba(18, 18, 24, 0.75);
+  --surface-card: rgba(12, 12, 18, 0.85);
+  --border: rgba(255, 255, 255, 0.12);
+  --border-glass: rgba(255, 255, 255, 0.10);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-focus: rgba(188, 19, 254, 0.40);
+  --neon-purple: #BC13FE;
+  --purple: #A855F7;
+  --purple-dim: rgba(168, 85, 247, 0.20);
+  --purple-glow: rgba(168, 85, 247, 0.45);
+  --neon-green: #39FF88;
+  --green: #4ADE80;
+  --green-dim: rgba(57, 255, 136, 0.20);
+  --text-primary: #FFFFFF;
+  --text-secondary: rgba(255, 255, 255, 0.60);
+  --text-muted: rgba(255, 255, 255, 0.35);
+  --text-disabled: rgba(255, 255, 255, 0.20);
+  --error: #F87171;
+  --magenta: #EC4899;
+  --cyan: #06B6D4;
+  --amber: #F59E0B;
+  --orange: #F97316;
+  --sport-green: #22C55E;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 40px 16px;
+}
+
+/* ── Layout ────────────────────────────────── */
+.container {
+  max-width: 400px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.section-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+}
+
+.section-sub {
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--text-disabled);
+  letter-spacing: 0.5px;
+  margin-bottom: 16px;
+}
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.flex-row { display: flex; flex-direction: row; gap: 12px; align-items: center; }
+.flex-col { display: flex; flex-direction: column; gap: 8px; }
+
+/* ── Swatch ────────────────────────────────── */
+.swatch {
+  padding: 16px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.swatch-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+.swatch-hex {
+  font-size: 11px;
+  font-weight: 400;
+  opacity: 0.55;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Card demo ─────────────────────────────── */
+.card-demo {
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.card-demo-body {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.card-demo-img {
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* ── Glass demo ────────────────────────────── */
+.glass-demo {
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  position: relative;
+}
+.glass-demo .blur-layer {
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: var(--surface-glass);
+}
+.glass-demo .content {
+  position: relative;
+  z-index: 1;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Button demo ───────────────────────────── */
+.btn-row { display: flex; gap: 10px; }
+.btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px 0;
+  border-radius: 12px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1.5px solid;
+  cursor: default;
+}
+.btn-primary {
+  background: linear-gradient(90deg, var(--neon-purple), #9333EA);
+  border: none;
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 0 15px var(--purple-glow);
+}
+.btn-glass {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.35);
+  color: var(--text-secondary);
+}
+.btn-interested-active {
+  background: rgba(188, 19, 254, 0.20);
+  border-color: var(--neon-purple);
+  color: var(--neon-purple);
+  font-weight: 600;
+}
+.btn-going-active {
+  background: var(--green-dim);
+  border-color: var(--neon-green);
+  color: var(--neon-green);
+  font-weight: 600;
+}
+
+/* ── Tab bar demo ──────────────────────────── */
+.tab-bar-demo {
+  display: flex;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  background: rgba(12, 12, 18, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 0;
+  position: relative;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: default;
+}
+.tab-item.active {
+  color: var(--neon-purple);
+}
+.tab-item.active::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 8px;
+  background: var(--purple-dim);
+}
+.tab-item .icon, .tab-item .label { position: relative; z-index: 1; }
+.tab-item.inactive { color: rgba(255,255,255,0.45); }
+
+/* ── List item ─────────────────────────────── */
+.list-item {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  background: var(--surface-card);
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+  min-height: 60px;
+}
+.list-accent { width: 3px; flex-shrink: 0; }
+.list-content {
+  flex: 1;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+}
+.list-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.list-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+}
+.list-meta .time { font-weight: 600; color: var(--text-secondary); }
+.list-dot { width: 7px; height: 7px; border-radius: 50%; }
+
+/* ── Event card ────────────────────────────── */
+.event-card {
+  width: 260px;
+  height: 180px;
+  border-radius: 16px;
+  border: 1px solid rgba(188, 19, 254, 0.3);
+  background: rgba(18, 18, 24, 0.85);
+  overflow: hidden;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex-shrink: 0;
+  position: relative;
+}
+.event-card-img {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, #1a1a2e 0%, #0f0f23 50%, #2d1b4e 100%);
+}
+.event-card-img-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, rgba(11,11,15,0.92) 0%, rgba(11,11,15,0.3) 60%, transparent 100%);
+}
+.event-card-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.event-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.event-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 18px;
+  margin-top: auto;
+  margin-bottom: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.event-card-venue {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+.event-card-date {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 9px;
+}
+.event-card-cta {
+  background: linear-gradient(90deg, var(--neon-purple), #9333EA);
+  border-radius: 9px;
+  padding: 7px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  cursor: default;
+}
+.event-card-small {
+  width: 100%;
+  height: auto;
+  min-height: 100px;
+}
+.event-card-small .event-card-img {
+  display: none;
+}
+
+/* ── Chip ──────────────────────────────────── */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  border: 1px solid;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* ── Badge ──────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* ── Spacer ────────────────────────────────── */
+hr {
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  margin: 8px 0;
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ── Header ────────────────────────────── -->
+  <div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+      <span style="font-size:20px;font-weight:900;color:var(--neon-purple);letter-spacing:-0.5px;text-shadow:0 0 12px var(--purple-glow);">FOMO</span>
+      <span style="font-size:11px;color:var(--text-muted);font-weight:400;">Mobile Design Prototype</span>
+    </div>
+    <p style="font-size:13px;color:var(--text-secondary);line-height:20px;">
+      Canonical visual system reference. All colours, typography, and component styles match the design contract in <code style="font-size:11px;color:var(--neon-purple);">apps/mobile/DESIGN.md</code>.
+    </p>
+  </div>
+
+  <hr>
+
+  <!-- ── Core Palette ───────────────────────── -->
+  <div>
+    <div class="section-title">Core Palette</div>
+    <div class="grid-3">
+      <div class="swatch" style="background:var(--bg);">
+        <span class="swatch-label" style="color:var(--text-secondary);">--bg</span>
+        <span class="swatch-hex" style="color:var(--text-muted);">#0B0B0F</span>
+      </div>
+      <div class="swatch" style="background:var(--surface);">
+        <span class="swatch-label" style="color:var(--text-secondary);">--surface</span>
+        <span class="swatch-hex" style="color:var(--text-muted);">rgba(12,12,18,0.95)</span>
+      </div>
+      <div class="swatch" style="background:var(--surface-glass);">
+        <span class="swatch-label" style="color:var(--text-secondary);">--surface-glass</span>
+        <span class="swatch-hex" style="color:var(--text-muted);">rgba(18,18,24,0.75)</span>
+      </div>
+      <div class="swatch" style="background:var(--surface-card);">
+        <span class="swatch-label" style="color:var(--text-secondary);">--surface-card</span>
+        <span class="swatch-hex" style="color:var(--text-muted);">rgba(12,12,18,0.85)</span>
+      </div>
+      <div class="swatch" style="background:var(--text-primary);">
+        <span class="swatch-label" style="color:var(--bg);">--text-primary</span>
+        <span class="swatch-hex" style="color:var(--bg);">#FFFFFF</span>
+      </div>
+      <div class="swatch" style="background:transparent;border-color:var(--border);">
+        <span class="swatch-label" style="color:var(--text-secondary);">--border</span>
+        <span class="swatch-hex" style="color:var(--text-muted);">rgba(255,255,255,0.12)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Accent Palette ─────────────────────── -->
+  <div>
+    <div class="section-title">Accents</div>
+    <div class="grid-2">
+      <div class="swatch" style="background:var(--neon-purple);">
+        <span class="swatch-label" style="color:#fff;">--neon-purple</span>
+        <span class="swatch-hex" style="color:rgba(255,255,255,0.7);">#BC13FE</span>
+        <span style="font-size:9px;color:rgba(255,255,255,0.5);">Brand · Primary CTA · Interested · Active nav</span>
+      </div>
+      <div class="swatch" style="background:var(--neon-green);">
+        <span class="swatch-label" style="color:var(--bg);">--neon-green</span>
+        <span class="swatch-hex" style="color:var(--bg);">#39FF88</span>
+        <span style="font-size:9px;color:var(--bg);opacity:0.7;">Going · User location · Live · Success</span>
+      </div>
+      <div class="swatch" style="background:var(--purple);">
+        <span class="swatch-label" style="color:#fff;">--purple</span>
+        <span class="swatch-hex" style="color:rgba(255,255,255,0.7);">#A855F7</span>
+        <span style="font-size:9px;color:rgba(255,255,255,0.5);">Secondary purple · Music category</span>
+      </div>
+      <div class="swatch" style="background:var(--green);">
+        <span class="swatch-label" style="color:var(--bg);">--green</span>
+        <span class="swatch-hex" style="color:var(--bg);">#4ADE80</span>
+        <span style="font-size:9px;color:var(--bg);opacity:0.7;">Soft green · Sports category</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Category Swatches ──────────────────── -->
+  <div>
+    <div class="section-title">Category Colours (restrained, not global accents)</div>
+    <div class="section-sub">Magenta and cyan appear only here and in the filter/search taxonomy</div>
+    <div class="flex-row" style="flex-wrap:wrap;">
+      <span class="chip" style="border-color:rgba(168,85,247,0.5);color:var(--purple);">Music</span>
+      <span class="chip" style="border-color:rgba(236,72,153,0.5);color:var(--magenta);">Arts</span>
+      <span class="chip" style="border-color:rgba(245,158,11,0.5);color:var(--amber);">Theater</span>
+      <span class="chip" style="border-color:rgba(34,197,94,0.5);color:var(--sport-green);">Sports</span>
+      <span class="chip" style="border-color:rgba(249,115,22,0.5);color:var(--orange);">Comedy</span>
+      <span class="chip" style="border-color:rgba(6,182,212,0.5);color:var(--cyan);">Festival</span>
+    </div>
+  </div>
+
+  <!-- ── Intent System ──────────────────────── -->
+  <div>
+    <div class="section-title">Intent System (P0 — canonical accent binding)</div>
+    <div style="background:var(--surface-card);border:1px solid var(--border-subtle);border-radius:12px;padding:16px;">
+      <div class="flex-row" style="justify-content:space-between;margin-bottom:10px;">
+        <span style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--neon-purple);">TODAY</span>
+        <span style="font-size:9px;color:var(--text-muted);">Jul 24</span>
+      </div>
+
+      <!-- Interested item -->
+      <div class="list-item" style="margin-bottom:8px;">
+        <div class="list-accent" style="background:var(--neon-purple);"></div>
+        <div class="list-content">
+          <div class="flex-row" style="gap:8px;">
+            <span class="list-title" style="flex:1;">Neon Nights</span>
+            <span class="chip" style="border-color:rgba(168,85,247,0.5);color:var(--purple);padding:1px 6px;">Music</span>
+          </div>
+          <div class="list-meta">
+            <span class="time">21:00</span>
+            <span style="color:var(--text-disabled);">·</span>
+            <span style="color:var(--text-muted);">The Underground</span>
+            <div style="flex:1;"></div>
+            <div class="list-dot" style="background:var(--neon-purple);"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Going item -->
+      <div class="list-item">
+        <div class="list-accent" style="background:var(--neon-green);"></div>
+        <div class="list-content">
+          <div class="flex-row" style="gap:8px;">
+            <span class="list-title" style="flex:1;">Warehouse Party</span>
+            <span class="chip" style="border-color:rgba(168,85,247,0.5);color:var(--purple);padding:1px 6px;">Music</span>
+          </div>
+          <div class="list-meta">
+            <span class="time">23:00</span>
+            <span style="color:var(--text-disabled);">·</span>
+            <span style="color:var(--text-muted);">District 7</span>
+            <div style="flex:1;"></div>
+            <div class="list-dot" style="background:var(--neon-green);"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:10px;color:var(--text-muted);margin-top:6px;">
+      ← Left accent bar + dot indicate intent. Interested = purple, Going = neon green.
+    </p>
+  </div>
+
+  <!-- ── Intent Selector buttons ────────────── -->
+  <div>
+    <div class="section-title">Intent Selector</div>
+    <div class="btn-row">
+      <div class="btn btn-interested-active">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="var(--neon-purple)" stroke="var(--neon-purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+        <span>Interested</span>
+      </div>
+      <div class="btn btn-glass">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <span>Going</span>
+      </div>
+    </div>
+    <hr>
+    <div class="btn-row">
+      <div class="btn btn-glass">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+        <span>Interested</span>
+      </div>
+      <div class="btn btn-going-active">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--neon-green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <span>Going</span>
+      </div>
+    </div>
+    <p style="font-size:10px;color:var(--text-muted);margin-top:6px;">
+      Top: Interested active. Bottom: Going active. Inactive buttons use glass style.
+    </p>
+  </div>
+
+  <!-- ── Glass Components ──────────────────── -->
+  <div>
+    <div class="section-title">Liquid Glass (BlurView)</div>
+    <div class="section-sub">Used on: navigation, search bar, bottom sheets, dialogs, floating controls</div>
+
+    <!-- Nav pill -->
+    <div class="glass-demo" style="margin-bottom:12px;">
+      <div class="blur-layer"></div>
+      <div class="content" style="flex-direction:row;justify-content:space-around;padding:8px;">
+        <div class="tab-item active"><span class="icon" style="font-size:20px;line-height:1;">⌂</span><span class="label">Discover</span></div>
+        <div class="tab-item inactive"><span class="icon" style="font-size:18px;line-height:1;">⌕</span><span class="label">Search</span></div>
+        <div class="tab-item inactive"><span class="icon" style="font-size:18px;line-height:1;">♥</span><span class="label">My Events</span></div>
+        <div class="tab-item inactive"><span class="icon" style="font-size:18px;line-height:1;">◎</span><span class="label">Profile</span></div>
+      </div>
+    </div>
+
+    <!-- Search bar -->
+    <div style="display:flex;gap:10px;align-items:center;">
+      <div class="glass-demo" style="flex:1;">
+        <div class="blur-layer"></div>
+        <div class="content" style="flex-direction:row;align-items:center;gap:8px;padding:10px 12px;">
+          <span style="font-size:13px;font-weight:900;color:#C084FC;letter-spacing:-0.5px;">FOMO</span>
+          <span style="width:1px;height:20px;background:rgba(255,255,255,0.1);"></span>
+          <span style="font-size:13px;color:rgba(255,255,255,0.4);flex:1;">🔍 Search events...</span>
+        </div>
+      </div>
+      <div class="glass-demo" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;">
+        <div class="blur-layer"></div>
+        <span class="content" style="font-size:18px;color:var(--neon-purple);padding:0;">⚙</span>
+      </div>
+    </div>
+
+    <!-- Bottom sheet mock -->
+    <div class="glass-demo" style="margin-top:12px;border-radius:24px 24px 16px 16px;border-top-width:1px;">
+      <div class="blur-layer" style="border-radius:24px 24px 16px 16px;"></div>
+      <div class="content" style="padding:12px 20px 16px;gap:10px;">
+        <div style="width:40px;height:4px;border-radius:2px;background:rgba(255,255,255,0.20);align-self:center;margin-bottom:4px;"></div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span class="chip" style="border-color:rgba(168,85,247,0.5);color:var(--purple);">Music</span>
+          <span class="badge" style="background:var(--purple-dim);color:var(--purple);">★ High Hype</span>
+        </div>
+        <span style="font-size:20px;font-weight:800;color:#fff;line-height:26px;">Neon Nights</span>
+        <div style="display:flex;gap:8px;">
+          <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:8px;border-radius:8px;background:rgba(255,255,255,0.05);font-size:11px;font-weight:600;color:var(--text-secondary);">
+            <span>📅</span> Jul 24
+          </div>
+          <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:8px;border-radius:8px;background:rgba(255,255,255,0.05);font-size:11px;font-weight:600;color:var(--text-secondary);">
+            <span>⏰</span> 21:00
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Non-blur repeated items ────────────── -->
+  <div>
+    <div class="section-title">Repeated Items (no per-row blur)</div>
+    <div class="section-sub">Event cards and list rows use translucent fills, subtle borders, active-state glow — never individual blur layers</div>
+
+    <!-- Event card -->
+    <div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;">
+      <div class="event-card" style="border-color:rgba(188,19,254,0.4);box-shadow:0 0 16px var(--purple-glow);">
+        <div class="event-card-img"></div>
+        <div class="event-card-img-overlay"></div>
+        <div class="event-card-content">
+          <div class="event-card-header">
+            <span class="chip" style="border-color:rgba(168,85,247,0.5);color:var(--purple);">Music</span>
+          </div>
+          <div class="event-card-title">Neon Nights</div>
+          <div class="event-card-venue">📍 The Underground</div>
+          <div class="event-card-date">🗓 Jul 24 · 21:00</div>
+          <div class="event-card-cta">🎫 View Details</div>
+        </div>
+      </div>
+      <div class="event-card" style="border-color:var(--border);opacity:0.85;">
+        <div class="event-card-img" style="background:linear-gradient(135deg,#1a2e1a 0%,#0f230f 50%,#1b4e2d 100%);"></div>
+        <div class="event-card-img-overlay"></div>
+        <div class="event-card-content">
+          <div class="event-card-header">
+            <span class="chip" style="border-color:rgba(34,197,94,0.5);color:var(--sport-green);">Sports</span>
+          </div>
+          <div class="event-card-title">Midnight Run</div>
+          <div class="event-card-venue">📍 City Stadium</div>
+          <div class="event-card-date">🗓 Jul 26 · 06:00</div>
+          <div class="event-card-cta">🎫 View Details</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- List rows -->
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;">
+      <div class="list-item">
+        <div class="list-accent" style="background:var(--neon-purple);"></div>
+        <div class="list-content">
+          <div class="flex-row" style="gap:8px;">
+            <span class="list-title" style="flex:1;">Neon Nights</span>
+            <span class="chip" style="border-color:rgba(168,85,247,0.5);color:var(--purple);padding:1px 6px;">Music</span>
+          </div>
+          <div class="list-meta">
+            <span class="time">21:00</span>
+            <span style="color:var(--text-disabled);">·</span>
+            <span style="color:var(--text-muted);">The Underground</span>
+          </div>
+        </div>
+      </div>
+      <div class="list-item">
+        <div class="list-accent" style="background:var(--neon-green);"></div>
+        <div class="list-content">
+          <div class="flex-row" style="gap:8px;">
+            <span class="list-title" style="flex:1;">Warehouse Party</span>
+            <span class="chip" style="border-color:rgba(168,85,247,0.5);color:var(--purple);padding:1px 6px;">Music</span>
+          </div>
+          <div class="list-meta">
+            <span class="time">23:00</span>
+            <span style="color:var(--text-disabled);">·</span>
+            <span style="color:var(--text-muted);">District 7</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Typography ─────────────────────────── -->
+  <div>
+    <div class="section-title">Typography</div>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <span style="font-size:36px;font-weight:800;color:var(--text-primary);">Hero 36px</span>
+      <span style="font-size:20px;font-weight:800;color:var(--text-primary);">2xl 20px ExtraBold — Section Title</span>
+      <span style="font-size:14px;font-weight:700;color:var(--text-primary);">Card title 14px Bold</span>
+      <span style="font-size:13px;font-weight:400;color:var(--text-secondary);">Body 13px Regular — secondary copy</span>
+      <span style="font-size:11px;font-weight:600;color:var(--text-muted);">Caption 11px SemiBold — metadata</span>
+      <span style="font-size:9px;font-weight:700;color:var(--text-muted);letter-spacing:1.5px;">EYEBROW 9px Bold — section labels, timestamps</span>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- ── Footer ────────────────────────────── -->
+  <div style="padding-bottom:24px;">
+    <p style="font-size:10px;color:var(--text-disabled);line-height:18px;">
+      <strong style="color:var(--text-muted);">Design contract:</strong> See <code style="color:var(--neon-purple);">apps/mobile/DESIGN.md</code> for canonical tokens, liquid-glass rules, and implementation priorities.<br>
+      <strong style="color:var(--text-muted);">Audit:</strong> <code style="color:var(--neon-purple);">docs/design/mobile-global-ui-audit.md</code><br>
+      <strong style="color:var(--text-muted);">Inventory:</strong> <code style="color:var(--neon-purple);">docs/design/mobile-component-inventory.md</code><br>
+      <strong style="color:var(--text-muted);">Migration:</strong> <code style="color:var(--neon-purple);">docs/design/mobile-screen-migration-map.md</code><br>
+    </p>
+    <p style="font-size:10px;color:var(--text-disabled);margin-top:8px;">
+      FOMO · Nocturnal · Urban · Alive · Premium
+    </p>
+  </div>
+
+</div>
+</body>
+</html>
