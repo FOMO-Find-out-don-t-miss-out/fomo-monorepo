@@ -27,16 +27,18 @@ SplashScreen.preventAutoHideAsync();
 // Redirects unauthenticated users to /login and authenticated users away from it.
 
 function AuthGate({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, sessionMode } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
-  // First moment the app can show real (non-loading) content.
+  // First moment the app can show real (non-loading) content. Since FOMO-179,
+  // this no longer waits on /users/me — only on a valid token existing (or
+  // being confirmed absent).
   useEffect(() => {
     if (!isLoading) {
-      perfMilestone('auth-gate-resolved', { authenticated: isAuthenticated });
+      perfMilestone('auth-gate-resolved', { authenticated: isAuthenticated, mode: sessionMode });
     }
-  }, [isLoading, isAuthenticated]);
+  }, [isLoading, isAuthenticated, sessionMode]);
 
   const onLoginScreen = segments[0] === 'login';
   // On Android, Expo Router receives the fomo://auth/callback deep link at the

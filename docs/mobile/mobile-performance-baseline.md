@@ -1353,6 +1353,217 @@ values from this pass are not used in the baseline above, per protocol.
 
 ### Explicitly deferred
 
-FOMO-179 (sequential auth boot), image loading/caching, release-build
-comparison. Discover virtualization (FOMO-175), location bootstrap
-(FOMO-176), and intent synchronization (FOMO-177) untouched by this task.
+FOMO-179 (sequential auth boot) — **resolved, see §20** —, image
+loading/caching, release-build comparison. Discover virtualization
+(FOMO-175), location bootstrap (FOMO-176), and intent synchronization
+(FOMO-177) untouched by this task.
+
+---
+
+## 20. FOMO-179 — Reduce authenticated startup critical path (before/after)
+
+### Root cause
+
+The returning-user startup sequence was: SecureStore read → Keycloak
+refresh-token exchange → `storeTokens` → `setAccessToken` →
+**`await fetchUserMe(access)`** → `setUser` → `setIsLoading(false)` (opens
+`AuthGate`). `/users/me` was awaited on the path that resolves `isLoading`,
+even though nothing about it is required before the protected app can
+render. Confirmed against the backend
+(`packages/services/user_identity_service.py`,
+`apps/api/app/core/security/rbac.py`): every protected endpoint the mobile
+app calls (relationship PUT/DELETE, my-events GET) depends on
+`require_authenticated_user`, which calls the **same** idempotent
+`get_or_create_from_identity` that `/users/me` calls — so `/users/me` is not
+a prerequisite for any of them. Only `profile.tsx` (grep-confirmed) reads the
+`user` object at all; Discover and My Events only ever use `accessToken`.
+
+### Readiness model
+
+Kept the existing boolean-flag idiom rather than introducing a new
+state-machine type (existing consumers — `AuthGate`, `login.tsx`,
+`profile.tsx` — already pattern-match on booleans, and the task's own
+guidance was not to add abstraction for its own sake):
+
+| Field | Meaning |
+| ----- | ------- |
+| `isLoading` | Resolves as soon as a valid token exists or is confirmed absent — this is what gates the protected app. No longer waits on `/users/me`. |
+| `isProfileLoading` | True while `/users/me` is in flight for the current session. Scoped to components that render profile fields (Profile tab only). |
+| `profileError` | Set when `/users/me` fails — distinct from `authError` (token-level failure); does not imply an invalid session. |
+| `sessionMode` | `'returning' \| 'first-bootstrap' \| 'unauthenticated'` — instrumentation only. Both authenticated modes get **identical** treatment (see below) — there is no client-observable "new vs. existing FOMO user" signal, confirmed from the backend rather than assumed. |
+
+A "durable bootstrap-completed marker" (one of the task's suggested options)
+was evaluated and **rejected** — provisioning is idempotent and safe to
+attempt on every call regardless, so there is nothing worth persisting.
+
+### Blocking vs. background operations
+
+**Blocking** (on the path that resolves `isLoading`): SecureStore read →
+refresh-token exchange (or stored-access-token validity check) →
+`storeTokens` → `setAccessToken`. Unchanged from before, and inherently
+sequential — each step needs the previous one's output.
+
+**Background** (fire-and-forget, never awaited by the gate):
+`fetchUserMe` → `setUser`/`setProfileError`. Started immediately after a
+token becomes available (requirement: never parallelize `/users/me` before a
+valid token exists — satisfied by construction, since `beginUserSync` is
+only ever called after `setAccessToken`).
+
+Fonts and auth were already confirmed running in parallel (independent
+effects, no cross-dependency) — untouched by this task. `_layout.tsx` still
+gates all rendering on `fontsLoaded`, so total first-frame time is
+`max(fonts, auth)`, not `auth` alone; changing that gate risks a font-swap
+flash and is a separate (non-auth) concern, left alone per this task's scope.
+
+### First-user provisioning behavior
+
+No distinction is enforced between "genuinely new" and "returning" for
+blocking purposes, because none is needed: the backend provisions the local
+user row idempotently from whichever protected endpoint reaches it first —
+`/users/me`, a relationship mutation, or a my-events fetch. `sessionMode`
+distinguishes `'first-bootstrap'` (session established via the interactive
+authorization-code flow) from `'returning'` (session resumed from
+SecureStore) purely for log clarity — both get the same non-blocking
+treatment, confirmed safe via backend investigation rather than assumed.
+
+### Stale-response and identity-change handling
+
+- A module-level generation counter (`sessionGenerationRef`, same
+  closure-flag idiom used in FOMO-176/177/178, generalized to a ref since
+  `AuthProvider` is a single long-lived instance) is bumped on every
+  `logout()` and every `applySession()` call. The background `/users/me`
+  fetch checks it before committing `setUser`/`setProfileError` — a stale
+  response from a superseded session can never populate the current one.
+- `logout()` bumps the generation, clears tokens, and resets `user`,
+  `isProfileLoading`, `profileError` — a late-arriving background response
+  from before logout is discarded.
+- `login()` (a fresh interactive login may be a different identity) clears
+  `user`/`profileError` **before** starting the new session, so no previous
+  identity's profile can linger while the new `/users/me` resolves.
+- `refreshSession()` (401-triggered mid-session token refresh) does **not**
+  clear `user` — it's the same identity continuing with a rotated token, so
+  clearing would cause an unnecessary Profile-tab flash for no security
+  benefit.
+
+### Files changed
+
+`apps/mobile/providers/auth-provider.tsx` (readiness model, non-blocking
+user sync, generation-guarded stale-response protection, instrumentation),
+`apps/mobile/app/(tabs)/profile.tsx` (profile-scoped loading/error state,
+retry action), `apps/mobile/app/_layout.tsx` (`sessionMode` added to the
+`auth-gate-resolved` log), `docs/mobile/mobile-performance-baseline.md`.
+
+### Manual validation results (physical device, OnePlus CPH2581)
+
+All performed live, including a genuine two-identity test using two real
+Google accounts already configured on the test device:
+
+1. **Returning authenticated user**: no login-screen flash in any of 5 cold
+   starts; `auth-gate-resolved` fired before `user-bootstrap-done` in 5/5
+   runs; Profile tab showed correct data once background sync completed.
+2. **Fresh login, existing FOMO user**: authorization flow completed
+   normally; correct profile/role appeared; Discover/My Events worked
+   immediately.
+3. **Fresh login, genuinely new identity**: Keycloak's own "Update Account
+   Information" required-action screen confirmed this was a true first-time
+   identity; login completed (`mode=first-bootstrap`), `user-bootstrap-done
+   ok=true` shortly after `auth-gate-resolved` (gate did not wait for it);
+   My Events correctly showed 0/0 for a brand-new user with no prior
+   relationship data race.
+4. **Logout immediately after protected UI**: `auth-gate-resolved
+   authenticated=false mode=unauthenticated` fired immediately; routed
+   cleanly to `/login`; no protected content flash.
+5. **Identity change (user A → user B, real accounts)**: logged out of
+   `la2breakdown@gmail.com` (Moderator) and into `pavloskkr1@hotmail.com`/
+   `fomo_admin` (Admin) — Profile tab showed the correct new username, email,
+   and role with **zero** trace of the previous identity; My Events showed
+   0/0 (not the previous user's populated lists). This is definitive
+   evidence for the "never retain the previous user's profile/roles" and "no
+   stale cross-user content" invariants.
+6. **Network/refresh-failure paths**: not force-triggered live this pass (no
+   proxy available to fail a single request on demand); verified by code
+   inspection — `exchangeRefreshToken`'s catch returns `null`, the bootstrap
+   effect's `refresh-failed` branch clears tokens and sets
+   `sessionMode='unauthenticated'` without ever setting `accessToken`, so
+   `AuthGate` routes to login exactly as before this task.
+7. **Font load path**: untouched by this task; `_layout.tsx`'s
+   `fontsLoaded`/`fontError` gate and `SplashScreen.hideAsync()` call are
+   unmodified.
+
+### Five-run before/after measurements [MEASURED — DEBUG PHYSICAL DEVICE, N=5]
+
+Same device as FOMO-175–178 (OnePlus CPH2581, Android 16), returning
+authenticated user, cold process start.
+
+| Metric | Runs | Median | Min | Max |
+| ------ | ---: | -----: | --: | --: |
+| JS init → fonts ready | 5 | 381 ms | 338 ms | 393 ms |
+| Secure-session read duration | 5 | 137 ms | 126 ms | 142 ms |
+| Refresh-token exchange duration | 5 | 1006 ms | 510 ms | 2247 ms |
+| JS init → token ready | 5 | 1556 ms | 1042 ms | 2778 ms |
+| Token ready → auth gate open | 5 | 202 ms | 181 ms | 249 ms |
+| **JS init → auth gate open** | 5 | **1755 ms** | 1244 ms | 2989 ms |
+| JS init → first protected screen usable | 5 | 1786 ms | 1286 ms | 3021 ms |
+| `/users/me` duration (background) | 5 | 609 ms | 527 ms | 955 ms |
+| JS init → background user sync complete | 5 | 2166 ms | 1577 ms | 3306 ms |
+
+`/users/me` was confirmed **background** in 5/5 runs — `auth-gate-resolved`
+fired strictly before `user-bootstrap-done` every time.
+
+**Versus the FOMO-174 baseline** (JS init → auth gate/usable protected
+screen: 1339 ms bootstrap median, 3170 ms median overall, range
+2914–3896 ms):
+
+- **JS init → auth gate open: 3170 ms → 1755 ms median — a ~45%
+  reduction**, achieved specifically by moving `/users/me` (median 609 ms)
+  off the blocking path.
+- Refresh-token exchange (510–2247 ms this pass vs. 284–638 ms in FOMO-174)
+  and `/users/me` (527–955 ms vs. 486–579 ms) show wider variance than the
+  original baseline — this is staging-network/session variance in an
+  unmodified code path (the exchange call itself was not touched by this
+  task), not a regression; the comparison that matters is the auth-gate
+  timing, which excludes exactly the operation this task moved off the
+  critical path.
+- These are debug-build, Metro-attached numbers only — no release/profile
+  build was measured, so no release-build claim is made.
+
+### Render-debug observations [MEASURED — DEBUG PHYSICAL DEVICE, render-debug]
+
+Run only because the new `AuthContextValue` fields (`isProfileLoading`,
+`user`, `profileError`) update independently after the gate opens, which
+could in principle cause extra context-consumer re-renders. Confirmed: the
+`EventCard` render counter (sampled at count=1, every 25th thereafter) never
+moved past its initial startup sample through a full cold start including
+`user-bootstrap-done` — `DiscoverScreen` re-renders one additional time when
+the background sync completes (expected, since the Context value changes),
+but React.memo on `EventCard` (FOMO-175) absorbs it with no broad re-render.
+Timing values from this pass are not used in the baseline above.
+
+### Security invariants confirmed
+
+1. Protected content never rendered before a valid token existed — `AuthGate`
+   still blocks on `isLoading`, unchanged gating logic, now just resolving
+   earlier.
+2. No expired/failed refresh treated as authenticated — `refresh-failed`
+   path never sets `accessToken`.
+3. No previous identity's profile/roles/relationships retained after
+   logout or identity change — live-verified with two real accounts (case 5
+   above): zero leakage across profile, role, and My Events data.
+4. Tokens remain in `expo-secure-store` exclusively — `auth-client.ts`
+   untouched.
+5. No weakening of token validation, refresh handling, logout, or Keycloak
+   issuer/client checks — none of that code was touched.
+6. No auth/bootstrap errors suppressed — `authError`/`profileError` remain
+   distinct, surfaced states; `/users/me` failures are visible
+   (`profileError`) and retryable (`retryProfileSync`), never silently
+   treated as success.
+7. No protected-screen flash before redirecting an unauthenticated user —
+   `AuthGate`'s `blockChildren` logic is unchanged.
+
+### Explicitly deferred
+
+Release/profile-build comparison (still pending, per §8). Font-loading
+strategy (fonts already parallel with auth; the `fontsLoaded` gate in
+`_layout.tsx` is a separate, non-auth concern intentionally left untouched).
+Discover, My Events, and intent-sync behavior (FOMO-175/176/177/178)
+untouched by this task.

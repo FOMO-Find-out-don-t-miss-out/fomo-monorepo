@@ -13,7 +13,17 @@ import { Colors, Typography, Spacing } from '../../theme';
 
 export default function ProfileScreen() {
   usePerfScreenFocus('profile');
-  const { isAuthenticated, isLoading, user, authError, login, logout } = useAuth();
+  const {
+    isAuthenticated,
+    isLoading,
+    isProfileLoading,
+    user,
+    profileError,
+    authError,
+    login,
+    logout,
+    retryProfileSync,
+  } = useAuth();
   const insets = useSafeAreaInsets();
 
   if (isLoading) {
@@ -42,6 +52,19 @@ export default function ProfileScreen() {
     );
   }
 
+  // The auth gate no longer waits on /users/me (FOMO-179) — this tab is the
+  // one place that actually renders profile fields, so it shows its own
+  // brief loading state while the background sync is still in flight on a
+  // first-ever load. Once `user` has loaded once, a later background
+  // refresh (e.g. after refreshSession) never re-triggers this.
+  if (isProfileLoading && !user) {
+    return (
+      <FomoScreen>
+        <FomoLoadingState />
+      </FomoScreen>
+    );
+  }
+
   return (
     <FomoScreen style={[styles.container, { paddingTop: insets.top + 24 }]}>
       <View style={styles.avatarRing}>
@@ -57,6 +80,17 @@ export default function ProfileScreen() {
       <InfoRow label="Member since" value={user?.created_at ? formatDate(user.created_at) : '—'} />
 
       {authError ? <Text style={styles.error}>{authError}</Text> : null}
+      {profileError && !user ? (
+        <>
+          <Text style={styles.error}>{profileError}</Text>
+          <FomoButton
+            label="Retry"
+            variant="ghost"
+            onPress={retryProfileSync}
+            style={styles.logoutBtnMargin}
+          />
+        </>
+      ) : null}
 
       <FomoButton
         label="Log Out"
