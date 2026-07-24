@@ -191,7 +191,7 @@
 | Date/time in cyan | `#22D3EE` | `Colors.textSecondary` | `event-card.tsx`, `event-details.tsx` |
 | Price in cyan | `#22D3EE` | Remove or `Colors.textPrimary` | `event-card.tsx` |
 | Pill background date/time | `#22D3EE` | `Colors.textSecondary` | `event-details.tsx` |
-| Calendar toggle active cyan | `#22D3EE` | Keep (Festival category) | `search-bar.tsx` — ✅ permitted |
+| Calendar toggle active state | `#22D3EE` | `Colors.purple` — active toggle uses canonical primary | `calendar-view.tsx` |
 
 ---
 

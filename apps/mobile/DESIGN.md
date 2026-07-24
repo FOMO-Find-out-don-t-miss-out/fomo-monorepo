@@ -74,8 +74,8 @@
 ### Prohibitions
 
 - **Magenta** (`#EC4899`) must never appear as a global accent. It is permitted **only** in the Arts category swatch.
-- **Cyan** (`#22D3EE`, `#06B6D4`) must never appear as a secondary button or intent indicator. It is permitted only in the Festival category swatch and the calendar-view toggle.
-- No bare hex `#22D3EE` on date/time text, event prices, or pill backgrounds. Those belong to neon green (`#39FF88`) when carrying semantic weight.
+- **Cyan** (`#22D3EE`, `#06B6D4`) must never appear as a secondary button, intent indicator, navigation element, or global control. It is permitted **only** in the Festival category swatch. Calendar-view active state must use the canonical primary purple (`#BC13FE`).
+- Date and time text are neutral metadata — use `Colors.textSecondary`. Neon green is reserved for Going, user location, live/available state, and success confirmation. A genuine "LIVE NOW" badge may use neon green, but a future event timestamp may not.
 
 ---
 

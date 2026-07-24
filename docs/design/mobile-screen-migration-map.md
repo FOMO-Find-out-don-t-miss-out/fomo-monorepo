@@ -21,15 +21,6 @@
 | **Impact** | Zero visual change — new tokens only, no imports updated yet |
 | **Risk** | None |
 
-### 0.2 Add neon-green gradient tokens (optional)
-
-| Detail | Value |
-|--------|-------|
-| **File** | `apps/mobile/theme/index.ts` |
-| **Changes** | Add `Gradients.goingCta: ['#39FF88', '#22C55E'] as [string, string]` |
-| **Impact** | Zero — consumed only when intent selector uses it |
-| **Risk** | None |
-
 ---
 
 ## Phase 1 — Intent system colour migration (Visual P0)
@@ -92,7 +83,7 @@ These changes MUST be applied as a single atomic unit — they fix the "Interest
 **Lines:**
 - Line 155: `color="#22D3EE"` on Calendar icon → keep (icon inherits from text)
 - Line 156: `color="#22D3EE"` → `color={Colors.textSecondary}`
-- Line 159: dateText uses `#22D3EE` in styles → change to `Colors.neonGreen` (if carrying temporal weight) or `Colors.textSecondary`
+- Line 159: dateText uses `#22D3EE` in styles → change to `Colors.textSecondary` (all dates/times are neutral metadata)
 
 ### 2.2 EventCard price (`apps/mobile/components/fomo/event-card.tsx`)
 
