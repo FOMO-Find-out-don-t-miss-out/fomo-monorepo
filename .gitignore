@@ -79,3 +79,4 @@ Thumbs.db
 packages/api-spec/tsp-output/
 docker-compose.override.yml
 v0_fomo_mobile
+.trivy-cache/
