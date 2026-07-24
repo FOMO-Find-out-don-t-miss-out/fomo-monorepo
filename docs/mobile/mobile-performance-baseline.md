@@ -824,8 +824,164 @@ Per FOMO-174 §13/§9, still open and explicitly out of scope here:
 
 - Duplicate location-driven startup cycle (FOMO-176) — still observed in
   some of the 5 runs above (second `discover-events`/`discover-render` pair).
+  **Resolved — see §17.**
 - Full 70-ID intent synchronization policy on every focus/toggle (FOMO-177).
 - My Events duplicate fetch + full-spinner-on-refocus (FOMO-178).
 - Sequential auth boot (FOMO-179).
 - Image loading strategy (`expo-image`, caching, resize) — T4, not started.
 - Release-build comparison — still pending; all figures above are debug-build.
+
+---
+
+## 17. FOMO-176 — Eliminate duplicate Discover startup fetch (before/after)
+
+### Root cause
+
+`useDeviceLocation` initializes `location` state to the module-constant
+default coordinates and resolves the real device location **asynchronously**
+(permission prompt + `getLastKnownPositionAsync`/`getCurrentPositionAsync`).
+`DiscoveryScreen` called `useDiscovery({ lat: location.lat, lng: location.lng
+})` unconditionally on mount, so `useDiscovery`'s effect fired immediately
+against the **default** coordinates (request one). When the async location
+resolution later completed with `granted`, `location.lat`/`lng` changed,
+`useDiscovery`'s effect dependencies changed, and it fired again with the
+**real** coordinates (request two). Both hooks already correctly used a
+`cancelled` closure flag to stop a superseded effect instance from committing
+stale state — so the two responses never corrupted each other — but because
+the default-location request typically resolved (~250–300 ms) *before*
+device-location resolution finished, its result routinely committed and
+rendered first, firing an intents-fetch for those 70 default-location events,
+before being replaced moments later by the real-location cycle. That
+visible/measurable "duplicate full cycle" was FOMO-174's finding, not a data
+race — stale responses were never able to overwrite newer ones.
+
+**Minimum fix**: defer the initial discovery fetch until location has
+resolved (`useDiscovery`'s new `enabled` param, gated on
+`locationStatus !== 'pending'` in `DiscoveryScreen`), so exactly one fetch
+ever fires on cold start, using whichever coordinates are correct by the time
+it's enabled (real device coords if granted, default otherwise — both are set
+atomically with the status flip inside `useDeviceLocation`, so there is no
+window where `enabled` is true but `location` still holds a stale value).
+`useDeviceLocation` also gained a bounded 4 s resolution timeout so this
+deferral can never wait indefinitely on a slow permission prompt or GPS fix.
+
+### Files changed
+
+`apps/mobile/hooks/use-device-location.ts` (bounded timeout, debug-gated
+`location-resolve` perf log), `apps/mobile/hooks/use-discovery.ts` (`enabled`
+gate param), `apps/mobile/app/(tabs)/index.tsx` (passes
+`enabled: locationStatus !== 'pending'`). No API, backend, ranking/filtering,
+map design, or global-state changes.
+
+### Location bootstrap strategy
+
+- Use the resolved device location once `requestForegroundPermissionsAsync`
+  grants and `getLastKnownPositionAsync`/`getCurrentPositionAsync` returns.
+- Fall back to the existing default coordinates on `denied`, on a thrown
+  error, or once a **4000 ms** bounded timeout elapses without settling.
+  4 s was chosen as long enough to cover a warm `getLastKnownPositionAsync`
+  read or a typical permission-prompt-then-fix sequence, short enough that
+  Discover never stalls waiting on a slow/stuck GPS fix.
+- A resolution that arrives after the timeout has already committed the
+  fallback is discarded (the timeout sets the same `cancelled` guard the
+  async request already respects) — it does not retroactively flip the UI
+  back or trigger a second fetch.
+
+### Stale-response handling
+
+The request layer (`utils/api-client.ts`) has no `AbortController` support,
+so per the task's fallback instruction this reused the existing minimal
+per-effect `cancelled` closure-flag pattern already present in both
+`useDiscovery` and `useEventRelationships` — no new cancellation layer was
+added. Gating the initial fetch on location readiness means that pattern no
+longer even needs to arbitrate between two cold-start responses; it remains
+in place unchanged for legitimate subsequent refetches (explicit `refetch()`,
+a real coordinate change from a later `requestLocation()` call).
+
+### Validation results
+
+- `pnpm --filter @fomo/mobile lint` — pass. `pnpm --filter @fomo/mobile exec
+  tsc --noEmit` — pass. No real test suite exists; none fabricated.
+- **Case 1 (permission already granted)**: 5/5 clean cold starts, each with
+  exactly one `/api/v1/events/discovery` request, one accepted
+  `discover-events`/`discover-render` pair, one `intents-fetch phase=start`.
+  Device coordinates used (`location-resolve outcome=granted`); correct
+  events rendered.
+- **Case 2 (permission denied)**: reset via the device's Settings →
+  Permissions → Location → "Don't allow", relaunched. `location-resolve
+  outcome=denied duration_ms=284`, exactly one fallback discovery request,
+  Discover became usable immediately with default-location (Athens) events
+  and pins, "Location denied" label shown, no infinite spinner.
+- **Case 3 (resolution stalls / fails)**: the OS re-prompted with the live
+  permission dialog on a fresh grant reset; left unanswered past the 4 s
+  bound, `location-resolve outcome=timeout duration_ms=70176` fired the
+  fallback correctly, Discover became usable with default-location content
+  ("Location unavailable" label). The dialog was *then* dismissed
+  ("Don't allow") ~70 s in — that late, already-superseded resolution
+  produced no second fetch and no state change, confirming the
+  post-timeout guard. Exactly one discovery request, one `discover-events`,
+  one `discover-render`, one `intents-fetch` fired for the whole sequence.
+- **Case 4 (My Events → Discover)**: `screen-focus screen=discover cycle=2`
+  on return fired only the existing, intentional `intents-fetch` (refocus
+  intent sync from FOMO-171/174, `tick=2`) — no `location-resolve` and no
+  discovery request repeated. Confirms tab refocus is not treated as a cold
+  bootstrap.
+- **Case 5 (locate-me)**: tapped with permission already granted (the common
+  path) — functions without error; no code path for this case touches
+  location/discovery state (`handleLocateMe` only triggers the map flyTo
+  when already granted), so no regression risk there.
+- **Case 6 (card/map/search/intents)**: card tap opened the correct
+  `EventDetails` sheet, map panned to the matching pin, server-driven intent
+  state rendered correctly (`Going` shown for the same event as before).
+  Search-text filtering was **not** exercised this pass (same scripted-tap
+  limitation noted in the FOMO-175 record) — untouched by this diff.
+
+### Five-run before/after results [MEASURED — DEBUG PHYSICAL DEVICE, N=5]
+
+Same device as FOMO-175 (OnePlus CPH2581, Android 16), permission granted,
+`EXPO_PUBLIC_PERF_DEBUG=true`, `EXPO_PUBLIC_PERF_RENDER_DEBUG=false`.
+
+| Metric | Runs | Median | Min | Max |
+| ------ | ---: | -----: | --: | --: |
+| Discovery requests before settle | 5 | **1** | 1 | 1 |
+| Accepted `discover-events` cycles | 5 | **1** | 1 | 1 |
+| Initial `intents-fetch` starts | 5 | **1** | 1 | 1 |
+| Location-resolution duration (all `outcome=granted`) | 5 | 404 ms | 326 ms | 418 ms |
+| Discover focus → first (single, correct) cards rendered | 5 | 983 ms | 950 ms | 1030 ms |
+| Discover focus → startup settled (intents response received) | 5 | 1180 ms | 1144 ms | 1239 ms |
+| Discovery events parsed → cards rendered (FlatList mount cost) | 5 | 373 ms | 369 ms | 382 ms |
+
+**Success criteria met**: exactly one discovery request/cycle and one
+intent-fetch start in 5/5 normal cold starts; no stale default-location
+content flash observed (loading UI held throughout the location-resolution
+window, per case 1–3 screenshots); permission-denied/failure fallback
+remained bounded (≤4 s) and functional.
+
+**Comparisons — read carefully, these measure different things**:
+
+- *"Parsed → rendered"* (FlatList mount cost, comparable to FOMO-175):
+  426 ms → **373 ms** median. No regression — consistent with FOMO-175,
+  within run-to-run noise.
+- *"Focus → settled"* (comparable to the original FOMO-174 baseline, which
+  measured time to the **final** state in both cases): **5916 ms → 1180 ms**
+  median. This is the clean, unambiguous measure of the duplicate cycle's
+  elimination (~80% reduction).
+- *"Focus → first cards rendered"*: FOMO-174 measured 1910 ms and FOMO-175
+  measured 685 ms for this label, but **both of those numbers captured the
+  first of two renders** — the default-location one that got superseded
+  moments later. This task's fix means there is no longer a first-of-two
+  render to measure quickly; **983 ms** is the time to the single, correct
+  render, and necessarily includes the ~300–420 ms location-resolution wait
+  that the old (stale) measurement didn't have to pay for. It is **not a
+  regression** — it's the cost of no longer showing wrong content fast.
+  "Focus → settled" above is the fair before/after comparison for this flow.
+
+Do not read any of the above as production-release numbers — all are
+debug-build, Metro-attached measurements; see §8 for the still-pending
+release comparison.
+
+### Explicitly deferred
+
+Per the task scope: FOMO-177 (intent sync policy), FOMO-178 (My Events),
+FOMO-179 (auth boot), FlatList/EventCard internals (FOMO-175, untouched),
+map design, global state architecture, backend APIs, event ranking/filtering.

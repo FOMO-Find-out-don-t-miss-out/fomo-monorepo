@@ -3,6 +3,14 @@ import {
   DEFAULT_DISCOVERY_LAT,
   DEFAULT_DISCOVERY_LNG,
 } from '../utils/location-config';
+import { perfLog, perfMark, perfSince } from '../utils/performance-debug';
+
+// Bounded wait for the initial permission prompt + GPS fix (FOMO-176) — long
+// enough for a warm getLastKnownPositionAsync or a typical fresh fix, short
+// enough that Discover never stalls indefinitely on location. If resolution
+// hasn't settled by then, fall back to defaults; a later resolution (if it
+// ever arrives) is ignored rather than triggering a second, surprise update.
+const LOCATION_TIMEOUT_MS = 4000;
 
 export type LocationStatus =
   | 'pending'     // permission request in flight
@@ -55,7 +63,15 @@ export function useDeviceLocation(): UseDeviceLocationResult {
     }
 
     let cancelled = false;
+    let settled = false;
     setStatus('pending');
+    const mark = perfMark();
+
+    function settle(status: LocationStatus, outcome: string): void {
+      settled = true;
+      setStatus(status);
+      perfLog('location-resolve', { outcome, duration_ms: perfSince(mark) });
+    }
 
     async function request(): Promise<void> {
       try {
@@ -65,7 +81,7 @@ export function useDeviceLocation(): UseDeviceLocationResult {
         if (cancelled) return;
 
         if (perm !== 'granted') {
-          setStatus('denied');
+          settle('denied', 'denied');
           return;
         }
 
@@ -86,17 +102,28 @@ export function useDeviceLocation(): UseDeviceLocationResult {
             lng: pos.coords.longitude,
             isDefault: false,
           });
-          setStatus('granted');
+          settle('granted', 'granted');
         }
       } catch {
-        if (!cancelled) setStatus('error');
+        if (!cancelled) settle('error', 'error');
         // location stays at DEFAULT_LOCATION
       }
     }
 
     request();
+
+    // See LOCATION_TIMEOUT_MS above — bounds the pending phase so Discover's
+    // deferred initial fetch (FOMO-176) never waits indefinitely.
+    const timeoutId = setTimeout(() => {
+      if (!settled) {
+        cancelled = true;
+        settle('unavailable', 'timeout');
+      }
+    }, LOCATION_TIMEOUT_MS);
+
     return () => {
       cancelled = true;
+      clearTimeout(timeoutId);
     };
   // triggerCount drives both the initial run and any manual retriggers.
   // eslint-disable-next-line react-hooks/exhaustive-deps

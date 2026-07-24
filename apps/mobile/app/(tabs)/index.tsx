@@ -96,10 +96,20 @@ export default function DiscoveryScreen() {
     }
   }, [pendingLocate, locationStatus]);
 
+  // Defer the initial discovery fetch until location has resolved (granted,
+  // denied, unavailable, or timed out — see useDeviceLocation) instead of
+  // firing eagerly against default coordinates. Eliminates the FOMO-176
+  // duplicate startup fetch: previously an immediate default-location request
+  // was followed moments later by a second real-location request once
+  // permission/GPS resolved, briefly rendering (and fetching intents for)
+  // stale default-location events in between.
+  const locationReady = locationStatus !== 'pending';
+
   const { events, loading, error, refetch } = useDiscovery({
     lat: location.lat,
     lng: location.lng,
     radiusKm: DEFAULT_DISCOVERY_RADIUS,
+    enabled: locationReady,
   });
 
   const eventsWithDistance = useMemo(
