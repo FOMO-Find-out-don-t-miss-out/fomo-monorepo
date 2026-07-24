@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { fetchEventIntents } from '../utils/event-relationships-api';
 import { perfLog } from '../utils/performance-debug';
@@ -11,26 +11,61 @@ export function useEventRelationships(
   intents: Record<string, EventIntent>;
   isLoading: boolean;
   error: string | null;
-  refetch: () => void;
+  refetch: (reason?: string) => void;
 } {
   const [intents, setIntents] = useState<Record<string, EventIntent>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
 
-  // Stable key avoids re-running the effect on every render when the array
-  // reference changes but the contents are identical.
-  const idsKey = eventIds.join(',');
+  // Canonical signature for the loaded event-ID SET (sorted, not just
+  // joined) — an identical set in a different array order must not look
+  // like a change (FOMO-177).
+  const idsKey = [...eventIds].sort().join(',');
+
+  // Reason bookkeeping (FOMO-177 — see requirement to tag each fetch):
+  // idsKey/accessToken transitions are classified automatically; explicit
+  // refetch() calls carry their own reason.
+  const explicitReasonRef = useRef<string | null>(null);
+  const hasFetchedOnceRef = useRef(false);
+  const prevIdsKeyRef = useRef<string | null>(null);
+  const prevAccessTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
+    // A different, non-null access token than last render means the
+    // authenticated identity changed (sign-out then sign back in as a
+    // different user) — the same events can carry a different user's
+    // relationships, so drop stale state immediately rather than waiting
+    // for the next fetch to overwrite it.
+    if (prevAccessTokenRef.current !== null && accessToken !== prevAccessTokenRef.current) {
+      setIntents({});
+      hasFetchedOnceRef.current = false;
+      prevIdsKeyRef.current = null;
+    }
+    prevAccessTokenRef.current = accessToken;
+
     if (!accessToken || eventIds.length === 0) {
       setIntents({});
+      hasFetchedOnceRef.current = false;
+      prevIdsKeyRef.current = null;
       return;
     }
+
+    const reason =
+      explicitReasonRef.current ??
+      (!hasFetchedOnceRef.current
+        ? 'initial'
+        : idsKey !== prevIdsKeyRef.current
+          ? 'event-set-changed'
+          : 'unknown');
+    explicitReasonRef.current = null;
+    hasFetchedOnceRef.current = true;
+    prevIdsKeyRef.current = idsKey;
+
     let cancelled = false;
     setIsLoading(true);
     setError(null);
-    perfLog('intents-fetch', { phase: 'start', count: eventIds.length, tick });
+    perfLog('intents-fetch', { phase: 'start', count: eventIds.length, tick, reason });
 
     fetchEventIntents(eventIds, accessToken)
       .then((data) => {
@@ -55,6 +90,9 @@ export function useEventRelationships(
     intents,
     isLoading,
     error,
-    refetch: useCallback(() => setTick((n) => n + 1), []),
+    refetch: useCallback((reason?: string) => {
+      explicitReasonRef.current = reason ?? 'manual-refresh';
+      setTick((n) => n + 1);
+    }, []),
   };
 }

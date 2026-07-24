@@ -982,6 +982,196 @@ release comparison.
 
 ### Explicitly deferred
 
-Per the task scope: FOMO-177 (intent sync policy), FOMO-178 (My Events),
-FOMO-179 (auth boot), FlatList/EventCard internals (FOMO-175, untouched),
-map design, global state architecture, backend APIs, event ranking/filtering.
+Per the task scope: FOMO-177 (intent sync policy) — **resolved, see §18** —,
+FOMO-178 (My Events), FOMO-179 (auth boot), FlatList/EventCard internals
+(FOMO-175, untouched), map design, global state architecture, backend APIs,
+event ranking/filtering.
+
+---
+
+## 18. FOMO-177 — Discover intent synchronization & reconciliation (before/after)
+
+### Root cause / trigger analysis
+
+- **Initial batch request** (kept, unchanged in spirit): discovery events
+  carry no per-user relationship data — it's a separate, user-scoped resource
+  — so the client must fetch relationship state for the loaded event-ID set
+  once via `GET /me/event-relationships`. Legitimate and necessary.
+- **Post-mutation full refetch** (removed): `index.tsx`'s `handleToggleIntent`
+  called `refetchIntents()` unconditionally right after `setLocalIntents(...)`
+  — a full 70-ID refetch after every successful tap, even though the mutation
+  response already confirmed the exact new state.
+- **Refocus full refetch** (made conditional): `useFocusEffect(() =>
+  refetchIntents())` fired unconditionally on *every* Discover focus,
+  including plain tab round-trips where nothing had changed anywhere.
+- **Mutation response sufficiency**: yes — `setEventIntent`'s PUT returns
+  `RelationshipResponse.relationship_type` matching exactly what was
+  requested (backend auto-removes the opposite type), and DELETE's 204
+  confirms removal. `apiFetchAuth` throws on any non-2xx, so the promise only
+  resolves on a server-confirmed outcome — `nextIntent`/`null` was already
+  canonical, not a client guess.
+- **Cross-screen mutation source**: My Events (`saved.tsx`) has its own
+  independent `handleToggleIntent` → `setEventIntent` → `refetchBoth()`
+  (refreshes only its own two lists). Bottom-tab screens stay mounted across
+  tab switches, so Discover's stale intent state for an event My Events
+  changed was previously only corrected by the unconditional focus refetch.
+
+### Synchronization / invalidation design
+
+A module-level revision counter (`relationshipRevision` in
+`event-relationships-api.ts`, exposed via `getRelationshipRevision()`) is
+incremented inside `setEventIntent` after every successful mutation — no
+matter which screen called it. This is a plain counter, not a store: no
+relationship data lives there. Discover records the revision it last
+synchronized to in a ref (`lastSyncedRevisionRef`, initialized once at mount)
+and, on focus, refetches (tagged `reason=external-invalidation`) only when
+the current revision has moved past that. A Discover-originated mutation
+advances its own ref immediately after reconciling locally, so it never
+mistakes its own confirmed change for an external one on the next focus.
+
+`useEventRelationships`'s own effect (unchanged trigger surface) still
+handles the *initial* fetch and refetching when the event-ID set itself
+changes — both tagged automatically (`reason=initial` /
+`reason=event-set-changed`); `refetch(reason?)` now accepts an explicit
+reason for the two caller-driven cases (`external-invalidation` from
+Discover's focus check; `manual-refresh` if a future call site needs it).
+
+### Mutation reconciliation behavior
+
+`setEventIntent`'s resolved value is applied directly via `setLocalIntents`
+(exactly as before) and is now the *only* update — no batch refetch follows.
+Exclusivity is unaffected (still enforced server-side on PUT, and
+structurally guaranteed client-side since `EventIntent` is a single
+`'interested' | 'going' | null` value per event, never a set). Optimistic UI
+was not introduced — pending state (`pendingEventId`) still gates the button
+row until the server responds, matching requirement 8. On failure, the
+existing `catch { /* silent */ }` path is untouched: `setLocalIntents` is
+simply never called, so the previous confirmed state remains and the pending
+spinner still clears in `finally` — no code path could leave a false intent
+state, since none was ever optimistically set.
+
+### Stale-request protection
+
+The request layer (`utils/api-client.ts`) has no `AbortController` support,
+so per the task's fallback instruction this reused the existing minimal
+per-effect `cancelled` closure-flag pattern already present in
+`useEventRelationships` (unchanged) — no new cancellation layer was added.
+Two additions close the specific gaps this task called out:
+- The event-ID signature used for change detection is now the **sorted**
+  join of `eventIds` (`[...eventIds].sort().join(',')`) rather than
+  positional join, so an identical ID *set* in a different array order can't
+  look like a change.
+- A different, non-null `accessToken` than last render (sign-out then sign
+  back in as a different user) now clears `intents` synchronously and resets
+  the "have we fetched once" tracking — closes a real cross-user leak: since
+  discovery data is location-based (not user-scoped), two different users at
+  the same location see the *same* events, and without this reset the second
+  user could briefly see the first user's relationship state before the
+  fresh fetch overwrote it.
+
+### Files changed
+
+`apps/mobile/utils/event-relationships-api.ts` (revision counter),
+`apps/mobile/hooks/use-event-relationships.ts` (canonicalized ID signature,
+reason-tagged fetches, auth-change reset), `apps/mobile/app/(tabs)/index.tsx`
+(removed post-mutation refetch, revision-gated focus refetch, local-reconcile
+instrumentation), `docs/mobile/mobile-performance-baseline.md`.
+
+### Manual validation results (physical device, OnePlus CPH2581)
+
+All performed live:
+
+1. **Cold authenticated start**: 5/5 runs — one accepted discovery request,
+   one initial intent batch request (`reason=initial`), correct state
+   rendered.
+2. **Neither → Interested**: one PUT, no follow-up batch fetch,
+   `intents-reconcile mode=local` logged, selector ended in Interested.
+3. **Interested → Going**: one PUT, no follow-up, Interested correctly
+   deselected, Going selected (exclusivity confirmed).
+4. **Toggle current intent off (Going → neither)**: one DELETE (204), no
+   follow-up, selector ended in neither.
+5. **Mutation failure**: not force-triggered live (no reliable way to fail a
+   single request on demand without a proxy); verified by code inspection —
+   the `catch` path never calls `setLocalIntents`, so no optimistic state
+   exists to roll back and the previous confirmed state is structurally
+   preserved. See "Mutation reconciliation behavior" above.
+6. **Discover → My Events → Discover, no mutation**: zero relationship
+   requests logged on return (confirmed via logcat — no `intents-fetch`
+   line at all for that focus cycle).
+7. **Mutation from My Events, then return to Discover**: exactly one
+   `intents-fetch reason=external-invalidation` + one `event-relationships`
+   request on return; Discover's sheet showed the correct (externally
+   removed) intent afterward. A *further* unchanged refocus after that
+   produced zero additional requests, confirming the synced-revision ref
+   updates correctly.
+8. **Card/map/search selection**: intent state stayed attached to the
+   correct event through all of the above (per-card removal/toggle each
+   applied to the tapped event only, both live tests and code review of
+   `keyExtractor`/`intents[eventId]` lookups — no cross-event leakage
+   observed).
+9. **Sign out/sign in as a different user**: not live-tested this pass (would
+   require disrupting the session used for the rest of this validation);
+   verified by code inspection — the new `accessToken`-change branch in
+   `use-event-relationships.ts` clears `intents` synchronously before the
+   next fetch. Flagged here rather than claimed as device-verified.
+
+### Five-run before/after measurements [MEASURED — DEBUG PHYSICAL DEVICE, N=5]
+
+**Cold Discover:**
+
+| Metric | Runs | Median | Min | Max |
+| ------ | ---: | -----: | --: | --: |
+| Initial intent batch requests | 5 | **1** | 1 | 1 |
+| Initial batch request duration (`id_batch=70`) | 5 | 217 ms | 191 ms | 252 ms |
+| Discover focus → fully settled | 5 | 1045 ms | 973 ms | 1398 ms |
+
+Focus→settled is consistent with the FOMO-176 baseline (1180 ms median) —
+no regression from this task's changes.
+
+**Intent mutation** (neither → Interested, 5 runs):
+
+| Metric | Runs | Median | Min | Max |
+| ------ | ---: | -----: | --: | --: |
+| Tap → mutation settled | 5 | 162 ms | 138 ms | 255 ms |
+| Tap → locally reconciled | 5 | 163 ms | 139 ms | 256 ms |
+| Full relationship requests after mutation | 5 | **0** | 0 | 0 |
+
+Tap → fully confirmed local state is now **~162 ms median**, essentially the
+mutation's own network round-trip — versus the previous **1797 ms**
+full-reconciliation path (FOMO-174). A ~91% reduction, and (per the success
+criteria) approximately mutation duration rather than a separate
+full-reconciliation wait, since there no longer is one.
+
+**Unchanged tab round-trip:**
+
+| Metric | Result |
+| ------ | ------ |
+| Discover refocus → usable | instant (no network wait) |
+| Relationship API requests | **0** |
+
+**External invalidation** (My Events mutates → return to Discover):
+
+| Metric | Result |
+| ------ | ------ |
+| Relationship requests | **1** (`reason=external-invalidation`) |
+| Reason logged | `external-invalidation` |
+| Outcome | Discover UI correct on the very next render after the fetch resolved |
+
+### Render-debug findings [MEASURED — DEBUG PHYSICAL DEVICE, render-debug]
+
+`EXPO_PUBLIC_PERF_DEBUG=false`, `EXPO_PUBLIC_PERF_RENDER_DEBUG=true`, 1
+investigation pass. A single-event mutation (card tap → toggle Interested)
+produced: `DiscoverScreen` +3, `FomoMap` +3, `EventDetails` +3,
+`IntentSelector` +2 (mount + one update) — and **no new sampled `EventCard`
+line** (the render counter, sampled at count=1 and every 25th thereafter,
+never moved past its initial startup sample). Confirms requirement 20: a
+relationship mutation affecting one event does not force a broad re-render
+of the carousel. Timing values from this pass are not used in the baseline
+above, per protocol.
+
+### Explicitly deferred
+
+FOMO-178 (My Events duplicate fetch / spinner-on-refocus), FOMO-179
+(sequential auth boot), image loading/caching, release-build comparison.
+FlatList/EventCard virtualization (FOMO-175) and location bootstrap
+(FOMO-176) untouched by this task.

@@ -9,7 +9,7 @@ import { useAuth } from '../../hooks/use-auth';
 import { useDeviceLocation } from '../../hooks/use-device-location';
 import { useDiscovery } from '../../hooks/use-discovery';
 import { useEventRelationships } from '../../hooks/use-event-relationships';
-import { setEventIntent } from '../../utils/event-relationships-api';
+import { getRelationshipRevision, setEventIntent } from '../../utils/event-relationships-api';
 import { DEFAULT_DISCOVERY_RADIUS } from '../../utils/location-config';
 import {
   perfCountRender,
@@ -22,7 +22,7 @@ import {
 import { haversineKm, formatDistanceKm, hasValidCoords } from '../../utils/geo';
 import type { EventIntent, UiEvent } from '../../types/ui';
 import { LocateFixed, MapPin } from 'lucide-react-native';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -147,12 +147,23 @@ export default function DiscoveryScreen() {
     setLocalIntents({});
   }, [serverIntents]);
 
-  // Refetch intents whenever Discover gains focus so that changes made in My
-  // Events (remove Going, switch to Interested, etc.) are reflected as soon
-  // as the user returns here — without waiting for a manual toggle.
+  // Cross-screen relationship consistency (FOMO-177): rather than
+  // unconditionally refetching all relationships on every focus, track the
+  // shared mutation-revision counter (bumped by any successful setEventIntent
+  // call, from Discover or My Events) and only refetch when it has moved past
+  // what Discover last synchronized to — i.e. only when something changed
+  // elsewhere while this screen wasn't looking. A Discover-originated mutation
+  // advances this ref itself (see handleToggleIntent) so it never refetches
+  // its own already-confirmed change.
+  const lastSyncedRevisionRef = useRef(getRelationshipRevision());
+
   useFocusEffect(
     useCallback(() => {
-      refetchIntents();
+      const currentRevision = getRelationshipRevision();
+      if (currentRevision !== lastSyncedRevisionRef.current) {
+        lastSyncedRevisionRef.current = currentRevision;
+        refetchIntents('external-invalidation');
+      }
     }, [refetchIntents]),
   );
 
@@ -170,8 +181,14 @@ export default function DiscoveryScreen() {
         phase: 'mutation-done',
         duration_ms: perfSince(tapMark),
       });
+      // setEventIntent only resolves on a server-confirmed success, so
+      // nextIntent already IS canonical state — apply it locally and advance
+      // our synced revision so this Discover-originated change doesn't
+      // trigger a refetch of itself on the next focus (FOMO-177: no full
+      // relationship refetch after a successful mutation).
       setLocalIntents((prev) => ({ ...prev, [eventId]: nextIntent }));
-      refetchIntents();
+      lastSyncedRevisionRef.current = getRelationshipRevision();
+      perfLog('intents-reconcile', { screen: 'discover', mode: 'local' });
     } catch {
       // silent — user can retry by tapping again
     } finally {
@@ -182,7 +199,7 @@ export default function DiscoveryScreen() {
         duration_ms: perfSince(tapMark),
       });
     }
-  }, [accessToken, selectedEvent, pendingEventId, intents, refetchIntents]);
+  }, [accessToken, selectedEvent, pendingEventId, intents]);
 
   // ── Filtering ─────────────────────────────────────────────────────────────────
 

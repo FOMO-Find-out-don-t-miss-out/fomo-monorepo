@@ -9,6 +9,20 @@ export type ApiEvent = components['schemas']['EventDiscoveryResponse'];
 
 const BASE = '/api/v1/me';
 
+// ── Cross-screen mutation invalidation (FOMO-177) ─────────────────────────────
+//
+// Smallest possible cross-screen consistency mechanism: a plain counter, not
+// a store — no relationship data lives here. Bumped by every successful
+// mutation from any screen (Discover, My Events). Each relationship consumer
+// records the revision it last synchronized to and only refetches when this
+// has moved past that — avoids refetching all 70 relationships on every
+// Discover focus while still catching changes made elsewhere (e.g. My Events).
+let relationshipRevision = 0;
+
+export function getRelationshipRevision(): number {
+  return relationshipRevision;
+}
+
 // ── API boundary mapping ───────────────────────────────────────────────────────
 //
 // Mobile MVP: only `interested` and `going` exist. `saved` is ignored.
@@ -53,9 +67,11 @@ export async function setEventIntent(
   const url = `${BASE}/events/${encodeURIComponent(eventId)}/relationships/${nextIntent}`;
   if (nextIntent === currentIntent) {
     await apiFetchAuth<void>(url, accessToken, { method: 'DELETE' });
+    relationshipRevision += 1;
     return null;
   }
   await apiFetchAuth<RelationshipResponse>(url, accessToken, { method: 'PUT' });
+  relationshipRevision += 1;
   return nextIntent;
 }
 
