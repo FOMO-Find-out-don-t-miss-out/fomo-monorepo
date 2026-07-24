@@ -15,6 +15,9 @@ export const Colors = {
   surface:      'rgba(12, 12, 18, 0.95)',
   surfaceGlass: 'rgba(18, 18, 24, 0.75)',
   surfaceCard:  'rgba(12, 12, 18, 0.85)',
+  surfaceRaised:      'rgba(18, 18, 26, 0.95)',
+  surfaceGlassStrong: 'rgba(12, 12, 18, 0.88)',
+  topHighlight:       'rgba(255, 255, 255, 0.06)',
 
   // ── Borders ─────────────────────────────────────────────────────────────────
   border:       'rgba(255, 255, 255, 0.12)',
@@ -27,8 +30,14 @@ export const Colors = {
   purpleNeon:   '#BC13FE',
   purpleDim:    'rgba(168, 85, 247, 0.20)',
   purpleGlow:   'rgba(168, 85, 247, 0.45)',
+  neonPurpleGlow: 'rgba(188, 19, 254, 0.45)',
 
-  // ── Secondary accents ────────────────────────────────────────────────────────
+  // ── Neon green secondary accent ─────────────────────────────────────────────
+  neonGreen:      '#39FF88',
+  neonGreenDim:   'rgba(57, 255, 136, 0.20)',
+  neonGreenGlow:  'rgba(57, 255, 136, 0.45)',
+
+  // ── Secondary accents (category-only — never global) ─────────────────────────
   cyan:         '#22D3EE',
   magenta:      '#EC4899',
 
@@ -42,6 +51,19 @@ export const Colors = {
   error:   '#F87171',
   success: '#4ADE80',
   warning: '#FBBF24',
+
+  // ── Canonical semantic accent tokens ─────────────────────────────────────────
+  brandPrimary:     '#BC13FE',   // neon purple — logo, primary CTA
+  brandSecondary:   '#39FF88',   // neon green — secondary brand identity
+  intentInterested: '#BC13FE',   // Interested = neon purple (all surfaces)
+  intentGoing:      '#39FF88',   // Going = neon green (all surfaces)
+  navigationActive: '#BC13FE',   // active tab = neon purple
+  eventSelected:    '#BC13FE',   // selected event border/glow = neon purple
+  userLocation:     '#39FF88',   // user location dot = neon green
+  eventLive:        '#39FF88',   // live/available state = neon green
+  feedbackSuccess:  '#39FF88',   // success feedback = neon green
+  feedbackWarning:  '#FBBF24',   // warning feedback = amber
+  feedbackError:    '#F87171',   // error feedback = red
 
   // ── Category swatches (keyed by UiEventCategory) ──────────────────────────────
   category: {
@@ -61,6 +83,8 @@ export const Gradients = {
   primaryCta: ['#BC13FE', '#9333EA'] as [string, string],
   /** Soft purple fill for active states, overlays. */
   purpleSubtle: ['rgba(188, 19, 254, 0.3)', 'rgba(147, 51, 234, 0.1)'] as [string, string],
+  /** Soft green fill for active states, overlays. */
+  greenSubtle: ['rgba(57, 255, 136, 0.3)', 'rgba(34, 197, 94, 0.1)'] as [string, string],
 };
 
 // ── Typography ────────────────────────────────────────────────────────────────
@@ -127,6 +151,14 @@ export const Shadows = {
     shadowOffset: { width: 0, height: 0 },
     shadowRadius: 15,
     shadowOpacity: 0.50,
+    elevation: 8,
+  },
+  /** Green glow for Going confirmation, live indicators. */
+  greenGlow: {
+    shadowColor: '#39FF88',
+    shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 15,
+    shadowOpacity: 0.45,
     elevation: 8,
   },
 };
