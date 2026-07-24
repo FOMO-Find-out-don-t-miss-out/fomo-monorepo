@@ -25,7 +25,13 @@ export type { Event, EventCategory } from '../../types/ui';
 interface EventCardProps {
   event: Event;
   isActive?: boolean;
-  onPress?: () => void;
+  /**
+   * Receives the event's id rather than being called with no args, so the
+   * parent can pass one stable function (keyed off id lookup) to every card
+   * instead of a fresh closure per card per render — required for
+   * React.memo below to actually skip re-renders (FOMO-175).
+   */
+  onPress?: (id: string) => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -39,8 +45,13 @@ interface EventCardProps {
 // overflow:'hidden' clips elevation shadow on Android. Keeping shadow on the
 // outer Animated.View (no overflow) and clipping on the inner Pressable gives
 // correct behaviour on both platforms.
+//
+// Memoized (FOMO-175): with a stable `onPress` reference and a stable `event`
+// object identity from the parent's data layer, this bails out of re-render
+// for cards unaffected by a Discover state change (search text, pending
+// intent, locate-me timer, etc.).
 
-export function EventCard({
+function EventCardBase({
   event,
   isActive = false,
   onPress,
@@ -86,7 +97,7 @@ export function EventCard({
     >
       {/* Inner: background, border, clipping, padding, content */}
       <Pressable
-        onPress={onPress}
+        onPress={() => onPress?.(event.id)}
         onPressIn={pressIn}
         onPressOut={pressOut}
         style={[styles.card, isActive && styles.cardBorderActive]}
@@ -162,6 +173,8 @@ export function EventCard({
     </Animated.View>
   );
 }
+
+export const EventCard = React.memo(EventCardBase);
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 

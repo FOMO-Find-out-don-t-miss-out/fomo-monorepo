@@ -708,3 +708,124 @@ with one remaining measurement gate up front:
 - There are **no automated mobile tests** in this repository (`"test": "echo
   'No tests yet'"`), and no automated performance tests. All benchmarking is
   the manual protocol in §12.
+
+---
+
+## 16. FOMO-175 — Discover carousel virtualization (before/after)
+
+Scope: replaced the horizontal `ScrollView` (mounted all 70 cards) with a
+horizontal `FlatList`, memoized `EventCard` (`React.memo`), and stabilized the
+card/pin press callback into one shared, identity-stable function
+(`handleEventSelect`) so unrelated Discover state changes stop re-rendering
+every card. Only `app/(tabs)/index.tsx` and `components/fomo/event-card.tsx`
+changed; no API calls, intent logic, location logic, or auth logic were
+touched (those remain FOMO-176/177/178/179).
+
+### Environment
+
+| Field | Value |
+| ----- | ----- |
+| Device model | OnePlus CPH2581 |
+| Android version | 16 |
+| Build type | debug |
+| Metro attached | yes |
+| Network | staging API, same network for all runs |
+| App commit | this branch, post FOMO-175 changes |
+
+The original FOMO-174 baseline recorded device model/Android version as
+**pending**; this run captured both, so this table is more complete than §2.
+
+### Timing pass [MEASURED — DEBUG PHYSICAL DEVICE, N=5]
+
+`EXPO_PUBLIC_PERF_DEBUG=true`, `EXPO_PUBLIC_PERF_RENDER_DEBUG=false`. Five
+clean cold-launch runs (force-stop + relaunch each time), first occurrence of
+`screen-focus screen=discover` → first occurrence of `discover-render` per
+run (the duplicate discovery/render cycle from FOMO-174 RCA #2 still occurs
+in some runs — unchanged, out of scope for this task — so only the *first*
+cycle's timestamps are used, matching how the original baseline was framed).
+
+| Metric | Previous (FOMO-174) | New median | New min | New max |
+| ------ | ------------------: | ---------: | ------: | ------: |
+| Discover focus → first cards rendered | 1910 ms (1805–2128) | **685 ms** | 644 ms | 711 ms |
+| Discovery events parsed → cards rendered | 1659 ms (1573–1720) | **426 ms** | 363 ms | 433 ms |
+
+**~64% reduction** in focus→render time, **~74% reduction** in
+parsed→render time. Per-run raw figures:
+
+| Run | Focus → render | Parsed → render |
+| --- | --------------: | ---------------: |
+| 1 | 644 ms | 370 ms |
+| 2 | 711 ms | 433 ms |
+| 3 | 693 ms | 426 ms |
+| 4 | 655 ms | 432 ms |
+| 5 | 685 ms | 363 ms |
+
+The 289 ms-median discovery request from §4 is unchanged (this task doesn't
+touch data fetching); the JS/render side that previously dwarfed it (1659 ms)
+is now roughly on the same order as the network request itself.
+
+### Render investigation pass [MEASURED — DEBUG PHYSICAL DEVICE, render-debug]
+
+`EXPO_PUBLIC_PERF_DEBUG=false`, `EXPO_PUBLIC_PERF_RENDER_DEBUG=true`, 1–2 runs
+(timing numbers from this pass are not used above, per protocol).
+
+- **Initial mounted cards are bounded.** `EventCard`'s render counter (sampled
+  at count=1 and every 25th render) never logged past its first `count=1`
+  line for the entire initial load — i.e. total EventCard render calls during
+  startup stayed under 25, versus **~350** in the FOMO-174 smoke baseline (≈
+  five full 70-card passes). This is consistent with the configured
+  `initialNumToRender` (`CARDS_PER_SCREEN + 4`, a handful of cards on this
+  device) plus the duplicate-fetch re-render from the unrelated FOMO-176
+  cycle.
+- **Unrelated interactions no longer re-render all 70 cards.** Tapping a card
+  (first-ever selection, no previously-active card) produced exactly:
+  `DiscoverScreen` +1, `FomoMap` +1, `EventDetails` +2 (open), `IntentSelector`
+  mount — and **no new sampled `EventCard` line**, meaning at most one
+  `EventCard` re-rendered. Previously this same interaction added ~350
+  `EventCard` renders (FOMO-174 §6/§1a).
+- `FomoMap` continues to receive already-stable derived props
+  (`eventsWithDistance` and `handleEventSelect` are both memoized/`useCallback`
+  with narrow dependency arrays) — no additional stabilization was needed
+  there; the map component itself was not modified.
+
+### Functional validation (manual, physical device)
+
+- Discover loads successfully; card design, spacing, snap-to-center feel, and
+  event ordering are visually unchanged from the ScrollView version.
+- Scrolled through the entire 70-event carousel (first → multiple middle
+  events → last event, confirmed by the absence of a peeking next-card sliver
+  past the final item): all cards render correct, distinct content — no
+  blank cells, no stale/recycled content, no incorrect snapping.
+- Tapping a card opens the correct `EventDetails` sheet for that event in all
+  cases tested (including first and last card), and the map pans to the
+  matching pin.
+- Per-card intent state is correctly isolated: the first card showed a
+  pre-existing "Going" intent, the last card showed no intent set — confirms
+  virtualized cell recycling isn't leaking state between items.
+- Returning Discover → My Events → Discover preserved carousel scroll
+  position, selection, and map state with no crash.
+- GPU frame stats across the session (`dumpsys gfxinfo`): 50th percentile
+  7 ms, 90th percentile 23 ms, 95th percentile 28 ms (60fps budget is
+  16.7 ms/frame) — no severe jank observed; this is a whole-session figure,
+  not isolated to carousel scrolling alone.
+- **Not verified this pass**: precisely toggling Interested/Going via
+  scripted ADB taps (two attempts missed the button and hit the sheet
+  backdrop/card instead — an input-coordinate issue, not an app issue); the
+  sheet correctly displayed pre-existing server-driven intent state through
+  the unmodified intent code path. Search-text filtering also could not be
+  exercised via scripted taps (the search input did not focus via the
+  attempted tap point). Neither `event-details.tsx`/`use-event-relationships`
+  intent logic nor `search-bar.tsx`/filtering logic were touched by this
+  change; recommend a quick manual pass on a live device to close this out.
+
+### Remaining deferred bottlenecks (unchanged by this task)
+
+Per FOMO-174 §13/§9, still open and explicitly out of scope here:
+
+- Duplicate location-driven startup cycle (FOMO-176) — still observed in
+  some of the 5 runs above (second `discover-events`/`discover-render` pair).
+- Full 70-ID intent synchronization policy on every focus/toggle (FOMO-177).
+- My Events duplicate fetch + full-spinner-on-refocus (FOMO-178).
+- Sequential auth boot (FOMO-179).
+- Image loading strategy (`expo-image`, caching, resize) — T4, not started.
+- Release-build comparison — still pending; all figures above are debug-build.

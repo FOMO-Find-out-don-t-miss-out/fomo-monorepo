@@ -26,12 +26,13 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
+  FlatList,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import type { ListRenderItemInfo } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../theme';
 
@@ -40,6 +41,22 @@ import { Colors } from '../../theme';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = 260;
 const CARD_GAP   = 16;
+const CARD_PITCH = CARD_WIDTH + CARD_GAP;
+
+// FlatList windowing tuned relative to actual screen size rather than guessed
+// constants (FOMO-175 — replaces the ScrollView that mounted all 70 cards):
+//   - CARDS_PER_SCREEN: how many cards fit in one viewport width.
+//   - initialNumToRender: first screen + ~2 cards buffer each side, so the
+//     very first swipe never shows a blank/recycling cell.
+//   - maxToRenderPerBatch: one screen's worth of new cards per incremental
+//     render batch during scroll.
+//   - windowSize (in "screens", RN default 21): keep ~2 screens mounted on
+//     either side of the visible one — first/middle/last cards stay reachable
+//     by scrolling without keeping all 70 mounted at once.
+const CARDS_PER_SCREEN     = Math.max(1, Math.ceil(SCREEN_WIDTH / CARD_PITCH));
+const INITIAL_NUM_TO_RENDER = CARDS_PER_SCREEN + 4;
+const MAX_TO_RENDER_PER_BATCH = CARDS_PER_SCREEN + 2;
+const WINDOW_SIZE = 5;
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
@@ -177,17 +194,25 @@ export default function DiscoveryScreen() {
     setActiveCategories(filters);
   }, []);
 
-  // How many cards the (non-virtualized) carousel actually mounts once loaded.
+  // Size of the filtered dataset handed to the carousel — NOT the number of
+  // FlatList cells actually mounted (that's windowed/virtualized and varies
+  // with scroll position, FOMO-175). For real mounted-card counts, run a
+  // dedicated EXPO_PUBLIC_PERF_RENDER_DEBUG pass and read the EventCard
+  // `render` counter instead.
   useEffect(() => {
     if (perfEnabled && !loading && !error) {
       perfLog('discover-render', {
         events_total: events.length,
-        cards_rendered: filteredEvents.length,
+        cards_in_dataset: filteredEvents.length,
       });
     }
   }, [loading, error, events.length, filteredEvents.length]);
 
-  const handlePinPress = useCallback(
+  // Shared by the map (pin tap) and the carousel (card tap): looks up the
+  // pressed event by id and selects it. One stable reference — identity only
+  // changes when eventsWithDistance changes, not on every Discover render —
+  // is what lets memoized EventCard bail out of unrelated re-renders (FOMO-175).
+  const handleEventSelect = useCallback(
     (eventId: string) => {
       const found = eventsWithDistance.find((e) => e.id === eventId);
       if (found) setSelectedEvent(found);
@@ -206,6 +231,32 @@ export default function DiscoveryScreen() {
   }
 
   const carouselPadding = (SCREEN_WIDTH - CARD_WIDTH) / 2;
+
+  // Card pitch (width + gap) is fixed, so the offset of item `i` from the
+  // start of content is always `carouselPadding + i * CARD_PITCH` and every
+  // item is exactly CARD_WIDTH wide — genuinely fixed dimensions, safe for
+  // getItemLayout (FOMO-175: avoids an async layout pass per card on mount).
+  const getItemLayout = useCallback(
+    (_data: ArrayLike<UiEvent> | null | undefined, index: number) => ({
+      length: CARD_WIDTH,
+      offset: carouselPadding + index * CARD_PITCH,
+      index,
+    }),
+    [carouselPadding],
+  );
+
+  const keyExtractor = useCallback((event: UiEvent) => event.id, []);
+
+  const renderEventCard = useCallback(
+    ({ item }: ListRenderItemInfo<UiEvent>) => (
+      <EventCard
+        event={item}
+        isActive={selectedEvent?.id === item.id}
+        onPress={handleEventSelect}
+      />
+    ),
+    [selectedEvent?.id, handleEventSelect],
+  );
 
   const locateIconColor =
     locationStatus === 'granted'
@@ -227,7 +278,7 @@ export default function DiscoveryScreen() {
         events={eventsWithDistance}
         selectedEventId={selectedEvent?.id ?? null}
         showUserLocation={locationStatus === 'granted'}
-        onPinPress={handlePinPress}
+        onPinPress={handleEventSelect}
         locateMe={locateMe}
       />
 
@@ -304,26 +355,24 @@ export default function DiscoveryScreen() {
             message={events.length === 0 ? 'No events nearby' : 'No events match your search'}
           />
         ) : (
-          <ScrollView
+          <FlatList
+            data={filteredEvents}
+            renderItem={renderEventCard}
+            keyExtractor={keyExtractor}
+            getItemLayout={getItemLayout}
             horizontal
             showsHorizontalScrollIndicator={false}
             decelerationRate="fast"
-            snapToInterval={CARD_WIDTH + CARD_GAP}
+            snapToInterval={CARD_PITCH}
             snapToAlignment="center"
             contentContainerStyle={[
               styles.carouselContent,
               { paddingHorizontal: carouselPadding },
             ]}
-          >
-            {filteredEvents.map((event) => (
-              <EventCard
-                key={event.id}
-                event={event}
-                isActive={selectedEvent?.id === event.id}
-                onPress={() => setSelectedEvent(event)}
-              />
-            ))}
-          </ScrollView>
+            initialNumToRender={INITIAL_NUM_TO_RENDER}
+            maxToRenderPerBatch={MAX_TO_RENDER_PER_BATCH}
+            windowSize={WINDOW_SIZE}
+          />
         )}
       </View>
 
