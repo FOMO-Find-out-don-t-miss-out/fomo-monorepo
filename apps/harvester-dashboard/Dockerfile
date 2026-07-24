@@ -52,11 +52,16 @@ WORKDIR /app/apps/harvester-dashboard
 RUN pnpm run build
 
 # Production image, copy all the files and run next
-FROM base AS runner
+FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV production
 ENV NEXT_TELEMETRY_DISABLED 1
+
+# Runtime only ever invokes `node`, never npm/npx/pnpm — drop the global npm
+# install inherited from the base image to remove its bundled tar (CVE-2026-59873).
+RUN rm -rf /usr/local/lib/node_modules/npm \
+    && rm -f /usr/local/bin/npm /usr/local/bin/npx
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
