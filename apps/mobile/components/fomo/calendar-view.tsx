@@ -51,7 +51,7 @@ function CalendarEventCard({
   return (
     <Pressable onPress={onPress} style={styles.card}>
       <View style={styles.timeCol}>
-        <Clock size={12} color="rgba(34, 211, 238, 0.7)" />
+        <Clock size={12} color={Colors.textSecondary} />
         <Text style={styles.timeText}>{event.time}</Text>
       </View>
 
@@ -77,7 +77,7 @@ function CalendarEventCard({
         </Text>
 
         <View style={styles.venueRow}>
-          <MapPin size={10} color="rgba(255, 255, 255, 0.5)" />
+          <MapPin size={10} color={Colors.textSecondary} />
           <Text numberOfLines={1} style={styles.venueText}>
             {event.venue}
           </Text>
@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     marginTop: 12,
-    color: 'rgba(255, 255, 255, 0.4)',
+    color: Colors.textMuted,
     fontSize: 13,
   },
   // ── Header ───────────────────────────────────────────────────────────────
@@ -270,11 +270,11 @@ const styles = StyleSheet.create({
   headerDate: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#fff',
+    color: Colors.textPrimary,
   },
   headerCount: {
     fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.4)',
+    color: Colors.textMuted,
   },
   headerRule: {
     flex: 1,
@@ -301,12 +301,12 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 13,
     fontWeight: '700',
-    color: Colors.cyan,
+    color: Colors.textSecondary,
   },
   cardDivider: {
     width: 1,
     height: 40,
-    backgroundColor: 'rgba(168, 85, 247, 0.35)',
+    backgroundColor: Colors.borderFocus,
   },
   cardInfo: {
     flex: 1,
@@ -331,12 +331,12 @@ const styles = StyleSheet.create({
   priceText: {
     fontSize: 10,
     fontWeight: '700',
-    color: Colors.cyan,
+    color: Colors.textPrimary,
   },
   cardTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#fff',
+    color: Colors.textPrimary,
     marginBottom: 2,
   },
   venueRow: {
@@ -346,12 +346,12 @@ const styles = StyleSheet.create({
   },
   venueText: {
     fontSize: 10,
-    color: 'rgba(255, 255, 255, 0.5)',
+    color: Colors.textSecondary,
     flexShrink: 1,
   },
   distanceText: {
     fontSize: 10,
-    color: 'rgba(255, 255, 255, 0.3)',
+    color: Colors.textMuted,
     marginLeft: 4,
   },
   ticketBtn: {

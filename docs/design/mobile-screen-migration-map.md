@@ -134,6 +134,32 @@ These changes MUST be applied as a single atomic unit — they fix the "Interest
 | `rgba(255,255,255,0.4)` (infoLabel) | `Colors.textMuted` |
 | `rgba(255,255,255,0.85)` (infoValue) | `Colors.textSecondary` |
 
+### 3C — Calendar and date-control semantic migration ✅ (Phase 3C complete)
+
+**calendar-view.tsx** — 10 hardcoded values migrated:
+- Clock icon: `rgba(34,211,238,0.7)` → `Colors.textSecondary` (cyan purge)
+- timeText: `Colors.cyan` → `Colors.textSecondary` (cyan purge)
+- priceText: `Colors.cyan` → `Colors.textPrimary` (important value, not neutral metadata)
+- #fff × 2 → `Colors.textPrimary`
+- `rgba(255,255,255,0.4)` × 2 → `Colors.textMuted`
+- `rgba(255,255,255,0.5)` → `Colors.textSecondary`
+- `rgba(255,255,255,0.3)` → `Colors.textMuted`
+
+**date-strip-picker.tsx** — 8 hardcoded values migrated:
+- Added `import { Colors }` (was not imported)
+- Removed `NEON_PURPLE` constant, replaced with `Colors.brandPrimary`
+- Month active text: `#67E8F9` (cyan) → `Colors.brandPrimary` (cyan purge)
+- `#fff` × 2 → `Colors.textPrimary`
+- `rgba(255,255,255,0.35)` → `Colors.textMuted`
+- `rgba(255,255,255,0.4)` → `Colors.textMuted`
+- `rgba(255,255,255,0.1)` → `Colors.borderGlass`
+
+**Retained technical exceptions (no matching token):**
+- `rgba(11,11,15,0.78)` backdrop — specific alpha, no token
+- `rgba(255,255,255,0.03)` × 2 — 3% opacity, no token
+- `rgba(255,255,255,0.8)` dateTextInactive — 80% opacity between tokens
+- `rgba(255,255,255,0.15)` badgeInactive — 15% opacity, no token
+
 ---
 
 ## Phase 4 — Blur placement enhancements (P2)
@@ -192,7 +218,8 @@ Phase 1.3 (MyEventListItem.tsx) ── requires Phase 0.1
 - `apps/mobile/app/(tabs)/search.tsx` — placeholder, visual treatment only (deferred to FOMO-172)
 - `apps/mobile/app/(tabs)/profile.tsx` — already follows design system
 - `apps/mobile/components/fomo/fomo-map.tsx` — map pins already purple, correct
-- `apps/mobile/components/fomo/calendar-view.tsx` — minor cyan usage in event rows (accepted as category-related)
+- `apps/mobile/components/fomo/calendar-view.tsx` — Phase 3C: migrated from cyan to semantic tokens; remaining rgba values are technical exceptions (see §3C)
+- `apps/mobile/components/fomo/date-strip-picker.tsx` — Phase 3C: migrated from cyan/hardcoded NEON_PURPLE to semantic tokens
 
 ---
 

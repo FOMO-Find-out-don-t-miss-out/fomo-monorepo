@@ -6,10 +6,7 @@ import {
   Text,
   View,
 } from 'react-native';
-
-// ─── Design tokens ────────────────────────────────────────────────────────────
-
-const NEON_PURPLE = '#BC13FE';
+import { Colors } from '../../theme';
 
 const ITEM_WIDTH = 64;
 const ITEM_GAP = 8;
@@ -180,7 +177,7 @@ const styles = StyleSheet.create({
   },
   itemInactive: {
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: Colors.borderGlass,
   },
   // Glowing neon glass — border only, no solid fill.
   // iOS gets the soft glow via shadow*; Android elevation is intentionally
@@ -188,8 +185,8 @@ const styles = StyleSheet.create({
   // as an opaque box behind the near-transparent pill.
   itemActive: {
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderColor: NEON_PURPLE,
-    shadowColor: NEON_PURPLE,
+    borderColor: Colors.brandPrimary,
+    shadowColor: Colors.brandPrimary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.45,
     shadowRadius: 8,
@@ -202,10 +199,10 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   dayTextInactive: {
-    color: 'rgba(255, 255, 255, 0.4)',
+    color: Colors.textMuted,
   },
   dayTextActive: {
-    color: '#E9D5FF',
+    color: Colors.brandPrimary,
   },
   dateText: {
     fontSize: 22,
@@ -217,8 +214,8 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.8)',
   },
   dateTextActive: {
-    color: '#fff',
-    textShadowColor: 'rgba(188, 19, 254, 0.6)',
+    color: Colors.textPrimary,
+    textShadowColor: Colors.neonPurpleGlow,
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 4,
   },
@@ -230,10 +227,10 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   monthTextInactive: {
-    color: 'rgba(255, 255, 255, 0.35)',
+    color: Colors.textMuted,
   },
   monthTextActive: {
-    color: '#67E8F9',
+    color: Colors.brandPrimary,
   },
   // ── Event count badge ────────────────────────────────────────────────────
   badge: {
@@ -251,8 +248,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
   },
   badgeActive: {
-    backgroundColor: NEON_PURPLE,
-    shadowColor: NEON_PURPLE,
+    backgroundColor: Colors.brandPrimary,
+    shadowColor: Colors.brandPrimary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.7,
     shadowRadius: 5,
@@ -260,6 +257,6 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 9,
     fontWeight: '700',
-    color: '#fff',
+    color: Colors.textPrimary,
   },
 });
