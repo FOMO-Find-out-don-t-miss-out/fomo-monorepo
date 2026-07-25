@@ -58,6 +58,7 @@ export const Colors = {
   intentInterested: '#BC13FE',   // Interested = neon purple (all surfaces)
   intentGoing:      '#39FF88',   // Going = neon green (all surfaces)
   navigationActive: '#BC13FE',   // active tab = neon purple
+  navigationInactive: 'rgba(255, 255, 255, 0.45)', // inactive tab icon/label
   eventSelected:    '#BC13FE',   // selected event border/glow = neon purple
   userLocation:     '#39FF88',   // user location dot = neon green
   eventLive:        '#39FF88',   // live/available state = neon green

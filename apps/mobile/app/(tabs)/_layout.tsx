@@ -4,6 +4,7 @@ import { Heart, Map, Search, User } from 'lucide-react-native';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Colors } from '../../theme';
 import { perfLog, perfMark } from '../../utils/performance-debug';
 
 // ─── Route metadata ───────────────────────────────────────────────────────────
@@ -53,7 +54,7 @@ function CustomTabBar({ state, navigation }: any) {
             if (!meta) return null;
 
             const { label, Icon } = meta;
-            const color = isFocused ? '#A855F7' : 'rgba(255,255,255,0.45)';
+            const color = isFocused ? Colors.navigationActive : Colors.navigationInactive;
 
             return (
               <Pressable
@@ -142,10 +143,10 @@ const styles = StyleSheet.create({
   pill: {
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: Colors.border,
     overflow: 'hidden',
     // Fallback background for platforms where BlurView renders transparent
-    backgroundColor: 'rgba(12, 12, 18, 0.88)',
+    backgroundColor: Colors.surfaceGlassStrong,
   },
 
   // ── Row inside pill ────────────────────────────────────────────────────────
@@ -178,7 +179,7 @@ const styles = StyleSheet.create({
     left: 4,
     right: 4,
     bottom: 4,
-    backgroundColor: 'rgba(168, 85, 247, 0.20)',
+    backgroundColor: Colors.purpleDim,
     borderRadius: 8,
   },
 

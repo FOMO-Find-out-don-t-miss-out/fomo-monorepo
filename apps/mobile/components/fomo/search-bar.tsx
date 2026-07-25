@@ -231,7 +231,7 @@ export function SearchBar({
           ]}
         >
           {isCalendarView
-            ? <Map size={20} color={Colors.cyan} strokeWidth={2} />
+            ? <Map size={20} color={Colors.navigationActive} strokeWidth={2} />
             : <CalendarDays size={20} color="rgba(255,255,255,0.7)" strokeWidth={2} />}
         </AnimatedPressable>
 
@@ -312,21 +312,21 @@ const styles = StyleSheet.create({
   logo: {
     fontSize: 13,
     fontWeight: '900',
-    color: '#C084FC', // Exact purple-400 from v0
+    color: Colors.brandPrimary,
     letterSpacing: -0.5, // tighter tracking like v0
-    textShadowColor: 'rgba(192, 132, 252, 0.5)',
+    textShadowColor: Colors.neonPurpleGlow,
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 8,
   },
   divider: {
     width: 1,
     height: 20,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: Colors.borderGlass,
   },
   input: {
     flex: 1,
     fontSize: 13,
-    color: '#fff',
+    color: Colors.textPrimary,
     padding: 0,
     margin: 0,
   },
@@ -342,8 +342,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderFocus,
   },
   calBtnActive: {
-    borderColor: 'rgba(34, 211, 238, 0.6)',
-    backgroundColor: 'rgba(34, 211, 238, 0.15)',
+    borderColor: Colors.borderFocus,
+    backgroundColor: Colors.purpleDim,
   },
   // ── Filter count badge ────────────────────────────────────────────────────
   badge: {
@@ -410,9 +410,9 @@ const styles = StyleSheet.create({
   chipLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#fff',
+    color: Colors.textPrimary,
   },
   chipLabelDim: {
-    color: 'rgba(255,255,255,0.6)',
+    color: Colors.textSecondary,
   },
 });

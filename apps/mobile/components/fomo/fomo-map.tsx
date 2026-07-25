@@ -1,6 +1,7 @@
 import { DEFAULT_DISCOVERY_LAT, DEFAULT_DISCOVERY_LNG } from '../../utils/location-config';
 import { hasValidCoords } from '../../utils/geo';
 import type { UiEvent } from '../../types/ui';
+import { Colors } from '../../theme';
 import {
   perfCountRender,
   perfEnabled,
@@ -235,9 +236,9 @@ export function FomoMap({
               id="fomo-events-circles"
               style={{
                 circleRadius: 8,
-                circleColor: '#A855F7',
+                circleColor: Colors.purple,
                 circleStrokeWidth: 2,
-                circleStrokeColor: '#ffffff',
+                circleStrokeColor: Colors.textPrimary,
                 circleOpacity: 0.9,
               }}
             />
@@ -255,9 +256,9 @@ export function FomoMap({
               id="fomo-selected-circle"
               style={{
                 circleRadius: 12,
-                circleColor: '#BC13FE',
+                circleColor: Colors.eventSelected,
                 circleStrokeWidth: 2.5,
-                circleStrokeColor: '#ffffff',
+                circleStrokeColor: Colors.textPrimary,
                 circleOpacity: 1,
               }}
             />
@@ -274,7 +275,7 @@ const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 0,
-    backgroundColor: '#0B0B0F',
+    backgroundColor: Colors.background,
   },
   map: {
     flex: 1,
