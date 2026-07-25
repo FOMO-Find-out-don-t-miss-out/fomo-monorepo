@@ -1,5 +1,6 @@
+import { useLocalSearchParams } from 'expo-router';
 import { Search, SlidersHorizontal, X } from 'lucide-react-native';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -27,6 +28,7 @@ import {
   backendCategoryLabel,
   datePresetLabel,
   hasActiveFilters,
+  parseExploreHandoffLocation,
   type ExploreActiveFilters,
 } from '../../utils/explore-filters';
 import { usePerfScreenFocus } from '../../utils/performance-debug';
@@ -52,9 +54,51 @@ export default function ExploreScreen() {
   } = useExploreSearch();
 
   // Location is only requested once the user opts in via the filter modal's
-  // Near me toggle — `enabled` gates use-device-location's own permission
-  // flow so opening Explore never eagerly prompts for location.
+  // Near me toggle, or once a valid Discover handoff arrives (below) —
+  // `enabled` gates use-device-location's own permission flow so opening
+  // Explore on its own never eagerly prompts for location.
   const [locationRequested, setLocationRequested] = useState(false);
+
+  // Discover → Explore handoff (FOMO-172 Phase 4B). Consumed exactly once per
+  // distinct `handoff` nonce: re-renders and tab refocuses that still carry
+  // the same params (no new navigation occurred) must never reapply and
+  // clobber filters the user has since changed themselves. Keyed only on the
+  // primitive `params.handoff` string, never the whole `params` object (a
+  // new reference every render).
+  const params = useLocalSearchParams<{
+    lat?: string;
+    lng?: string;
+    radiusKm?: string;
+    handoff?: string;
+  }>();
+  const consumedHandoffRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const handoff = params.handoff;
+    if (!handoff || handoff === consumedHandoffRef.current) return;
+    consumedHandoffRef.current = handoff;
+
+    const handoffLocation = parseExploreHandoffLocation({
+      lat: params.lat,
+      lng: params.lng,
+      radiusKm: params.radiusKm,
+    });
+    if (!handoffLocation) return; // no valid location handed off — leave filters untouched
+
+    // Start Explore's own location resolution too (resolves near-instantly,
+    // since Discover only sends real coordinates when permission is already
+    // granted) so the filter modal's Near me toggle/Apply reflect a settled
+    // 'granted' status immediately rather than staying stuck on 'pending'.
+    setLocationRequested(true);
+    applyFilters({
+      ...DEFAULT_EXPLORE_FILTERS,
+      nearMe: true,
+      location: { lat: handoffLocation.lat, lng: handoffLocation.lng },
+      radiusKm: handoffLocation.radiusKm,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.handoff]);
+
   const { location: deviceLocation, status: locationStatus } = useDeviceLocation(
     locationRequested,
   );

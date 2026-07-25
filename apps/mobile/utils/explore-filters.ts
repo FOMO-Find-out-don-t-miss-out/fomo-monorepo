@@ -134,6 +134,66 @@ export const DEFAULT_EXPLORE_FILTERS: ExploreActiveFilters = {
   location: null,
 };
 
+// ── Discover → Explore handoff (FOMO-172 Phase 4B) ────────────────────────────
+
+export interface ExploreHandoffLocation {
+  lat: number;
+  lng: number;
+  radiusKm: number;
+}
+
+/**
+ * Route-param values as useLocalSearchParams can actually return them at
+ * runtime — a repeated query key (e.g. a malformed/hand-crafted deep link)
+ * yields string[], not just string | undefined, regardless of the generic
+ * type parameter a caller asserts on the hook.
+ */
+type HandoffParamValue = string | string[] | undefined;
+
+/**
+ * Rejects everything except a genuinely non-empty string before it ever
+ * reaches Number(...). This is deliberate: Number('') and Number('   ') both
+ * evaluate to 0 in JavaScript, and 0 is a valid latitude/longitude — without
+ * this guard, an empty or whitespace-only param would be silently accepted
+ * as real coordinate 0, not rejected as absent/invalid. string[] (and any
+ * other non-string value) is rejected outright rather than relying on
+ * incidental array-to-string coercion.
+ */
+function parseHandoffNumber(raw: HandoffParamValue): number {
+  if (typeof raw !== 'string') return NaN;
+  const trimmed = raw.trim();
+  if (trimmed === '') return NaN;
+  return Number(trimmed);
+}
+
+/**
+ * Validates and normalizes raw Discover → Explore handoff route-param
+ * values. lat/lng must both be valid together — a missing/empty/
+ * out-of-range value on either side means "no location was handed off",
+ * never a partial request and never a silent fallback to default
+ * coordinates (Discover is responsible for never sending its own
+ * default/env coordinates here in the first place — see index.tsx's use of
+ * location.isDefault). An absent, empty, or unsupported radius falls back
+ * to DEFAULT_RADIUS_KM, but only once lat/lng are themselves confirmed
+ * valid.
+ */
+export function parseExploreHandoffLocation(raw: {
+  lat?: HandoffParamValue;
+  lng?: HandoffParamValue;
+  radiusKm?: HandoffParamValue;
+}): ExploreHandoffLocation | null {
+  const lat = parseHandoffNumber(raw.lat);
+  const lng = parseHandoffNumber(raw.lng);
+  const latValid = Number.isFinite(lat) && lat >= -90 && lat <= 90;
+  const lngValid = Number.isFinite(lng) && lng >= -180 && lng <= 180;
+  if (!latValid || !lngValid) return null;
+
+  const rawRadius = parseHandoffNumber(raw.radiusKm);
+  const radiusKm = RADIUS_OPTIONS_KM.includes(rawRadius) ? rawRadius : DEFAULT_RADIUS_KM;
+
+  return { lat, lng, radiusKm };
+}
+
 export function hasActiveFilters(filters: ExploreActiveFilters): boolean {
   return filters.categories.length > 0 || filters.datePreset !== 'any' || filters.nearMe;
 }

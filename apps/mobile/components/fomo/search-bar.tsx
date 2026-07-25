@@ -64,18 +64,23 @@ function springPress(value: Animated.Value, toValue: number) {
 
 interface SearchBarProps {
   onFilterChange?: (filters: string[]) => void;
-  onSearchChange?: (text: string) => void;
   isCalendarView?: boolean;
   onViewToggle?: () => void;
+  /**
+   * Intentional text search now lives in Explore (FOMO-172 Phase 4B) — the
+   * search field here is a non-editable launcher, not a second independent
+   * text-search system. Tapping it calls this instead of opening a keyboard.
+   */
+  onSearchPress?: () => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function SearchBar({
   onFilterChange,
-  onSearchChange,
   isCalendarView,
   onViewToggle,
+  onSearchPress,
 }: SearchBarProps) {
   const insets = useSafeAreaInsets();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -85,9 +90,6 @@ export function SearchBar({
   // Mount — opacity + slide (useNativeDriver: true, transform/opacity only)
   const mountOpacity   = useRef(new Animated.Value(0)).current;
   const mountTranslateY = useRef(new Animated.Value(-16)).current;
-
-  // Focus border — color interpolation (useNativeDriver: false, color prop)
-  const focusProgress = useRef(new Animated.Value(0)).current;
 
   // Filter panel — maxHeight + opacity (useNativeDriver: false, layout prop)
   const panelMaxHeight = useRef(new Animated.Value(0)).current;
@@ -116,29 +118,7 @@ export function SearchBar({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Derived animated styles ────────────────────────────────────────────────
-  const animatedBorderColor = focusProgress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [Colors.borderGlass, Colors.borderFocus],
-  });
-
   // ── Handlers ───────────────────────────────────────────────────────────────
-  const handleFocus = useCallback(() => {
-    Animated.timing(focusProgress, {
-      toValue: 1,
-      duration: 200,
-      useNativeDriver: false,
-    }).start();
-  }, [focusProgress]);
-
-  const handleBlur = useCallback(() => {
-    Animated.timing(focusProgress, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: false,
-    }).start();
-  }, [focusProgress]);
-
   const handleToggleFilter = useCallback(() => {
     const opening = !isFilterOpen;
     setIsFilterOpen(opening);
@@ -181,22 +161,42 @@ export function SearchBar({
       {/* ── Top row ──────────────────────────────────────────────────────── */}
       <View style={styles.row}>
 
-        {/* Search input — animated border color */}
-        <Animated.View style={[styles.inputContainer, { borderColor: animatedBorderColor }]}>
+        {/* Search field — non-editable launcher into Explore (FOMO-172
+            Phase 4B), not a second text-search system. The original
+            TextInput is kept (not swapped for a Text approximation): a
+            plain Text visually regressed on physical Android devices,
+            since Android's native EditText widget behind TextInput carries
+            its own baseline/padding metrics that a Text component doesn't
+            replicate even with an identical style object. editable/
+            caretHidden/showSoftInputOnFocus keep it fully non-interactive;
+            pointerEvents="none" ensures every tap is handled by the
+            wrapping Pressable, never the TextInput itself; accessible=false
+            keeps it out of the accessibility tree so only the Pressable's
+            button semantics are exposed. Pressed-state border color reuses
+            the same two tokens the original focus-color animation used. */}
+        <Pressable
+          onPress={onSearchPress}
+          accessibilityRole="button"
+          accessibilityLabel="Search events by name, venue, or organizer. Opens Explore."
+          style={({ pressed }) => [
+            styles.inputContainer,
+            { borderColor: pressed ? Colors.borderFocus : Colors.borderGlass },
+          ]}
+        >
           <FOMOLogo />
           <View style={styles.divider} />
           <Search size={20} color="rgba(255,255,255,0.5)" strokeWidth={2} />
           <TextInput
             style={styles.input}
-            placeholder="Search events..."
+            placeholder="Search events by name, venue, or organizer"
             placeholderTextColor="rgba(255,255,255,0.4)"
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-            onChangeText={onSearchChange}
-            returnKeyType="search"
-            autoCorrect={false}
+            editable={false}
+            caretHidden
+            showSoftInputOnFocus={false}
+            pointerEvents="none"
+            accessible={false}
           />
-        </Animated.View>
+        </Pressable>
 
         {/* Filter toggle — scale on press */}
         <AnimatedPressable
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceGlass,
     borderWidth: 1,
     borderRadius: 14,
-    // borderColor animated via Animated.Value — do not set here
+    // borderColor set inline from Pressable's pressed state — do not set here
   },
   logo: {
     fontSize: 13,

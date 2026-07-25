@@ -613,3 +613,62 @@ never recomputed per page.
 
 **Radius options**: 5 / 10 / 25 / 50 km, and 100 km; default 10 km when Near
 me is first enabled.
+
+## 25. Phase 4B addendum — Discover → Explore handoff (final)
+
+Resolved by `apps/mobile/app/(tabs)/index.tsx`, `apps/mobile/app/(tabs)/search.tsx`,
+`apps/mobile/components/fomo/search-bar.tsx`, and
+`apps/mobile/utils/explore-filters.ts` (FOMO-172 Phase 4B).
+
+**Discover's SearchBar is now a non-editable launcher, not a second
+text-search system.** The field's `TextInput` was replaced with a `Pressable`
+(`onSearchPress` prop) rendering static launcher copy ("Search events,
+venues, organizers"); it never opens a keyboard or accepts local text.
+Discover's own local text-based filtering of already-loaded events was
+removed from `filteredEvents` — only the existing category predicate
+remains. Category/date-toggle/radius/notification controls, the map,
+carousel, calendar view, and selected-event state are all unchanged.
+
+**Handoff payload — exactly these primitives, only when valid:**
+
+```
+{ handoff: string, lat?: string, lng?: string, radiusKm?: string }
+```
+
+- `handoff`: a fresh `Date.now()` nonce generated per tap, letting Explore
+  distinguish "a new launch" from "the same params persisting across a tab
+  refocus" — the sole effect dependency Explore keys its one-time-consumption
+  effect on (never the whole params object, which is a new reference every
+  render).
+- `lat`/`lng`/`radiusKm`: included **only** when Discover's `useDeviceLocation`
+  reports `location.isDefault === false` (i.e., real device coordinates, not
+  the Athens/env default) — `radiusKm` is Discover's current radius constant
+  (`DEFAULT_DISCOVERY_RADIUS`), independently re-validated on the receiving
+  end regardless.
+- **No category is passed.** Discover's local category taxonomy (`music`,
+  `arts`, `theater`, `sports`, `comedy`, `festival`) has no complete,
+  consistent one-to-one mapping onto the backend `EventCategory` enum —
+  three of its six values (`theater`, `comedy`, `festival`) have no backend
+  equivalent at all. Rather than transferring some categories and silently
+  dropping others (inconsistent, confusing behavior), Phase 4B passes none.
+- **No date context is passed.** Discover has no actual date-filter state —
+  `isCalendarView` is a presentation toggle, not a filter.
+
+**Explore-side validation** (`parseExploreHandoffLocation`,
+`utils/explore-filters.ts`): `lat`/`lng` must both parse as finite numbers
+within their valid ranges together, or the handoff is treated as carrying no
+location at all (never a partial request, never a fallback to default
+coordinates). `radiusKm` must be one of the five supported values or it
+falls back to the default (10 km) — but only once `lat`/`lng` are themselves
+valid.
+
+**One-time application**: Explore tracks the last-consumed `handoff` value in
+a ref and only calls `applyFilters` when a *new*, different, non-empty
+`handoff` arrives — reusing the exact same `generationRef`/`identityKey`
+reset-and-refetch mechanism already used for filter Apply/chip-removal (§11,
+§Phase 4A), so a valid handoff resets pagination to offset 0 and invalidates
+any in-flight request exactly like every other filter change. A handoff also
+starts Explore's own `useDeviceLocation` resolution (previously only started
+by the filter modal's own Near me toggle) so the modal's Near me/Apply state
+reflects a settled `'granted'` status immediately rather than remaining
+permanently `'pending'` for a location Explore itself never asked for.
