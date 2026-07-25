@@ -224,9 +224,7 @@ These changes MUST be applied as a single atomic unit — they fix the "Interest
 | `'#fff'` (countText) | `Colors.textPrimary` | Primary text |
 | `Colors.purple` (sectionLabel) | `Colors.navigationActive` | Active accent for section headers |
 
-## Phase 4 — Controlled liquid-glass implementation ✅
-
-## Phase 4 — Controlled liquid-glass implementation ❌ (SearchBar blur rejected)
+## Phase 4 — Closed: SearchBar blur not adopted
 
 > **Revision history:**
 > 1. Wrapper-based attempt — ❌ Rolled back (changed layout ownership, caused overlap)
@@ -235,20 +233,20 @@ These changes MUST be applied as a single atomic unit — they fix the "Interest
 >
 > **Final decision: Closed without SearchBar blur.**
 >
-> **Visual validation:** Android native-blur experiment tested on physical device and rejected. Expo Web blocked by pre-existing Mapbox dependency. Playwright MCP unavailable.
+> **Visual validation:** Android native-blur experiment tested on physical device and rejected. Expo Web blocked by pre-existing Mapbox and Keycloak issues.
 >
 > **Final Android SearchBar implementation:**
 > - Translucent solid theme surface (`Colors.surfaceGlass`) with semantic resting/focus borders
 > - Existing focus animation (border colour interpolates from `borderGlass` to `borderFocus`)
 > - No native BlurView on Android
-> - No `experimentalBlurMethod` enabled
+> - No `experimentalBlurMethod` or `dimezisBlurView` present
 >
 > **Liquid-glass policy update:**
 > - BlurView is **optional**, not mandatory for the design identity
 > - Native Android blur is **deferred** — no product delivery depends on BlurView availability
 > - Existing stable BlurView surfaces (tab navigation, EventDetails sheet) remain
 > - **New** BlurView surfaces require proven visual value and physical-device testing
-> - Cards, rows, CalendarView and screen backgrounds remain blur-free
+> - Cards, rows, CalendarView, DateStripPicker, and screen backgrounds remain blur-free
 > - Premium visual quality on Android comes from: surface hierarchy, translucent fills, subtle borders, restrained purple glow, clear active states, typography and spacing — not from native blur
 
 ### 4.1 Tab navigation (apps/mobile/app/(tabs)/_layout.tsx)
