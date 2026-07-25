@@ -96,20 +96,9 @@ All weights loaded: `Inter_400Regular`, `Inter_500Medium`, `Inter_600SemiBold`, 
 
 ## 4. Liquid-glass placement
 
-> **Do not remove expo-blur.** Blur is part of the design identity. The rules below limit blur to elevated surfaces where it adds value; repeated/virtualised items use translucent solid fills instead.
-
-### Allow blur on
-
-| Element | Rationale |
-|---------|-----------|
-| Floating search bar | Scrim effect over map content |
-| Global navigation pill | Always-on-bottom UI chrome |
-| Floating map controls | Locate-me, view toggle |
-| Bottom sheets (EventDetails) | Sheet backdrop over full-screen content |
-| Dialogs and modals | Focus/elevation affordance |
-| Selected elevated overlays | Highlighted state |
-
-**Android note:** `BlurView` has variable support on Android (hardware-dependent). Always pair blur with a translucent solid fallback (`--surface-glass` as `backgroundColor`) so the element is readable on all devices. Never let an element become invisible when blur does not render.
+> BlurView is **optional**, not mandatory for the design identity. Native Android blur is **deferred** — no product delivery or visual migration depends on BlurView support. Existing stable BlurView surfaces (tab navigation, EventDetails sheet) may remain; new surfaces require proven visual value and physical-device testing. Cards, rows, CalendarView and screen backgrounds remain blur-free.
+>
+> On Android, all BlurView-backed elements pair with a translucent solid fallback (`--surface-glass` as `backgroundColor`) so the element is readable on all devices. Never let an element become invisible when blur does not render. Premium visual quality on Android comes from: surface hierarchy, translucent fills, subtle borders, restrained purple glow, clear active states, typography and spacing.
 
 ### Do NOT use blur on
 

@@ -224,29 +224,92 @@ These changes MUST be applied as a single atomic unit — they fix the "Interest
 | `'#fff'` (countText) | `Colors.textPrimary` | Primary text |
 | `Colors.purple` (sectionLabel) | `Colors.navigationActive` | Active accent for section headers |
 
-## Phase 4 — Blur placement enhancements (P2)
+## Phase 4 — Controlled liquid-glass implementation ✅
 
-### 4.1 Search bar blur
+## Phase 4 — Controlled liquid-glass implementation ❌ (SearchBar blur rejected)
+
+> **Revision history:**
+> 1. Wrapper-based attempt — ❌ Rolled back (changed layout ownership, caused overlap)
+> 2. Absolute-layer repair — ✅ Preserved layout (one absolute-fill BlurView behind search content)
+> 3. Android native-blur experiment — ❌ Rejected (no meaningful visual improvement on physical device)
+>
+> **Final decision: Closed without SearchBar blur.**
+>
+> **Visual validation:** Android native-blur experiment tested on physical device and rejected. Expo Web blocked by pre-existing Mapbox dependency. Playwright MCP unavailable.
+>
+> **Final Android SearchBar implementation:**
+> - Translucent solid theme surface (`Colors.surfaceGlass`) with semantic resting/focus borders
+> - Existing focus animation (border colour interpolates from `borderGlass` to `borderFocus`)
+> - No native BlurView on Android
+> - No `experimentalBlurMethod` enabled
+>
+> **Liquid-glass policy update:**
+> - BlurView is **optional**, not mandatory for the design identity
+> - Native Android blur is **deferred** — no product delivery depends on BlurView availability
+> - Existing stable BlurView surfaces (tab navigation, EventDetails sheet) remain
+> - **New** BlurView surfaces require proven visual value and physical-device testing
+> - Cards, rows, CalendarView and screen backgrounds remain blur-free
+> - Premium visual quality on Android comes from: surface hierarchy, translucent fills, subtle borders, restrained purple glow, clear active states, typography and spacing — not from native blur
+
+### 4.1 Tab navigation (apps/mobile/app/(tabs)/_layout.tsx)
+
+**Status: Already correct — no changes needed.**
+
+Already implements:
+- One BlurView(intensity=20, tint=dark) for the complete pill surface
+- Colors.surfaceGlassStrong as the Android-safe fallback
+- Colors.border for the outer border
+- Colors.navigationActive / navigationInactive for tab colours
+- No per-item blur, no animated intensity
+
+### 4.2 Search bar blur (apps/mobile/components/fomo/search-bar.tsx)
+
+**Final implementation after corrective repair.**
 
 | Detail | Value |
 |--------|-------|
-| **File** | `apps/mobile/components/fomo/search-bar.tsx` |
-| **Change** | Wrap `Animated.View` with `BlurView intensity={20}` for true frosted glass |
-| **Current** | `Colors.surfaceGlass` (translucent rgba, no blur) |
-| **Target** | `BlurView` with `Colors.surfaceGlass` as fallback bg |
+| **Change** | One absolute-fill `BlurView(intensity=20, tint=dark)` as first child of existing `inputContainer` (not a layout wrapper) |
+| **Layer type** | Background only — absolutely positioned, `pointerEvents="none"`, no layout participation |
+| **Clipping** | BlurView owns its own `borderRadius: 14` + `overflow: 'hidden'` (matches existing inputContainer radius) |
+| **Fallback** | `Colors.surfaceGlassStrong` on `inputContainer` — readable solid base on all Android devices |
+| **Resting border** | `Colors.borderGlass` (unchanged) |
+| **Focused border** | `Colors.borderFocus` (unchanged) |
+| **Blur NOT added to** | Adjacent icon buttons, top-row View, filter panel, category chips, expanding filter list |
+| **Element-level backgrounds** | Keep existing `Colors.surfaceGlass` per-element backgrounds — translucent on top of the blur layer, visible as solid fallback on Android |
+| **First wrapper attempt** | ❌ Rolled back — introduced BlurView as a layout wrapper around the entire search row, changing layout ownership and causing control overlap/misalignment |
+| **Corrective repair applied** | ✅ Replaced wrapper approach with absolute-fill background layer — existing JSX hierarchy, control parents, spacing, and dimensions remain unchanged |
 
-### 4.2 Locate-me button blur
+### 4.3 EventDetails sheet (apps/mobile/components/fomo/event-details.tsx)
 
-> **Android safety:** All BlurView additions must include a translucent solid fallback (`Colors.surfaceGlass`) as `backgroundColor` so the element remains readable on devices where blur does not render.
+**Status: Already correct — one change applied.**
 
+| Aspect | Before | After |
+|--------|--------|-------|
+| **BlurView** | intensity=20, single layer ✅ | Unchanged |
+| **Fallback background** | `rgba(12,12,18,0.95)` (hardcoded) | `Colors.surface` (same value, canonical token) |
+| **Modal backdrop** | `rgba(0,0,0,0.6)` ⚠️ specific alpha — retained | Unchanged (no matching token) |
+| **Nested blur** | None ✅ | Unchanged |
+| **Animated intensity** | None ✅ | Unchanged |
 
+### 4.4 Explicitly not blurred
 
-| Detail | Value |
-|--------|-------|
-| **File** | `apps/mobile/app/(tabs)/index.tsx` |
-| **Change** | Wrap locate-me `Pressable` with `BlurView intensity={15}` |
-| **Current** | Solid translucent `rgba(12, 12, 18, 0.85)` fill |
-| **Target** | Blur-backed floating control |
+These surfaces use translucent solid fills as specified by the design contract — no BlurView added:
+- EventCard (Colors.surfaceCard + border + topHighlight)
+- MyEventListItem (Colors.surfaceCard + left intent bar)
+- CalendarView (solid surfaces + category colours)
+- DateStripPicker (solid surfaces + brand-primary accent)
+- Loading/empty/error states (solid surfaces)
+- App background (solid Colors.background)
+- Category chips (solid fills, no blur)
+
+### 4.5 Android fallback policy
+
+Every BlurView is paired with a translucent solid backgroundColor on the host element or its direct parent:
+- Tab nav: `Colors.surfaceGlassStrong` (`rgba(12,12,18,0.88)`)
+- Search bar: `Colors.surfaceGlassStrong` on `inputContainer` (`rgba(12,12,18,0.88)`)
+- EventDetails: `Colors.surface` (`rgba(12,12,18,0.95)`)
+
+No BlurView-backed element becomes transparent or invisible when blur does not render.
 
 ---
 

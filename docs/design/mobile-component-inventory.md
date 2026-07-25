@@ -171,12 +171,20 @@
 | **Architecture** | `Modal` (transparent, `animationType="none"`), `Animated.View` sheet with `BlurView`, `ScrollView` content |
 | **Animation** | Slide-up 300ms `Easing.out(poly(4))`, fade backdrop 200ms. Exit: 220ms slide-down, 180ms fade |
 | **Sheet height** | 42% of screen height |
-| **Blur** | `BlurView intensity=20` dark tint on entire sheet |
+| **Blur** | `BlurView intensity=20` dark tint on entire sheet (single layer, not nested) |
+| **Fallback** | `Colors.surface (rgba(12,12,18,0.95))` — Android-safe, readable when blur unavailable |
 | **CTA** | `LinearGradient` (`#BC13FE`→`#9333EA`), `Shadows.ctaGlow` applied |
 | **Actions** | Directions (Google Maps deep link), Share |
 | **Dependencies** | `BlurView`, `LinearGradient`, `Modal`, `Linking`, `Share` |
 
-**Colour concerns (Phase 2 ✅, Phase 3D ⏳ — partially resolved):**
+**Phase 4 ✅ — Blur architecture confirmed correct:**
+- Single BlurView(intensity=20) layer — no nested blur
+- Fallback uses Colors.surface — readable on Android
+- Modal backdrop is separate (no blur)
+- Blur intensity is static (not animated)
+- Sheet border uses Colors.border (rgba(255,255,255,0.12))
+
+**Remaining colour concerns (Phase 3D ⏳ — partially resolved):**
 - ~~Date/time pills: cyan `#22D3EE` — should be `Colors.textSecondary`~~ ✅ Phase 2
 - 8 style-level values migrated to semantic tokens (sheet bg, sheet border, closeBtn bg, venueText, distanceText, title, Ticket icon, ctaText) ✅ Phase 3D
 - ~~Pill backgrounds: `rgba(255,255,255,0.05)` — retained~~ (5% opacity, no matching token)
@@ -195,14 +203,37 @@
 | **Props** | `onFilterChange?`, `onSearchChange?`, `isCalendarView?`, `onViewToggle?` |
 | **Purpose** | Floating top search bar with animated focus border, category filter panel, view toggle, bell |
 | **Architecture** | Absolute positioned, safe-area-aware, `Animated.View` with mount animation |
-| **Blur** | `Colors.surfaceGlass` (translucent, not explicit BlurView — uses rgba background, not blur) |
+| **Blur** | Experiment rejected and rolled back (see Phase 4 decision below) |
+| **Fallback** | `Colors.surfaceGlass` on `inputContainer` — translucent solid surface, no native blur on Android |
 | **Mount animation** | Fade + slide-down spring |
 | **Focus animation** | Border colour interpolates from `Colors.borderGlass` to `Colors.borderFocus` |
 | **Filter panel** | Animated maxHeight + opacity, category chips with active fill |
 | **Category colours** | See DESIGN.md §2 — these are acceptable as restrained taxonomy colours |
 | **Dependencies** | `Colors`, `Animated`, `TextInput` |
 
-**Note:** The search bar currently uses `Colors.surfaceGlass` (translucent rgba) rather than an explicit `BlurView`. According to DESIGN.md §4, the floating search bar should use real blur. This is a P2 enhancement: wrap the container in a `BlurView` for true frosted-glass effect with an Android-safe solid fallback (`Colors.surfaceGlass` as `backgroundColor`).
+**Phase 4 status: Closed without SearchBar blur — rejected and rolled back.**
+
+The experimental Android native-blur configuration was tested on a physical device and rejected because:
+
+- no meaningful visual improvement was visible
+- Expo SDK 54 Android native blur is experimental
+- the experiment added implementation and performance risk without proven product value
+
+**Final Android SearchBar implementation:**
+- Translucent solid theme surface (`Colors.surfaceGlass`) with semantic resting/focus borders
+- Existing focus animation (border colour interpolates from `borderGlass` to `borderFocus`)
+- No native BlurView on Android
+- No `experimentalBlurMethod` enabled
+- All controls, spacing, and layout are unchanged — the search field and adjacent top buttons remain in their original positions with their original parents
+
+**History:**
+1. Wrapper-based attempt (rolled back) — introduced BlurView as layout wrapper around the search row, changing layout ownership, causing control overlap/misalignment
+2. Absolute-layer repair (preserved layout) — one absolute-fill BlurView as decorative first child of `inputContainer`. No JSX element moved. But the Android native-blur experiment (step 3) was subsequently rolled back.
+3. Android native-blur experiment (rejected) — `experimentalBlurMethod="dimezisBlurView"` with `intensity=40` and `blurReductionFactor=2` showed no meaningful benefit on physical device
+
+**Premium visual quality on Android** comes from: surface hierarchy, translucent fills, subtle borders, restrained purple glow, clear active states, typography and spacing — not from native blur.
+
+No BlurView exists on: filter panel, category chips, individual icon buttons, adjacent controls, event cards, list rows, CalendarView, or screen backgrounds.
 
 ---
 
