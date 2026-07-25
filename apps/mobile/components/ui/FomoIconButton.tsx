@@ -7,7 +7,7 @@ interface FomoIconButtonProps {
   onPress?: () => void;
   /** Highlight the button border — use for toggle-on state. */
   active?: boolean;
-  /** Border/background tint when active. Defaults to Colors.purple. */
+  /** Border/background tint when active. Defaults to Colors.brandPrimary. */
   activeColor?: string;
   disabled?: boolean;
   /** Override size: 'sm' | 'md' (default). */
@@ -24,7 +24,7 @@ export function FomoIconButton({
   icon,
   onPress,
   active = false,
-  activeColor = Colors.purple,
+  activeColor = Colors.brandPrimary,
   disabled = false,
   size = 'md',
   style,

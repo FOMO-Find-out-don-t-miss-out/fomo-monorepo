@@ -29,8 +29,9 @@
 | **Props** | `label`, `onPress?`, `variant? ('primary'\|'ghost'\|'danger')`, `icon?`, `disabled?`, `loading?`, `style?` |
 | **Purpose** | Single primary action button |
 | **Primary** | `LinearGradient` with `Gradients.primaryCta` (`#BC13FE` → `#9333EA`) |
+| **Primary loading** | Spinner uses `Colors.textPrimary` (`#FFFFFF`) |
 | **Ghost** | 1px border, transparent bg, white secondary text |
-| **Danger** | Ghost variant with `Colors.error` border/text |
+| **Danger** | Ghost variant with `Colors.feedbackError` border/text |
 | **Memoized** | No (low render frequency per screen) |
 | **Dependencies** | `Colors`, `Gradients`, `Radii`, `Spacing`, `Typography` |
 
@@ -42,7 +43,7 @@
 |-------|-------|
 | **File** | `components/ui/FomoIconButton.tsx` |
 | **Export** | `FomoIconButton` (named) |
-| **Props** | `icon`, `onPress?`, `active?`, `activeColor? (default Colors.purple)`, `disabled?`, `size? ('sm'\|'md')`, `style?`, `accessibilityLabel?` |
+| **Props** | `icon`, `onPress?`, `active?`, `activeColor? (default Colors.brandPrimary)`, `disabled?`, `size? ('sm'\|'md')`, `style?`, `accessibilityLabel?` |
 | **Purpose** | Glass-style icon button for action rows, toggle states |
 | **Style** | `borderColor: activeColor@40%` when active, `Colors.borderGlass` otherwise; `surfaceGlass` bg when active |
 | **Memoized** | No |
@@ -55,7 +56,7 @@
 |-------|-------|
 | **File** | `components/ui/FomoLoadingState.tsx` |
 | **Export** | `FomoLoadingState` (named) |
-| **Props** | `color? (default Colors.purple)`, `style?` |
+| **Props** | `color? (default Colors.brandPrimary)`, `style?` |
 | **Purpose** | Centered full-screen `ActivityIndicator` |
 | **Style** | `flex: 1, center aligned` |
 
@@ -69,8 +70,8 @@
 | **Export** | `FomoErrorState` (named) |
 | **Props** | `message? (default "Something went wrong")`, `onRetry?`, `style?` |
 | **Purpose** | Centered error with red icon + optional retry button |
-| **Retry style** | Purple border pill at 40% opacity, purple dim background on press |
-| **Dependencies** | `Colors.error`, `Colors.purple`, `Colors.purpleDim` |
+| **Retry style** | `Colors.borderFocus` border pill, `Colors.purpleDim` background on press |
+| **Dependencies** | `Colors.feedbackError`, `Colors.borderFocus`, `Colors.brandPrimary`, `Colors.purpleDim` |
 
 ---
 
@@ -82,8 +83,8 @@
 | **Export** | `FomoEmptyState` (named) |
 | **Props** | `icon`, `message`, `sub?`, `action? ({label, onPress})`, `style?` |
 | **Purpose** | Centered empty state with icon, heading, optional sub + action |
-| **Action style** | Purple border pill at 40% opacity, purple dim on press |
-| **Dependencies** | `Colors.purple`, `Colors.purpleDim` |
+| **Action style** | `Colors.borderFocus` border pill, `Colors.brandPrimary` label, `Colors.purpleDim` on press |
+| **Dependencies** | `Colors.borderFocus`, `Colors.brandPrimary`, `Colors.purpleDim` |
 
 ---
 

@@ -17,7 +17,7 @@ export function FomoErrorState({
 }: FomoErrorStateProps) {
   return (
     <View style={[styles.container, style]}>
-      <AlertCircle size={36} color={Colors.error} strokeWidth={1.5} style={styles.icon} />
+      <AlertCircle size={36} color={Colors.feedbackError} strokeWidth={1.5} style={styles.icon} />
       <Text style={styles.message}>{message}</Text>
       {onRetry ? (
         <Pressable
@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     borderRadius: Radii.full,
     borderWidth: 1,
-    borderColor: `${Colors.purple}66`,
+    borderColor: Colors.borderFocus,
   },
   retryBtnPressed: {
     backgroundColor: Colors.purpleDim,
@@ -66,6 +66,6 @@ const styles = StyleSheet.create({
   retryLabel: {
     fontFamily: Typography.font.semiBold,
     fontSize: Typography.size.base,
-    color: Colors.purple,
+    color: Colors.brandPrimary,
   },
 });

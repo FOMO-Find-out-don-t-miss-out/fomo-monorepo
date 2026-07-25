@@ -55,7 +55,7 @@ export function FomoButton({
           disabled={isDisabled}
         >
           {loading ? (
-            <ActivityIndicator size="small" color="#fff" />
+            <ActivityIndicator size="small" color={Colors.textPrimary} />
           ) : (
             <>
               {icon}
@@ -68,9 +68,9 @@ export function FomoButton({
   }
 
   const ghostBorderColor =
-    variant === 'danger' ? Colors.error : Colors.border;
+    variant === 'danger' ? Colors.feedbackError : Colors.border;
   const ghostTextColor =
-    variant === 'danger' ? Colors.error : Colors.textSecondary;
+    variant === 'danger' ? Colors.feedbackError : Colors.textSecondary;
 
   return (
     <Pressable

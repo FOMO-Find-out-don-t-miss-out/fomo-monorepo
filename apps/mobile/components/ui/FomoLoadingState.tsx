@@ -3,13 +3,13 @@ import { ActivityIndicator, StyleSheet, View, type StyleProp, type ViewStyle } f
 import { Colors } from '../../theme';
 
 interface FomoLoadingStateProps {
-  /** Override spinner color. Defaults to Colors.purple. */
+  /** Override spinner color. Defaults to Colors.brandPrimary. */
   color?: string;
   style?: StyleProp<ViewStyle>;
 }
 
 /** Centered ActivityIndicator for full-screen or section loading states. */
-export function FomoLoadingState({ color = Colors.purple, style }: FomoLoadingStateProps) {
+export function FomoLoadingState({ color = Colors.brandPrimary, style }: FomoLoadingStateProps) {
   return (
     <View style={[styles.container, style]}>
       <ActivityIndicator color={color} size="large" />

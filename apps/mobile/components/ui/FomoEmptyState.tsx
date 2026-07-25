@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     borderRadius: Radii.full,
     borderWidth: 1,
-    borderColor: `${Colors.purple}66`,
+    borderColor: Colors.borderFocus,
   },
   actionBtnPressed: {
     backgroundColor: Colors.purpleDim,
@@ -69,6 +69,6 @@ const styles = StyleSheet.create({
   actionLabel: {
     fontFamily: Typography.font.semiBold,
     fontSize: Typography.size.base,
-    color: Colors.purple,
+    color: Colors.brandPrimary,
   },
 });
