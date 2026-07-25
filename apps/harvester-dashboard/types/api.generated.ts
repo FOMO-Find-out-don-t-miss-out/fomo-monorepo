@@ -728,6 +728,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/events/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Events
+         * @description Explore v1 intentional event search (FOMO-172).
+         *
+         *     Distinct from /discovery: text query, category, date range and optional
+         *     location/radius filters, with pagination. Reuses discovery's visibility
+         *     contract (public_event_filters) and PostGIS ST_DWithin/Geography pattern
+         *     unchanged. See docs/product/explore-v1-event-search-contract.md for the
+         *     full canonical contract this implements.
+         */
+        get: operations["search_events_api_v1_events_search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events/{event_id}": {
         parameters: {
             query?: never;
@@ -830,6 +856,11 @@ export interface components {
             };
         };
         /**
+         * EventCategory
+         * @enum {string}
+         */
+        EventCategory: "Music" | "Art" | "Tech" | "Food" | "Nightlife" | "Sports" | "Business" | "Community" | "Other";
+        /**
          * EventDiscoveryResponse
          * @description Schema for atomic event facts returned by the discovery endpoint.
          */
@@ -892,6 +923,23 @@ export interface components {
             relationships: {
                 [key: string]: components["schemas"]["RelationshipType"][];
             };
+        };
+        /**
+         * EventSearchResponse
+         * @description Paginated response wrapper for the Explore v1 event-search endpoint.
+         *
+         *     Each item reuses EventDiscoveryResponse unchanged — no result-specific
+         *     schema, no distance field, no relevance score is exposed publicly.
+         */
+        EventSearchResponse: {
+            /** Results */
+            results: components["schemas"]["EventDiscoveryResponse"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Has More */
+            has_more: boolean;
         };
         /** GeocodeResult */
         GeocodeResult: {
@@ -2519,6 +2567,45 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EventDiscoveryResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_events_api_v1_events_search_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                category?: components["schemas"]["EventCategory"][] | null;
+                date_from?: string | null;
+                date_to?: string | null;
+                lat?: number | null;
+                lng?: number | null;
+                radius_km?: number | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventSearchResponse"];
                 };
             };
             /** @description Validation Error */
