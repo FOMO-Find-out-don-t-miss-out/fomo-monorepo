@@ -49,13 +49,27 @@ try {
   ExpoLocation = null;
 }
 
-export function useDeviceLocation(): UseDeviceLocationResult {
+/**
+ * @param enabled Gates the permission/location-resolution flow, mirroring the
+ *   `enabled` param on useDiscovery (FOMO-176). Defaults to true, preserving
+ *   Discover's existing unconditional-on-mount behavior exactly. Callers that
+ *   want location only after an explicit opt-in (e.g. Explore's "Near me"
+ *   toggle, FOMO-172 Phase 4A) pass `enabled: false` until that opt-in
+ *   happens — this avoids requesting permission before the user has asked
+ *   for location-based search, without duplicating a second, independent
+ *   location hook/state.
+ */
+export function useDeviceLocation(enabled: boolean = true): UseDeviceLocationResult {
   const [status, setStatus] = useState<LocationStatus>('pending');
   const [location, setLocation] = useState<DeviceLocation>(DEFAULT_LOCATION);
   // Incrementing this re-runs the location effect (used by requestLocation).
   const [triggerCount, setTriggerCount] = useState(0);
 
   useEffect(() => {
+    if (!enabled) {
+      // Not opted in yet — do not request permission or resolve location.
+      return;
+    }
     if (!ExpoLocation) {
       // Native module not available (Expo Go); fall back immediately.
       setStatus('unavailable');
@@ -127,7 +141,7 @@ export function useDeviceLocation(): UseDeviceLocationResult {
     };
   // triggerCount drives both the initial run and any manual retriggers.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [triggerCount]);
+  }, [triggerCount, enabled]);
 
   return {
     location,

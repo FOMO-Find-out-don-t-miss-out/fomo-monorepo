@@ -570,3 +570,46 @@ access with authenticated relationship overlays.
 **Discover handoff**: primitive-only param shape (`q`, `lat`, `lng`,
 `radiusKm`, canonical `category`, future date context); Explore owns all
 behavior after the hop. Not implemented by this document.
+
+## 24. Phase 4A addendum — resolved mobile category labels and filter presets
+
+Resolved by `apps/mobile/utils/explore-filters.ts` (FOMO-172 Phase 4A):
+
+**Category labels** (wire value → mobile-facing label; wire value is always
+what's sent to `category=`):
+
+| Wire value | Label |
+|---|---|
+| `Music` | Music |
+| `Art` | Arts |
+| `Tech` | Tech |
+| `Food` | Food |
+| `Nightlife` | Nightlife |
+| `Sports` | Sports |
+| `Business` | Business |
+| `Community` | Community |
+| `Other` | Other |
+
+This is a **fourth, presentation-only** label table, distinct from the
+existing `apiCategoryToUi`/`UiEventCategory` 6-bucket mapping (§18) that
+`EventCard`'s badge still uses by default. **Category-label audit finding**:
+selecting a Phase-4A filter value that isn't one of the 6 UI buckets (`Tech`,
+`Food`, `Nightlife`, `Business`, `Community`) would otherwise render on the
+result card via the lossy `apiCategoryToUi` mapping — e.g. filtering by
+`Tech` returns events whose card badge reads "Arts" (via `Tech → Arts`),
+`Food` reads "Festival", `Nightlife` reads "Comedy", `Business` reads
+"Theater", `Other` reads "Music" — a visibly contradictory label. Resolved
+with the smallest compatibility correction: `EventCard` gained an *optional*
+`categoryLabel` prop (`apps/mobile/components/fomo/event-card.tsx`) that
+overrides only the badge **text**, not its color (still keyed by the
+existing `event.category` UI bucket, so no changes to `Colors.category` or
+`UiEventCategory` were needed). Discover never passes this prop and is
+byte-for-byte unaffected; only Explore passes the true backend label.
+
+**Date presets**: `any | today | tomorrow | weekend | next7days`, computed in
+local time and serialized to UTC ISO strings once per Apply (`computeDateBounds`),
+then frozen into the active-filter snapshot for reuse across pagination/retry —
+never recomputed per page.
+
+**Radius options**: 5 / 10 / 25 / 50 km, and 100 km; default 10 km when Near
+me is first enabled.

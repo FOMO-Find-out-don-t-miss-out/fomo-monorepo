@@ -32,6 +32,18 @@ interface EventCardProps {
    * React.memo below to actually skip re-renders (FOMO-175).
    */
   onPress?: (id: string) => void;
+  /**
+   * Overrides the category badge TEXT only — the swatch colour still comes
+   * from event.category (the existing 6-bucket UI taxonomy). Discover never
+   * passes this and is unaffected. Explore (FOMO-172 Phase 4A) passes the
+   * true backend EventCategory label here: apiEventToUiEvent's UI-bucket
+   * mapping is lossy (e.g. backend "Tech"/"Food"/"Nightlife"/"Business"
+   * collapse into the "Arts"/"Festival"/"Comedy"/"Theater" buckets), so a
+   * user filtering by "Tech" would otherwise see a card badged "Arts" — a
+   * real, visibly contradictory label this override corrects without
+   * touching the shared UiEventCategory/Colors.category system.
+   */
+  categoryLabel?: string;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -55,6 +67,7 @@ function EventCardBase({
   event,
   isActive = false,
   onPress,
+  categoryLabel,
 }: EventCardProps) {
   perfCountRender('EventCard', 25);
 
@@ -128,7 +141,7 @@ function EventCardBase({
         <View style={styles.headerRow}>
           <View style={[styles.categoryBadge, { borderColor: catColors.border }]}>
             <Text style={[styles.categoryText, { color: catColors.text }]}>
-              {event.category}
+              {categoryLabel ?? event.category}
             </Text>
           </View>
           {event.price != null && (

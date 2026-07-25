@@ -1,7 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { apiFetch } from '../utils/api-client';
 import { apiEventToUiEvent } from '../utils/mappers';
+import {
+  DEFAULT_EXPLORE_FILTERS,
+  hasActiveFilters,
+  type ExploreActiveFilters,
+} from '../utils/explore-filters';
 import type { components } from '../types/api.generated';
 import type { UiEvent } from '../types/ui';
 
@@ -19,12 +24,25 @@ export type ExploreSearchStatus =
   | 'empty'
   | 'error';
 
+/**
+ * A UiEvent plus the untranslated backend category value, so the screen can
+ * show the true backend-aligned category label on the result card without
+ * the shared apiEventToUiEvent mapper (used by Discover too) ever needing to
+ * change — see event-card.tsx's `categoryLabel` prop doc comment.
+ */
+export interface ExploreEvent extends UiEvent {
+  rawCategory: string;
+}
+
 export interface UseExploreSearchResult {
   /** Exactly what the user typed — never mutated/trimmed for display. */
   query: string;
   setQuery: (text: string) => void;
+  activeFilters: ExploreActiveFilters;
+  /** Replaces the active filter snapshot and starts a fresh, offset-0 search. */
+  applyFilters: (next: ExploreActiveFilters) => void;
   status: ExploreSearchStatus;
-  events: UiEvent[];
+  events: ExploreEvent[];
   error: string | null;
   hasMore: boolean;
   loadingMore: boolean;
@@ -34,12 +52,36 @@ export interface UseExploreSearchResult {
 
 type FetchMode = 'replace' | 'append';
 
+function buildSearchPath(
+  searchQuery: string | null,
+  filters: ExploreActiveFilters,
+  limit: number,
+  offset: number,
+): string {
+  const params = new URLSearchParams();
+  if (searchQuery) params.append('q', searchQuery);
+  for (const category of filters.categories) params.append('category', category);
+  if (filters.dateBounds.dateFrom) params.append('date_from', filters.dateBounds.dateFrom);
+  if (filters.dateBounds.dateTo) params.append('date_to', filters.dateBounds.dateTo);
+  if (filters.nearMe && filters.location) {
+    params.append('lat', String(filters.location.lat));
+    params.append('lng', String(filters.location.lng));
+    params.append('radius_km', String(filters.radiusKm));
+  }
+  params.append('limit', String(limit));
+  params.append('offset', String(offset));
+  return `/api/v1/events/search?${params.toString()}`;
+}
+
 export function useExploreSearch(): UseExploreSearchResult {
   const [query, setQueryState] = useState('');
   const [normalizedQuery, setNormalizedQuery] = useState<string | null>(null);
   const [tooShort, setTooShort] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<ExploreActiveFilters>(
+    DEFAULT_EXPLORE_FILTERS,
+  );
 
-  const [events, setEvents] = useState<UiEvent[]>([]);
+  const [events, setEvents] = useState<ExploreEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,12 +97,13 @@ export function useExploreSearch(): UseExploreSearchResult {
     };
   }, []);
 
-  // Monotonic generation counter: every new fetch (a new query's first page,
-  // a retry, or a load-more page) increments this before the request starts.
-  // A response is only applied if it's still the latest generation when it
-  // resolves — supersedes a slower older response and guarantees a stale
-  // previous-query page can never append to the current query's results.
-  // Mirrors the sessionGenerationRef pattern in providers/auth-provider.tsx.
+  // Monotonic generation counter: every new fetch (a new identity's first
+  // page, a retry, or a load-more page) increments this before the request
+  // starts. A response is only applied if it's still the latest generation
+  // when it resolves — supersedes a slower older response and guarantees a
+  // stale previous-identity page can never append to the current identity's
+  // results. Mirrors the sessionGenerationRef pattern in
+  // providers/auth-provider.tsx.
   const generationRef = useRef(0);
 
   // Wraps the raw setter so every keystroke (including clearing) invalidates
@@ -71,6 +114,14 @@ export function useExploreSearch(): UseExploreSearchResult {
   const setQuery = useCallback((text: string) => {
     generationRef.current += 1;
     setQueryState(text);
+  }, []);
+
+  // Applying a new filter snapshot has no debounce window to worry about
+  // (unlike the text query), but invalidating in-flight requests immediately
+  // here too keeps both mutation paths consistent and defensive.
+  const applyFilters = useCallback((next: ExploreActiveFilters) => {
+    generationRef.current += 1;
+    setActiveFilters(next);
   }, []);
 
   // Debounce: settle the raw `query` into a normalized value ~380ms after the
@@ -95,7 +146,12 @@ export function useExploreSearch(): UseExploreSearchResult {
   }, [query]);
 
   const fetchPage = useCallback(
-    async (searchQuery: string, offset: number, mode: FetchMode) => {
+    async (
+      searchQuery: string | null,
+      filters: ExploreActiveFilters,
+      offset: number,
+      mode: FetchMode,
+    ) => {
       const myGeneration = ++generationRef.current;
       if (mode === 'replace') {
         setLoading(true);
@@ -107,13 +163,14 @@ export function useExploreSearch(): UseExploreSearchResult {
       const stillCurrent = () => mountedRef.current && generationRef.current === myGeneration;
 
       try {
-        const path =
-          `/api/v1/events/search?q=${encodeURIComponent(searchQuery)}` +
-          `&limit=${SEARCH_LIMIT}&offset=${offset}`;
+        const path = buildSearchPath(searchQuery, filters, SEARCH_LIMIT, offset);
         const data = await apiFetch<EventSearchResponse>(path);
         if (!stillCurrent()) return; // superseded or unmounted
 
-        const mapped = data.results.map(apiEventToUiEvent);
+        const mapped: ExploreEvent[] = data.results.map((raw) => ({
+          ...apiEventToUiEvent(raw),
+          rawCategory: raw.category,
+        }));
         setEvents((prev) => {
           if (mode === 'replace') return mapped;
           // Defensive de-dup: never append an id already present.
@@ -141,9 +198,26 @@ export function useExploreSearch(): UseExploreSearchResult {
     [],
   );
 
-  // Fire the first page whenever the settled, normalized query changes.
+  // A too-short query blocks everything, even with active filters — it must
+  // never be silently ignored in favor of a filter-only search. Otherwise,
+  // an empty/absent query is fine as long as at least one filter is active.
+  const eligible = !tooShort && (normalizedQuery !== null || hasActiveFilters(activeFilters));
+
+  // Deterministic identity for "what should the current results be". Two
+  // renders with the same normalizedQuery + activeFilters content produce the
+  // same key, so this only changes when the actual search identity changes —
+  // used as the sole effect dependency below instead of listing
+  // normalizedQuery/activeFilters directly (object/array equality would
+  // otherwise retrigger on every unrelated render).
+  const identityKey = useMemo(
+    () => JSON.stringify({ q: normalizedQuery, f: activeFilters }),
+    [normalizedQuery, activeFilters],
+  );
+
+  // Fire the first page whenever the search identity (query + filters)
+  // settles into a new, eligible combination.
   useEffect(() => {
-    if (normalizedQuery === null) {
+    if (!eligible) {
       generationRef.current += 1; // supersede any in-flight request
       setEvents([]);
       setHasMore(false);
@@ -154,29 +228,31 @@ export function useExploreSearch(): UseExploreSearchResult {
     }
     setEvents([]);
     setHasMore(false);
-    fetchPage(normalizedQuery, 0, 'replace');
-  }, [normalizedQuery, fetchPage]);
+    fetchPage(normalizedQuery, activeFilters, 0, 'replace');
+    // identityKey deterministically captures {normalizedQuery, activeFilters};
+    // eligible is derived from the same two values plus tooShort.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [identityKey, eligible, fetchPage]);
 
   const loadMore = useCallback(() => {
-    if (normalizedQuery === null) return;
+    if (!eligible) return;
     // Never load more while the first page is still loading, and never run
     // two load-more requests concurrently.
     if (loading || loadingMore || !hasMore) return;
-    fetchPage(normalizedQuery, events.length, 'append');
-  }, [normalizedQuery, loading, loadingMore, hasMore, events.length, fetchPage]);
+    fetchPage(normalizedQuery, activeFilters, events.length, 'append');
+  }, [eligible, normalizedQuery, activeFilters, loading, loadingMore, hasMore, events.length, fetchPage]);
 
   const retry = useCallback(() => {
-    if (normalizedQuery === null) return;
+    if (!eligible) return;
     setEvents([]);
     setHasMore(false);
-    fetchPage(normalizedQuery, 0, 'replace');
-  }, [normalizedQuery, fetchPage]);
+    fetchPage(normalizedQuery, activeFilters, 0, 'replace');
+  }, [eligible, normalizedQuery, activeFilters, fetchPage]);
 
-  const status: ExploreSearchStatus =
-    normalizedQuery === null
-      ? tooShort
-        ? 'too-short'
-        : 'idle'
+  const status: ExploreSearchStatus = tooShort
+    ? 'too-short'
+    : !eligible
+      ? 'idle'
       : loading
         ? 'loading'
         : error
@@ -185,5 +261,17 @@ export function useExploreSearch(): UseExploreSearchResult {
             ? 'empty'
             : 'results';
 
-  return { query, setQuery, status, events, error, hasMore, loadingMore, loadMore, retry };
+  return {
+    query,
+    setQuery,
+    activeFilters,
+    applyFilters,
+    status,
+    events,
+    error,
+    hasMore,
+    loadingMore,
+    loadMore,
+    retry,
+  };
 }
