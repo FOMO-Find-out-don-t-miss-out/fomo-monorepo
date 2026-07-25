@@ -162,6 +162,68 @@ These changes MUST be applied as a single atomic unit — they fix the "Interest
 
 ---
 
+---
+
+## Phase 3D — Event surface semantic token migration ✅
+
+### 3D.1 event-card.tsx
+
+| Current | Target | Rationale |
+|---------|--------|-----------|
+| `rgba(255,255,255,0.45)` (MapPin icon) | `Colors.textMuted` | Neutral icon colour (35% white) |
+| `rgba(255,255,255,0.5)` (venueText) | `Colors.textSecondary` | Secondary metadata (60% white) |
+| `rgba(255,255,255,0.35)` (distanceText) | `Colors.textMuted` | Tertiary metadata (35% white) |
+| `rgba(255,255,255,0.3)` (atText) | `Colors.textMuted` | Tertiary metadata (35% white) |
+| `'#fff'` × 3 (title, ctaText, Ticket icon) | `Colors.textPrimary` | Primary text (white) |
+| `rgba(188,19,254,0.3)` (card border) | `Colors.borderFocus` | Brand-tinted active border (40% neon purple) |
+| `rgba(18,18,24,0.85)` (card bg) | `Colors.surfaceCard` | Canonical card surface |
+| `rgba(168,85,247,0.6)` (active border) | `Colors.eventSelected` | Selected-event accent |
+
+### 3D.2 event-details.tsx
+
+| Current | Target | Rationale |
+|---------|--------|-----------|
+| `rgba(255,255,255,0.7)` (closeBtn icon inline) | *(unmigrated — convertible to `Colors.textSecondary`)* | Inline SVG prop, missed in Phase 3D |
+| `rgba(255,255,255,0.6)` × 3 (MapPin/Nav/Share icons inline) | *(unmigrated — convertible to `Colors.textSecondary`)* | Inline SVG props, missed in Phase 3D |
+| `#A855F7` (hypeText style) | *(unmigrated — matches `Colors.purple`)* | Matches existing token, missed in Phase 3D |
+| `rgba(12,12,18,0.95)` (sheet bg) | `Colors.surface` ✅ | Exact match |
+| `rgba(255,255,255,0.12)` (sheet border) | `Colors.border` ✅ | Exact match |
+| `rgba(255,255,255,0.10)` (closeBtn bg) | `Colors.borderGlass` ✅ | Exact match |
+| `rgba(255,255,255,0.6)` (venueText style) | `Colors.textSecondary` ✅ | Secondary metadata |
+| `rgba(255,255,255,0.4)` (distanceText style) | `Colors.textMuted` ✅ | Tertiary metadata |
+| `'#fff'` × 3 (title, Ticket icon inline, ctaText) | `Colors.textPrimary` ✅ | Primary text |
+| `#A855F7` (hypeBadge star/text) | *(unmigrated — matches `Colors.purple`)* | Matches existing token |
+
+**Retained exceptions (no matching semantic token — 6 total):**
+- `rgba(0,0,0,0.6)` backdrop — specific overlay alpha
+- `rgba(255,255,255,0.20)` handleBar — between `textDisabled` (20%) and no surface token
+- `rgba(168,85,247,0.15)` hypeBadge bg — specific purple alpha
+- `rgba(255,255,255,0.05)` × 2 (pill bg, actionBtn bg) — 5% opacity
+- `rgba(255,255,255,0.06)` (ctaWrapper border) — 6% opacity
+
+**Phase 3D results: 8 style-level values migrated, 4 inline+1 style convertible values unmigrated, 6 true technical exceptions.**
+
+**Phase 3D per-file retained raw counts:**
+| File | Raw values remaining | Convertible (missed) | True exceptions |
+|------|--------------------|---------------------|-----------------|
+| event-card.tsx | 0 | 0 | 0 |
+| event-details.tsx | 11 | 5 (4 inline + 1 `#A855F7` style) | 6 |
+| MyEventListItem.tsx | 1 | 0 | 1 (`rgba(255,255,255,0.05)`) |
+| saved.tsx | 0 | 0 | 0 |
+
+### 3D.3 MyEventListItem.tsx
+
+| Current | Target | Rationale |
+|---------|--------|-----------|
+| `#22D3EE` (time) | `Colors.textSecondary` | Cyan purge — ordinary date/time metadata |
+
+### 3D.4 saved.tsx
+
+| Current | Target | Rationale |
+|---------|--------|-----------|
+| `'#fff'` (countText) | `Colors.textPrimary` | Primary text |
+| `Colors.purple` (sectionLabel) | `Colors.navigationActive` | Active accent for section headers |
+
 ## Phase 4 — Blur placement enhancements (P2)
 
 ### 4.1 Search bar blur

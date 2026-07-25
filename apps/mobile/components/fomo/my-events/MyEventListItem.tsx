@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
   time: {
     fontFamily: Typography.font.semiBold,
     fontSize: Typography.size.sm,
-    color: '#22D3EE',
+    color: Colors.textSecondary,
   },
   separator: {
     fontFamily: Typography.font.regular,

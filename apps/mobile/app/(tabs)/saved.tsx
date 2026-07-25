@@ -492,7 +492,7 @@ const styles = StyleSheet.create({
   countText: {
     fontFamily: Typography.font.bold,
     fontSize: 10,
-    color: '#fff',
+    color: Colors.textPrimary,
   },
   scroll: {
     flex: 1,
@@ -518,7 +518,7 @@ const styles = StyleSheet.create({
     fontFamily: Typography.font.bold,
     fontSize: 9,
     letterSpacing: 1.2,
-    color: Colors.purple,
+    color: Colors.brandPrimary,
   },
   sectionDate: {
     fontFamily: Typography.font.regular,

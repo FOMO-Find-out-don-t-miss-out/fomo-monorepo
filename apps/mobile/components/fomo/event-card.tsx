@@ -143,7 +143,7 @@ function EventCardBase({
 
         {/* ── Venue + distance ── */}
         <View style={styles.venueRow}>
-          <MapPin size={14} color="rgba(255,255,255,0.45)" strokeWidth={1.5} />
+          <MapPin size={14} color={Colors.textMuted} strokeWidth={1.5} />
           <Text style={styles.venueText} numberOfLines={1}>{event.venue}</Text>
           {event.distance != null && (
             <Text style={styles.distanceText}>{event.distance}</Text>
@@ -165,7 +165,7 @@ function EventCardBase({
           end={{ x: 1, y: 0 }}
           style={styles.ctaBtn}
         >
-          <Ticket size={12} color="#fff" strokeWidth={1.5} />
+          <Ticket size={12} color={Colors.textPrimary} strokeWidth={1.5} />
           <Text style={styles.ctaText}>View Details</Text>
         </LinearGradient>
 
@@ -192,12 +192,12 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(188, 19, 254, 0.3)',
-    backgroundColor: 'rgba(18, 18, 24, 0.85)',
+    borderColor: Colors.borderFocus,
+    backgroundColor: Colors.surfaceCard,
     padding: 14,
   },
   cardBorderActive: {
-    borderColor: 'rgba(168, 85, 247, 0.6)',
+    borderColor: Colors.eventSelected,
   },
   coverImageStyle: {
     borderRadius: 16,
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: 'Inter_700Bold',
     fontSize: 14,
-    color: '#fff',
+    color: Colors.textPrimary,
     lineHeight: 18,
     marginBottom: 5,
   },
@@ -246,12 +246,12 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: 'Inter_400Regular',
     fontSize: 11,
-    color: 'rgba(255,255,255,0.5)',
+    color: Colors.textSecondary,
   },
   distanceText: {
     fontFamily: 'Inter_400Regular',
     fontSize: 10,
-    color: 'rgba(255,255,255,0.35)',
+    color: Colors.textMuted,
     flexShrink: 0,
   },
 
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
   atText: {
     fontFamily: 'Inter_400Regular',
     fontSize: 11,
-    color: 'rgba(255,255,255,0.3)',
+    color: Colors.textMuted,
   },
 
   // ── CTA — LinearGradient fills this style ────────────────────────────────
@@ -285,6 +285,6 @@ const styles = StyleSheet.create({
   ctaText: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 11,
-    color: '#fff',
+    color: Colors.textPrimary,
   },
 });

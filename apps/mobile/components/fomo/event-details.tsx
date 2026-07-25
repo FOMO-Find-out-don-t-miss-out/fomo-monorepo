@@ -387,12 +387,12 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: 'Inter_400Regular',
     fontSize: 13,
-    color: 'rgba(255,255,255,0.6)',
+    color: Colors.textSecondary,
   },
   distanceText: {
     fontFamily: 'Inter_400Regular',
     fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
+    color: Colors.textMuted,
   },
   pillRow: {
     flexDirection: 'row',
@@ -447,7 +447,7 @@ const styles = StyleSheet.create({
   ctaText: {
     fontFamily: 'Inter_700Bold',
     fontSize: 15,
-    color: '#fff',
+    color: Colors.textPrimary,
     letterSpacing: 0.2,
   },
 });

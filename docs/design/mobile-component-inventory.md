@@ -108,12 +108,13 @@
 | **Styling pattern** | Theme tokens and hardcoded values mixed — **see concerns below** |
 | **Dependencies** | `Colors`, `Gradients`, `Shadows`, `LinearGradient`, `ImageBackground` |
 
-**Hardcoded colour concerns:**
-- Date row: `#22D3EE` (cyan) for date/time text — use `Colors.textSecondary`
-- Price: `#22D3EE` (cyan) for price — use `Colors.textPrimary`
-- Venue: `rgba(255,255,255,0.5)` — should use `Colors.textSecondary`
-- Distance: `rgba(255,255,255,0.35)` — should use `Colors.textMuted`
-- CTA border: `rgba(188, 19, 254, 0.3)` — should reference theme border token
+**Hardcoded colour concerns (Phase 3D — resolved):**
+- ~~Date row: `#22D3EE` (cyan) for date/time text — use `Colors.textSecondary`~~ ✅ Phase 2
+- ~~Price: `#22D3EE` (cyan) for price — use `Colors.textPrimary`~~ ✅ Phase 2
+- ~~Venue: `rgba(255,255,255,0.5)` — should use `Colors.textSecondary`~~ ✅ Phase 3D
+- ~~Distance: `rgba(255,255,255,0.35)` — should use `Colors.textMuted`~~ ✅ Phase 3D
+- ~~CTA border: `rgba(188, 19, 254, 0.3)` — should reference theme border token~~ ✅ Phase 3D
+- All remaining values use semantic tokens (`Colors.surfaceCard`, `Colors.textPrimary`, `Colors.eventSelected`, `Colors.borderFocus`)
 
 ---
 
@@ -132,10 +133,10 @@
 | **Styling** | `Colors.surfaceCard` bg, `Colors.borderSubtle` border, `Radii.md` rounded |
 | **Dependencies** | `Colors`, `Radii`, `Spacing`, `Typography` |
 
-**Colour concerns:**
-- Intent dot: `Colors.magenta` for interested — must be `Colors.purple`
-- Intent dot: `Colors.success` for going — must be `Colors.neonGreen`
-- Time: `#22D3EE` — should be `Colors.textSecondary`
+**Colour concerns (Phase 1 ✅, Phase 3D ✅ — all resolved):**
+- ~~Interested dot: `Colors.magenta` → `Colors.purple`~~ ✅ Phase 1
+- ~~Going dot: `Colors.success` → `Colors.neonGreen`~~ ✅ Phase 1
+- ~~Time: `#22D3EE` → `Colors.textSecondary`~~ ✅ Phase 3D
 
 ---
 
@@ -175,10 +176,13 @@
 | **Actions** | Directions (Google Maps deep link), Share |
 | **Dependencies** | `BlurView`, `LinearGradient`, `Modal`, `Linking`, `Share` |
 
-**Colour concerns:**
-- Date/time pills: cyan `#22D3EE` — should be `Colors.textSecondary`
-- Pill backgrounds: `rgba(255,255,255,0.05)` — should reference `Colors.surfaceCard` or similar
-- Backdrop: `rgba(0, 0, 0, 0.6)` — acceptable, no change needed
+**Colour concerns (Phase 2 ✅, Phase 3D ⏳ — partially resolved):**
+- ~~Date/time pills: cyan `#22D3EE` — should be `Colors.textSecondary`~~ ✅ Phase 2
+- 8 style-level values migrated to semantic tokens (sheet bg, sheet border, closeBtn bg, venueText, distanceText, title, Ticket icon, ctaText) ✅ Phase 3D
+- ~~Pill backgrounds: `rgba(255,255,255,0.05)` — retained~~ (5% opacity, no matching token)
+- ~~Backdrop: `rgba(0, 0, 0, 0.6)` — acceptable, retained~~ (specific overlay alpha)
+- **5 values still convertible but unmigrated:** 4 inline icon colors (closeBtn `0.7`, MapPin/Nav/Share `0.6`) should become `Colors.textSecondary`; `#A855F7` hypeText style should become `Colors.purple`
+- **6 true technical exceptions remain** (see migration map §3D.2)
 
 ---
 
