@@ -1,6 +1,6 @@
 import { BlurView } from 'expo-blur';
 import { Tabs } from 'expo-router';
-import { Heart, Map, Search, User } from 'lucide-react-native';
+import { Compass, Heart, Map, User } from 'lucide-react-native';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,8 +10,8 @@ import { perfLog, perfMark } from '../../utils/performance-debug';
 // ─── Route metadata ───────────────────────────────────────────────────────────
 
 const ROUTE_META = {
-  index:   { label: 'Discover', Icon: Map    },
-  search:  { label: 'Search',   Icon: Search },
+  index:   { label: 'Discover', Icon: Map     },
+  search:  { label: 'Explore',  Icon: Compass },
   saved:   { label: 'My Events', Icon: Heart  },
   profile: { label: 'Profile',  Icon: User   },
 } as const;
@@ -114,7 +114,7 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="index"   options={{ title: 'Discover' }} />
-      <Tabs.Screen name="search"  options={{ title: 'Search'   }} />
+      <Tabs.Screen name="search"  options={{ title: 'Explore'  }} />
       <Tabs.Screen name="saved"   options={{ title: 'My Events' }} />
       <Tabs.Screen name="profile" options={{ title: 'Profile'  }} />
     </Tabs>
