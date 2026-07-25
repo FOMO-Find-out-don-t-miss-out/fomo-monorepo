@@ -1,4 +1,4 @@
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { CalendarView } from '../../components/fomo/calendar-view';
 import { EventCard } from '../../components/fomo/event-card';
 import { EventDetails } from '../../components/fomo/event-details';
@@ -70,7 +70,6 @@ export default function DiscoveryScreen() {
 
   const insets = useSafeAreaInsets();
   const { accessToken } = useAuth();
-  const router = useRouter();
 
   // Device location — falls back to env defaults when denied/unavailable.
   const { location, status: locationStatus, requestLocation } = useDeviceLocation();
@@ -215,30 +214,8 @@ export default function DiscoveryScreen() {
     setActiveCategories(filters);
   }, []);
 
-  // Launches Explore (FOMO-172 Phase 4B) — intentional text search now lives
-  // there exclusively; Discover's search field is a non-editable launcher.
-  // Only hands off real device coordinates (never the Athens/env default —
-  // location.isDefault is exactly the field use-device-location.ts exposes
-  // for this check) plus Discover's current radius constant; Explore's own
-  // handoff parser independently validates/falls back regardless. A fresh
-  // Date.now() nonce per tap lets Explore apply each new launch exactly once
-  // without reapplying on every unrelated re-render or tab refocus.
-  const handleSearchLauncherPress = useCallback(() => {
-    const handoff = String(Date.now());
-    if (!location.isDefault) {
-      router.push({
-        pathname: '/search',
-        params: {
-          handoff,
-          lat: String(location.lat),
-          lng: String(location.lng),
-          radiusKm: String(DEFAULT_DISCOVERY_RADIUS),
-        },
-      });
-    } else {
-      router.push({ pathname: '/search', params: { handoff } });
-    }
-  }, [router, location]);
+  // Explore search lives in the dedicated Explore tab (bottom navigation).
+  // Discover is map-first — no in-header search launcher, no handoff params.
 
   // Size of the filtered dataset handed to the carousel — NOT the number of
   // FlatList cells actually mounted (that's windowed/virtualized and varies
@@ -334,7 +311,6 @@ export default function DiscoveryScreen() {
           isCalendarView={isCalendarView}
           onViewToggle={() => setIsCalendarView((v) => !v)}
           onFilterChange={handleFilterChange}
-          onSearchPress={handleSearchLauncherPress}
         />
       </View>
 

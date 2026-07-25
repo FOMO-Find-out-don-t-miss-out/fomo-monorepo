@@ -5,7 +5,6 @@ import {
   Map,
   Music,
   Palette,
-  Search,
   SlidersHorizontal,
   Sparkles,
   Theater,
@@ -18,7 +17,6 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -66,12 +64,6 @@ interface SearchBarProps {
   onFilterChange?: (filters: string[]) => void;
   isCalendarView?: boolean;
   onViewToggle?: () => void;
-  /**
-   * Intentional text search now lives in Explore (FOMO-172 Phase 4B) — the
-   * search field here is a non-editable launcher, not a second independent
-   * text-search system. Tapping it calls this instead of opening a keyboard.
-   */
-  onSearchPress?: () => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -80,7 +72,6 @@ export function SearchBar({
   onFilterChange,
   isCalendarView,
   onViewToggle,
-  onSearchPress,
 }: SearchBarProps) {
   const insets = useSafeAreaInsets();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -161,42 +152,11 @@ export function SearchBar({
       {/* ── Top row ──────────────────────────────────────────────────────── */}
       <View style={styles.row}>
 
-        {/* Search field — non-editable launcher into Explore (FOMO-172
-            Phase 4B), not a second text-search system. The original
-            TextInput is kept (not swapped for a Text approximation): a
-            plain Text visually regressed on physical Android devices,
-            since Android's native EditText widget behind TextInput carries
-            its own baseline/padding metrics that a Text component doesn't
-            replicate even with an identical style object. editable/
-            caretHidden/showSoftInputOnFocus keep it fully non-interactive;
-            pointerEvents="none" ensures every tap is handled by the
-            wrapping Pressable, never the TextInput itself; accessible=false
-            keeps it out of the accessibility tree so only the Pressable's
-            button semantics are exposed. Pressed-state border color reuses
-            the same two tokens the original focus-color animation used. */}
-        <Pressable
-          onPress={onSearchPress}
-          accessibilityRole="button"
-          accessibilityLabel="Search events by name, venue, or organizer. Opens Explore."
-          style={({ pressed }) => [
-            styles.inputContainer,
-            { borderColor: pressed ? Colors.borderFocus : Colors.borderGlass },
-          ]}
-        >
-          <FOMOLogo />
-          <View style={styles.divider} />
-          <Search size={20} color="rgba(255,255,255,0.5)" strokeWidth={2} />
-          <TextInput
-            style={styles.input}
-            placeholder="Search events by name, venue, or organizer"
-            placeholderTextColor="rgba(255,255,255,0.4)"
-            editable={false}
-            caretHidden
-            showSoftInputOnFocus={false}
-            pointerEvents="none"
-            accessible={false}
-          />
-        </Pressable>
+        {/* FOMO branding — sits directly on the map, no divider, no launcher */}
+        <FOMOLogo />
+
+        {/* Spacer — pushes utility controls to the right edge */}
+        <View style={styles.spacer} />
 
         {/* Filter toggle — scale on press */}
         <AnimatedPressable
@@ -296,39 +256,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  // ── Search input ──────────────────────────────────────────────────────────
-  inputContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    backgroundColor: Colors.surfaceGlass,
-    borderWidth: 1,
-    borderRadius: 14,
-    // borderColor set inline from Pressable's pressed state — do not set here
-  },
   logo: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '900',
     color: Colors.brandPrimary,
-    letterSpacing: -0.5, // tighter tracking like v0
+    letterSpacing: -0.5,
     textShadowColor: Colors.neonPurpleGlow,
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 8,
   },
-  divider: {
-    width: 1,
-    height: 20,
-    backgroundColor: Colors.borderGlass,
-  },
-  input: {
+  spacer: {
     flex: 1,
-    fontSize: 13,
-    color: Colors.textPrimary,
-    padding: 0,
-    margin: 0,
   },
   // ── Icon buttons ──────────────────────────────────────────────────────────
   iconBtn: {
