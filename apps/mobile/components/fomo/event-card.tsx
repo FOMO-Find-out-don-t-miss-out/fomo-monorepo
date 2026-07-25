@@ -152,7 +152,7 @@ function EventCardBase({
 
         {/* ── Date + time ── */}
         <View style={styles.dateRow}>
-          <Calendar size={14} color="#22D3EE" strokeWidth={1.5} />
+          <Calendar size={14} color={Colors.textSecondary} strokeWidth={1.5} />
           <Text style={styles.dateText}>{event.date}</Text>
           <Text style={styles.atText}>at</Text>
           <Text style={styles.dateText}>{event.time}</Text>
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
   price: {
     fontFamily: 'Inter_700Bold',
     fontSize: 11,
-    color: '#22D3EE',
+    color: Colors.textPrimary,
   },
 
   // ── Title ─────────────────────────────────────────────────────────────────
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
   dateText: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 11,
-    color: '#22D3EE',
+    color: Colors.textSecondary,
   },
   atText: {
     fontFamily: 'Inter_400Regular',

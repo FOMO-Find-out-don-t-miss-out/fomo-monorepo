@@ -233,12 +233,12 @@ export function EventDetails({
                 {/* Date / Time */}
                 <View style={styles.pillRow}>
                   <View style={styles.pill}>
-                    <Calendar size={14} color="#22D3EE" strokeWidth={1.5} />
-                    <Text style={styles.pillCyan}>{displayEvent.date}</Text>
+                    <Calendar size={14} color={Colors.textSecondary} strokeWidth={1.5} />
+                    <Text style={styles.pillText}>{displayEvent.date}</Text>
                   </View>
                   <View style={styles.pill}>
-                    <Clock size={14} color="#22D3EE" strokeWidth={1.5} />
-                    <Text style={styles.pillCyan}>{displayEvent.time}</Text>
+                    <Clock size={14} color={Colors.textSecondary} strokeWidth={1.5} />
+                    <Text style={styles.pillText}>{displayEvent.time}</Text>
                   </View>
                 </View>
 
@@ -410,10 +410,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
-  pillCyan: {
+  pillText: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 11,
-    color: '#22D3EE',
+    color: Colors.textSecondary,
   },
   actionRow: {
     flexDirection: 'row',
