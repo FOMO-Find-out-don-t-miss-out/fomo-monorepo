@@ -1,10 +1,11 @@
 import { useLocalSearchParams } from 'expo-router';
-import { Search, SlidersHorizontal, X } from 'lucide-react-native';
+import { MapPin, Search, SlidersHorizontal, User, Users, X } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -16,7 +17,7 @@ import { EventCard } from '../../components/fomo/event-card';
 import { EventDetails } from '../../components/fomo/event-details';
 import { ExploreFilterModal } from '../../components/fomo/explore-filter-modal';
 import { ExploreSearchInput } from '../../components/fomo/explore-search-input';
-import { FomoEmptyState, FomoErrorState, FomoLoadingState, FomoScreen } from '../../components/ui';
+import { FomoErrorState, FomoLoadingState, FomoScreen } from '../../components/ui';
 import { useAuth } from '../../hooks/use-auth';
 import { useDeviceLocation } from '../../hooks/use-device-location';
 import { useEventRelationships } from '../../hooks/use-event-relationships';
@@ -35,6 +36,44 @@ import { usePerfScreenFocus } from '../../utils/performance-debug';
 import { Colors, Spacing, Typography } from '../../theme';
 import type { EventIntent } from '../../types/ui';
 
+// ─── Entity scopes ────────────────────────────────────────────────────────────
+
+type EntityScope = 'all' | 'events' | 'organizers' | 'people' | 'places';
+
+const ENTITY_SCOPES: readonly { key: EntityScope; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'events', label: 'Events' },
+  { key: 'organizers', label: 'Organizers' },
+  { key: 'people', label: 'People' },
+  { key: 'places', label: 'Places' },
+];
+
+function formatCount(count: number, hasMore: boolean): string {
+  if (count === 0) return '0';
+  return hasMore ? `${count}+` : `${count}`;
+}
+
+// ─── Bottom tab bar clearance ─────────────────────────────────────────────────
+//
+// The floating tab bar (apps/mobile/app/(tabs)/_layout.tsx) overlays the
+// bottom of every tab screen. Its total height from the screen bottom edge is:
+//
+//   navWrapper.paddingTop (8)
+//   + pill (borderWidth×2 + row paddingVertical×2 + tab content ≈ 74)
+//   + navWrapper.paddingBottom (max(insets.bottom, 16) + 8)
+//   = 90 + Math.max(insets.bottom, 16)
+//
+// We add 16 px breathing room so the last result card and loading-more footer
+// are never hidden behind the floating pill.
+
+const TAB_BAR_BASE_HEIGHT = 90;
+
+function listBottomPadding(insetsBottom: number): number {
+  return TAB_BAR_BASE_HEIGHT + Math.max(insetsBottom, 16) + Spacing.base;
+}
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
+
 export default function ExploreScreen() {
   usePerfScreenFocus('search');
   const insets = useSafeAreaInsets();
@@ -49,6 +88,7 @@ export default function ExploreScreen() {
     events,
     error,
     loadingMore,
+    hasMore,
     loadMore,
     retry,
   } = useExploreSearch();
@@ -188,6 +228,46 @@ export default function ExploreScreen() {
   const filtersActive = hasActiveFilters(activeFilters);
   const filterBadgeCount = activeFilterGroupCount(activeFilters);
 
+  // ── Entity scope ──────────────────────────────────────────────────────────
+
+  const [entityScope, setEntityScope] = useState<EntityScope>('all');
+  const tabScrollRef = useRef<ScrollView>(null);
+  const tabPositionsRef = useRef<Record<string, number>>({});
+
+  const eventCountLabel = formatCount(events.length, hasMore);
+
+  const scopeCount = useCallback(
+    (scope: EntityScope): string => {
+      switch (scope) {
+        case 'all':
+        case 'events':
+          return eventCountLabel;
+        case 'organizers':
+        case 'people':
+        case 'places':
+          return '0';
+      }
+    },
+    [eventCountLabel],
+  );
+
+  // Auto-scroll the selected tab into view when the user taps a scope.
+  const handleScopeChange = useCallback(
+    (scope: EntityScope, _index: number) => {
+      setEntityScope(scope);
+      // Small delay so layout settles before we measure scroll position.
+      setTimeout(() => {
+        const x = tabPositionsRef.current[scope];
+        if (x !== undefined && tabScrollRef.current) {
+          tabScrollRef.current.scrollTo({ x: Math.max(0, x - 16), animated: true });
+        }
+      }, 0);
+    },
+    [],
+  );
+
+  // ── Active filter removal ─────────────────────────────────────────────────
+
   const removeCategory = useCallback(
     (category: string) => {
       applyFilters({
@@ -222,21 +302,38 @@ export default function ExploreScreen() {
     [applyFilters],
   );
 
+  // ── Derived UI state ──────────────────────────────────────────────────────
+
+  const showResults = status === 'results' && (entityScope === 'all' || entityScope === 'events');
+  const showFutureEmpty = status !== 'loading' && status !== 'error' &&
+    (entityScope === 'organizers' || entityScope === 'people' || entityScope === 'places');
+  // Idle/too-short/loading when the eligible scope produces no results yet
+  const showNonResultState = !showResults && !showFutureEmpty;
+
+  // ── Render ────────────────────────────────────────────────────────────────
+
   return (
     <FomoScreen>
-      <View style={[styles.header, { paddingTop: insets.top + Spacing.base }]}>
+      {/* ── Fixed shell ──────────────────────────────────────────────────── */}
+      <View style={[styles.shell, { paddingTop: insets.top + Spacing.base }]}>
+        {/* Title */}
         <Text style={styles.title}>Explore</Text>
+
+        {/* Search + filter row */}
         <View style={styles.searchRow}>
           <View style={styles.searchInputWrap}>
             <ExploreSearchInput value={query} onChangeText={setQuery} onClear={() => setQuery('')} />
           </View>
           <Pressable
             onPress={() => setIsFilterModalOpen(true)}
-            style={styles.filterBtn}
+            style={({ pressed }) => [
+              styles.filterBtn,
+              pressed && styles.filterBtnPressed,
+            ]}
             accessibilityRole="button"
-            accessibilityLabel="Filters"
+            accessibilityLabel={`Filters${filterBadgeCount > 0 ? `, ${filterBadgeCount} active` : ''}`}
           >
-            <SlidersHorizontal size={18} color={Colors.textSecondary} strokeWidth={2} />
+            <SlidersHorizontal size={20} color={Colors.textSecondary} strokeWidth={2} />
             {filterBadgeCount > 0 && (
               <View style={styles.filterBadge}>
                 <Text style={styles.filterBadgeText}>{filterBadgeCount}</Text>
@@ -245,79 +342,147 @@ export default function ExploreScreen() {
           </Pressable>
         </View>
 
+        {/* Entity scope tabs */}
+        <View style={styles.tabsContainer}>
+          <ScrollView
+            ref={tabScrollRef}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.tabsContent}
+          >
+            {ENTITY_SCOPES.map((scope, index) => {
+              const active = entityScope === scope.key;
+              return (
+                <Pressable
+                  key={scope.key}
+                  onPress={() => handleScopeChange(scope.key, index)}
+                  style={styles.tab}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: active }}
+                  onLayout={(e) => {
+                    tabPositionsRef.current[scope.key] = e.nativeEvent.layout.x;
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.tabLabel,
+                      active && styles.tabLabelActive,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {scope.label}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.tabCount,
+                      active && styles.tabCountActive,
+                    ]}
+                  >
+                    {scopeCount(scope.key)}
+                  </Text>
+                  {active && <View style={styles.tabIndicator} />}
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        {/* Active filter chips */}
         {filtersActive && (
           <View style={styles.chipsRow}>
-            {activeFilters.categories.map((category) => (
-              <FilterChip
-                key={category}
-                label={backendCategoryLabel(category)}
-                onRemove={() => removeCategory(category)}
-              />
-            ))}
-            {activeFilters.datePreset !== 'any' && (
-              <FilterChip
-                label={datePresetLabel(activeFilters.datePreset)}
-                onRemove={removeDatePreset}
-              />
-            )}
-            {activeFilters.nearMe && (
-              <FilterChip
-                label={`Near me · ${activeFilters.radiusKm} km`}
-                onRemove={removeNearMe}
-              />
-            )}
-            <Pressable onPress={clearAll} hitSlop={6}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.chipsScroll}
+              contentContainerStyle={styles.chipsScrollContent}
+            >
+              {activeFilters.categories.map((category) => (
+                <FilterChip
+                  key={category}
+                  label={backendCategoryLabel(category)}
+                  onRemove={() => removeCategory(category)}
+                />
+              ))}
+              {activeFilters.datePreset !== 'any' && (
+                <FilterChip
+                  label={datePresetLabel(activeFilters.datePreset)}
+                  onRemove={removeDatePreset}
+                />
+              )}
+              {activeFilters.nearMe && (
+                <FilterChip
+                  label={`Near me · ${activeFilters.radiusKm} km`}
+                  onRemove={removeNearMe}
+                />
+              )}
+            </ScrollView>
+            <Pressable onPress={clearAll} style={styles.clearAllBtn}>
               <Text style={styles.clearAll}>Clear all</Text>
             </Pressable>
           </View>
         )}
       </View>
 
-      {status === 'idle' && (
-        <FomoEmptyState
-          icon={<Search size={40} color={Colors.textMuted} strokeWidth={1.5} />}
-          message="Search for events or apply filters"
-          sub="Type at least 2 characters, or tap the filter icon to browse by category, date, or location."
-        />
+      {/* ── Result / state area ───────────────────────────────────────────── */}
+      {showResults && (
+        <>
+          <View style={styles.sectionRow}>
+            <Text style={styles.sectionHeading}>Events</Text>
+          </View>
+          <FlatList
+            data={events}
+            keyExtractor={keyExtractor}
+            renderItem={renderItem}
+            contentContainerStyle={[
+              styles.listContent,
+              { paddingBottom: listBottomPadding(insets.bottom) },
+            ]}
+            onEndReached={loadMore}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={listFooter}
+            keyboardDismissMode="on-drag"
+            keyboardShouldPersistTaps="handled"
+          />
+        </>
       )}
 
-      {status === 'too-short' && (
-        <FomoEmptyState
-          icon={<Search size={40} color={Colors.textMuted} strokeWidth={1.5} />}
-          message="Keep typing"
-          sub="Enter at least 2 characters to search."
-        />
+      {showFutureEmpty && (
+        <View style={[styles.stateArea, { paddingBottom: listBottomPadding(insets.bottom) }]}>
+          <FutureEntityState scope={entityScope} />
+        </View>
       )}
 
-      {status === 'loading' && <FomoLoadingState />}
+      {showNonResultState && (
+        <View style={[styles.stateArea, { paddingBottom: listBottomPadding(insets.bottom) }]}>
+          {status === 'idle' && (
+            <StateContent
+              icon={<Search size={40} color={Colors.textMuted} strokeWidth={1.5} />}
+              heading="Search events or browse with filters"
+              body="Search by event name, venue, or organizer. Use filters to browse by category, date, or distance."
+            />
+          )}
 
-      {status === 'error' && (
-        <FomoErrorState message={error ?? 'Could not load results'} onRetry={retry} />
-      )}
+          {status === 'too-short' && (
+            <StateContent
+              icon={<Search size={40} color={Colors.textMuted} strokeWidth={1.5} />}
+              heading="Type at least 2 characters to search"
+            />
+          )}
 
-      {status === 'empty' && (
-        <FomoEmptyState
-          icon={<Search size={40} color={Colors.textMuted} strokeWidth={1.5} />}
-          message="No events match your search and filters"
-          sub={isTextSearch ? `Nothing found for "${trimmedQuery}".` : 'Try different filters.'}
-        />
-      )}
+          {status === 'loading' && <FomoLoadingState />}
 
-      {status === 'results' && (
-        <FlatList
-          data={events}
-          keyExtractor={keyExtractor}
-          renderItem={renderItem}
-          contentContainerStyle={[
-            styles.listContent,
-            { paddingBottom: insets.bottom + Spacing['2xl'] },
-          ]}
-          onEndReached={loadMore}
-          onEndReachedThreshold={0.5}
-          ListFooterComponent={listFooter}
-          keyboardDismissMode="on-drag"
-          keyboardShouldPersistTaps="handled"
-        />
+          {status === 'error' && (
+            <FomoErrorState message={error ?? 'Could not load results'} onRetry={retry} />
+          )}
+
+          {status === 'empty' && (
+            <StateContent
+              icon={<Search size={40} color={Colors.textMuted} strokeWidth={1.5} />}
+              heading="No events match your search and filters"
+              body={isTextSearch ? `Nothing found for "${trimmedQuery}".` : 'Try different filters.'}
+            />
+          )}
+        </View>
       )}
 
       <ExploreFilterModal
@@ -341,6 +506,8 @@ export default function ExploreScreen() {
   );
 }
 
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
 function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
     <View style={styles.chip}>
@@ -352,19 +519,75 @@ function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }
   );
 }
 
+function StateContent({
+  icon,
+  heading,
+  body,
+}: {
+  icon: React.ReactNode;
+  heading: string;
+  body?: string;
+}) {
+  return (
+    <View style={styles.stateContent}>
+      {icon}
+      <Text style={styles.stateHeading}>{heading}</Text>
+      {body ? <Text style={styles.stateBody}>{body}</Text> : null}
+    </View>
+  );
+}
+
+function FutureEntityState({ scope }: { scope: EntityScope }) {
+  const { icon: Icon, heading, body } = useMemo(() => {
+    switch (scope) {
+      case 'organizers':
+        return {
+          icon: User,
+          heading: 'No organizers found',
+          body: 'Organizer discovery is being prepared.',
+        };
+      case 'people':
+        return {
+          icon: Users,
+          heading: 'No people found',
+          body: 'People discovery will appear here.',
+        };
+      case 'places':
+        return {
+          icon: MapPin,
+          heading: 'No places found',
+          body: 'Place search is being connected.',
+        };
+      default:
+        return { icon: Search, heading: '', body: '' };
+    }
+  }, [scope]);
+
+  return (
+    <View style={styles.stateContent}>
+      <Icon size={40} color={Colors.textMuted} strokeWidth={1.5} />
+      <Text style={styles.stateHeading}>{heading}</Text>
+      <Text style={styles.stateBody}>{body}</Text>
+    </View>
+  );
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  header: {
+  // ── Shell ──────────────────────────────────────────────────────────────────
+  shell: {
     paddingHorizontal: Spacing.base,
-    paddingBottom: Spacing.md,
-    gap: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderSubtle,
+    paddingBottom: Spacing.sm,
   },
   title: {
     fontFamily: Typography.font.extraBold,
     fontSize: Typography.size['2xl'],
     color: Colors.textPrimary,
+    marginBottom: Spacing.md,
   },
+
+  // ── Search + filter row ────────────────────────────────────────────────────
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -372,13 +595,21 @@ const styles = StyleSheet.create({
   },
   searchInputWrap: {
     flex: 1,
+    minWidth: 0,
   },
   filterBtn: {
-    padding: Spacing.md,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: 14,
     borderWidth: 1,
     borderColor: Colors.borderGlass,
     backgroundColor: Colors.surfaceGlass,
+  },
+  filterBtnPressed: {
+    borderColor: Colors.borderFocus,
+    backgroundColor: Colors.purpleDim,
   },
   filterBadge: {
     position: 'absolute',
@@ -397,9 +628,66 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: Colors.textPrimary,
   },
+
+  // ── Entity tabs ────────────────────────────────────────────────────────────
+  tabsContainer: {
+    marginTop: Spacing.lg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderSubtle,
+  },
+  tabsContent: {
+    paddingHorizontal: 0,
+    gap: 0,
+  },
+  tab: {
+    position: 'relative',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    minHeight: 44,
+  },
+  tabLabel: {
+    fontFamily: Typography.font.medium,
+    fontSize: Typography.size.md,
+    color: Colors.textMuted,
+  },
+  tabLabelActive: {
+    fontFamily: Typography.font.semiBold,
+    color: Colors.textPrimary,
+  },
+  tabCount: {
+    fontFamily: Typography.font.medium,
+    fontSize: Typography.size.xs,
+    color: Colors.textMuted,
+  },
+  tabCountActive: {
+    color: Colors.brandPrimary,
+  },
+  tabIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    left: Spacing.md,
+    right: Spacing.md,
+    height: 2,
+    backgroundColor: Colors.brandPrimary,
+    borderTopLeftRadius: 1,
+    borderTopRightRadius: 1,
+  },
+
+  // ── Active filter chips ────────────────────────────────────────────────────
   chipsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
+    height: 40,
+    marginTop: Spacing.sm,
+  },
+  chipsScroll: {
+    flex: 1,
+  },
+  chipsScrollContent: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
   },
@@ -419,20 +707,65 @@ const styles = StyleSheet.create({
     fontSize: Typography.size.sm,
     color: Colors.textPrimary,
   },
+  clearAllBtn: {
+    paddingLeft: Spacing.sm,
+  },
   clearAll: {
     fontFamily: Typography.font.semiBold,
     fontSize: Typography.size.sm,
     color: Colors.textSecondary,
     textDecorationLine: 'underline',
   },
+
+  // ── Section heading ────────────────────────────────────────────────────────
+  sectionRow: {
+    paddingHorizontal: Spacing.base,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.xs,
+  },
+  sectionHeading: {
+    fontFamily: Typography.font.bold,
+    fontSize: Typography.size.sm,
+    color: Colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+
+  // ── Result list ────────────────────────────────────────────────────────────
   listContent: {
     alignItems: 'center',
-    paddingTop: Spacing.base,
+    paddingTop: Spacing.sm,
     gap: Spacing.md,
   },
   footer: {
     paddingVertical: Spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  // ── State area ─────────────────────────────────────────────────────────────
+  stateArea: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.base,
+  },
+  stateContent: {
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+  },
+  stateHeading: {
+    fontFamily: Typography.font.semiBold,
+    fontSize: Typography.size.lg,
+    color: Colors.textPrimary,
+    textAlign: 'center',
+  },
+  stateBody: {
+    fontFamily: Typography.font.regular,
+    fontSize: Typography.size.base,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });

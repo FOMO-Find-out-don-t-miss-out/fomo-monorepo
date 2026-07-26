@@ -54,11 +54,11 @@ export function ExploreSearchInput({ value, onChangeText, onClear }: ExploreSear
 
 const styles = StyleSheet.create({
   container: {
+    height: 44,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
     paddingHorizontal: Spacing.md,
-    paddingVertical: 10,
     borderRadius: Radii.lg,
     borderWidth: 1,
     backgroundColor: Colors.surfaceGlass,
@@ -69,5 +69,6 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     padding: 0,
     margin: 0,
+    textAlignVertical: 'center',
   },
 });
