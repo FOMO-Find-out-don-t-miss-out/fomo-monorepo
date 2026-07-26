@@ -11,18 +11,40 @@
 //   - never prints the config, tokens, URLs, or environment values
 //   - EXPO_NO_DOTENV=1 so `.env` is neither required nor loaded — the public
 //     app config in app.json must be valid on its own.
+//
+// Must be run through pnpm:
+//   pnpm --filter @fomo/mobile validate:config
+// Direct `node validate-expo-config.mjs` invocation is intentionally
+// unsupported — this script relies on `npm_execpath` (set by pnpm) to launch
+// pnpm's own JavaScript entry point directly with the current Node binary.
+// There is no shell-based fallback: a shell fallback would have to invoke
+// `pnpm`/`pnpm.cmd` through a shell, which is exactly the
+// spawn-shell-true pattern this design avoids, keeping the CI security scan
+// (Semgrep) clean.
 
 import { spawnSync } from 'node:child_process';
 import process from 'node:process';
 
-const isWindows = process.platform === 'win32';
-const pnpmExecArgs = ['exec', 'expo', 'config', '--type', 'public', '--json'];
+function fail(message) {
+  console.error(`Expo config validation FAILED: ${message}`);
+  process.exit(1);
+}
 
-// Preferred spawn strategy: when this script runs via a pnpm package script,
-// npm_execpath points at pnpm's own JS entry point, so we can run it with the
-// current Node binary directly — no shell, no .cmd shim, fully cross-platform.
+// npm_execpath is set by pnpm (and npm/yarn) to the absolute path of its own
+// JS entry point when invoking a package script's "scripts" command. Only a
+// .js/.cjs/.mjs entry point can be executed directly via `process.execPath`
+// with no shell involved.
 const npmExecPath = process.env.npm_execpath ?? '';
-const viaNode = /\.(c|m)?js$/.test(npmExecPath);
+const isSupportedEntryPoint = /\.(c|m)?js$/.test(npmExecPath);
+
+if (!npmExecPath || !isSupportedEntryPoint) {
+  fail(
+    'this script must be run through pnpm, not invoked with node directly.\n' +
+      '  Run: pnpm --filter @fomo/mobile validate:config',
+  );
+}
+
+const pnpmExecArgs = ['exec', 'expo', 'config', '--type', 'public', '--json'];
 
 const spawnOptions = {
   encoding: 'utf8',
@@ -30,29 +52,10 @@ const spawnOptions = {
   maxBuffer: 16 * 1024 * 1024,
 };
 
-let result;
-let pnpmCommand;
-if (viaNode) {
-  pnpmCommand = `node ${npmExecPath}`;
-  result = spawnSync(process.execPath, [npmExecPath, ...pnpmExecArgs], spawnOptions);
-} else {
-  // Fallback for direct invocation outside pnpm. Node refuses to spawn .cmd
-  // shims without a shell (CVE-2024-27980 hardening), so on Windows a shell
-  // is technically required — pass one fixed literal command string.
-  pnpmCommand = isWindows ? 'pnpm.cmd' : 'pnpm';
-  result = spawnSync(`${pnpmCommand} ${pnpmExecArgs.join(' ')}`, {
-    ...spawnOptions,
-    shell: true,
-  });
-}
-
-function fail(message) {
-  console.error(`Expo config validation FAILED: ${message}`);
-  process.exit(1);
-}
+const result = spawnSync(process.execPath, [npmExecPath, ...pnpmExecArgs], spawnOptions);
 
 if (result.error) {
-  fail(`could not run ${pnpmCommand}: ${result.error.message}`);
+  fail(`could not run '${process.execPath} ${npmExecPath}': ${result.error.message}`);
 }
 
 if (result.status !== 0) {
