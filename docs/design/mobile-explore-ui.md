@@ -184,11 +184,71 @@ categories, date, Near me — radius does not count separately.
 
 **File:** `apps/mobile/components/fomo/explore-filter-modal.tsx`
 
-Bottom sheet with sticky footer. Preserves all filter semantics (draft state,
-double-Apply guard, Near me blocking, location snapshot). Visual refinements
-applied in Phase 6A (drag handle, per-category chip colors, Check icons on
-date presets). Footer uses "Reset filters" (ghost) + "Show events" (primary)
-hierarchy.
+85% tall bottom sheet with sticky footer. Preserves all filter semantics
+(draft state, double-Apply guard, Near me blocking, location snapshot). Drag
+handle, per-category chip colors with Check icons on selection, distinct
+Near me location card, conditionally visible distance controls.
+
+#### Action footer
+
+The footer is outside the `ScrollView` — always reachable. A hairline
+separator sits above it.
+
+```
+┌────────────────────────────────────────────┐
+│ ────────────────────────────────────────   │ ← separator
+│ [ Reset filters ]    [  Show events  ]     │ ← action row
+└────────────────────────────────────────────┘
+```
+
+| Property | Reset filters | Show events |
+|----------|--------------|-------------|
+| **Component** | `TouchableOpacity`, static `style` | `TouchableOpacity` > `LinearGradient`, static `style` |
+| **Width** | 116px (`flexShrink: 0`) | `flex: 1`, `minWidth: 0`, `marginLeft: 12` |
+| **Height** | 48px | 48px |
+| **Border radius** | `Radii.md` (12px) | `Radii.md` (12px) |
+| **Surface** | `Colors.surfaceGlass` + 1px `Colors.borderGlass` | `Gradients.primaryCta` (`#BC13FE` → `#9333EA`) |
+| **Label** | 13px SemiBold, `textSecondary`, centered | 14px Bold, `textPrimary`, centered |
+| **Press** | Native `activeOpacity={0.7}` | Native `activeOpacity={0.78}` |
+| **Disabled** | N/A (always enabled) | `opacity: 0.45` when `nearMeBlocked` |
+| **Layout shift** | None | None — same 48px height and `flex: 1` width when disabled |
+
+#### Action semantics
+
+- **Reset filters:** Modifies local draft state only. Does not close the
+  modal, does not fire a search, does not commit changes. User must press
+  "Show events" to commit the reset.
+- **Show events:** Commits the current draft. Guarded against rapid
+  double-submit. Disabled when Near me is selected but location is
+  unavailable — same dimensions, no layout shift.
+
+#### Footer geometry rules
+
+- Both controls share identical 48px visual height and identical vertical
+  alignment.
+- At 360px: Reset = 116px, gap = 12px, Show events = 328 − 116 − 12 = 200px.
+- Footer `paddingHorizontal: 16`, `paddingTop: 12`,
+  `paddingBottom: max(insets.bottom, 16)`.
+- No `FomoButton` is used in this footer. Local `TouchableOpacity` +
+  `LinearGradient` controls are intentional because the generic
+  `FomoButton` cannot reliably produce the required 48px fixed geometry on
+  the target Android device. This is a component-specific decision — it
+  does not prohibit `FomoButton` for ordinary standalone CTA usage
+  elsewhere.
+
+#### Why local controls
+
+The generic `FomoButton` composition uses a `Pressable` with a functional
+style callback inside a `LinearGradient`. On the target Android device,
+functional style callbacks do not reliably apply base styles to the native
+root. The inner `Pressable` also carries its own `paddingVertical` which
+can cause height expansion beyond an externally specified `height`. For
+this specific fixed-geometry footer, local `TouchableOpacity` controls
+with static `style` props and no internal `Pressable` nesting produce the
+exact dimensions verified on physical Android.
+
+This is documented as an implementation decision, not a platform bug or
+a `FomoButton` defect.
 
 ---
 
@@ -507,6 +567,13 @@ design and implementation. Do not reintroduce them.
 | Broad multi-screen redesign in one phase | Too many variables — impossible to isolate visual defects |
 | Trusting static reports over physical rendering | Code structure ≠ rendered output — physical screenshots are the only proof |
 | Claiming unproven platform bugs | Style callback issues are implementation decisions, not React Native defects |
+| Loose Reset text beside a primary CTA | All footer actions must have visible structure — a bare `Pressable` with no surface/border reads as unfinished |
+| Primary CTA occupying excessive footer height | Fixed-height actions (48px) — vertical flex, `paddingVertical`, and internal `Pressable` nesting can expand a button beyond its specified `height` on Android |
+| Top-left-aligned button text | All action labels must be centered — `alignItems: 'center'`, `justifyContent: 'center'`, `textAlign: 'center'` on the gradient/surface owner |
+| Equal-width actions without hierarchy | Primary must dominate — secondary gets a fixed constrained width; primary fills remaining space |
+| Using a reusable component only for consistency when it cannot satisfy required geometry | Prefer a local `TouchableOpacity` with static `style` over forcing an incompatible generic button through external height overrides |
+| `Pressable` functional style callbacks for fixed-geometry action controls | Use `TouchableOpacity` with static `style` and `activeOpacity` — proven reliable on the target Android device |
+| Implementation reports claiming dimensions that are not physically present | Screenshots are the only proof — never assert `116×48` or `flex×48` without a physical measurement |
 
 ---
 

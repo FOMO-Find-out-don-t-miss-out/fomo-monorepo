@@ -271,3 +271,67 @@ When rendered layout contradicts JSX/styles:
 
 See `docs/design/mobile-explore-ui.md` for the canonical Explore UI
 specification and physical-validation workflow.
+
+---
+
+## 12. Action hierarchy and button geometry
+
+Action footers in FOMO mobile follow a strict hierarchy: one dominant
+primary action and one visibly structured secondary action. The two must
+read as one deliberate composition — secondary is never loose unbounded
+text when the design calls for a button.
+
+### Geometry ownership
+
+- **One component layer owns width, height, radius, and overflow.** The
+  internal visual layer owns background/gradient and label centering.
+- Do not split height ownership between a wrapper and a reusable child
+  whose internal padding and flex are hidden behind its API.
+- Do not apply an external `height` to a generic button component without
+  inspecting its internal flex, padding, and `Pressable`/`LinearGradient`
+  implementation. The generic component may not produce the requested
+  geometry on a physical Android device.
+
+### Flex rules for fixed-height action rows
+
+- `flex: 1` may distribute horizontal width only when the parent is a
+  `flexDirection: 'row'` container with constrained height.
+- Fixed-height footer actions must never gain vertical flex from a
+  column-direction parent or from `alignSelf: 'stretch'` on the vertical
+  axis.
+- Do not use percentage heights (`height: '100%'`).
+- Do not use `flexGrow` on the vertical axis for action controls.
+
+### Text centering in buttons
+
+- `alignItems: 'center'` and `justifyContent: 'center'` on the element
+  that owns the background/gradient.
+- Explicit `lineHeight` matching the font size + 2–4px.
+- `includeFontPadding: false` on Android.
+- `textAlign: 'center'` on the label.
+- Physical Android validation is mandatory — label centering must be
+  verified in a screenshot, not assumed from static styles.
+
+### Physical validation gate for action footers
+
+- Measure that top and bottom coordinates are identical for every action.
+- Verify equal visual height across all actions.
+- Verify label centering on both axes.
+- Verify at 360px width.
+- Lint and TypeScript are not visual proof.
+
+### When a generic button does not satisfy required geometry
+
+A local control with `TouchableOpacity` + static `style` + `LinearGradient`
+(where a gradient primary is needed) is the acceptable fallback when the
+generic `FomoButton` cannot reliably produce the required fixed dimensions
+on the target Android device. This is a component-specific implementation
+decision, not a blanket rejection of reusable buttons elsewhere.
+
+Do not use `Pressable` functional style callbacks (`style={({ pressed }) =>
+[...]}`) for action controls that require guaranteed geometry — use
+`TouchableOpacity` with a static `style` prop and native `activeOpacity`
+instead.
+
+See `docs/design/mobile-explore-ui.md` for the canonical Explore
+filter-modal footer contract.

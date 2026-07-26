@@ -27,13 +27,14 @@
 | **File** | `components/ui/FomoButton.tsx` |
 | **Export** | `FomoButton` (named) |
 | **Props** | `label`, `onPress?`, `variant? ('primary'\|'ghost'\|'danger')`, `icon?`, `disabled?`, `loading?`, `style?` |
-| **Purpose** | Single primary action button |
-| **Primary** | `LinearGradient` with `Gradients.primaryCta` (`#BC13FE` → `#9333EA`) |
+| **Purpose** | Single primary or secondary action button for standalone CTA usage |
+| **Primary** | `LinearGradient` with `Gradients.primaryCta` (`#BC13FE` → `#9333EA`), inner `Pressable` with functional style callback |
 | **Primary loading** | Spinner uses `Colors.textPrimary` (`#FFFFFF`) |
 | **Ghost** | 1px border, transparent bg, white secondary text |
 | **Danger** | Ghost variant with `Colors.feedbackError` border/text |
 | **Memoized** | No (low render frequency per screen) |
 | **Dependencies** | `Colors`, `Gradients`, `Radii`, `Spacing`, `Typography` |
+| **Constraint** | Internal `Pressable` uses `paddingVertical: Spacing.md` (12px × 2 = 24px) — do not apply an external fixed `height` without physical validation. The inner padding plus Android-native touch-area inflation can expand the component beyond the specified height. For fixed-geometry action footers where exact 48px height is required and validated, prefer local `TouchableOpacity` + `LinearGradient` controls. |
 
 ---
 
@@ -270,6 +271,24 @@ No BlurView exists on: filter panel, category chips, individual icon buttons, ad
 | **Image instrumentation** | Capped sample via `perfClaimImageSample()` (matches EventCard's pool). Only for real images — image-less rows never claim a sample. `onError` does not emit a success log. |
 | **Dependencies** | `Colors.exploreCategory` (9 backend categories), `backendCategoryLabel`, perf helpers |
 
+### ExploreFilterModal
+
+| Field | Value |
+|-------|-------|
+| **File** | `components/fomo/explore-filter-modal.tsx` |
+| **Export** | `ExploreFilterModal` (named) |
+| **Props** | `visible`, `onCancel`, `onApply`, `initialFilters?: Partial<ExploreFilters>` |
+| **Purpose** | **Explore-only** 85% tall bottom sheet for category, date, and location/radius filters. Sticky action footer outside ScrollView. |
+| **Architecture** | `Modal` (transparent, `animationType="slide"`, `onRequestClose={onCancel}`) → backdrop `Pressable` → sheet `View` (`maxHeight: '85%'`, bottom-aligned) → drag handle + header + `ScrollView` (categories, dates, Near me card, distance) + separator + footer |
+| **Footer** | Local `TouchableOpacity` controls — no `FomoButton` or `Pressable` functional style callbacks. Reset: 116×48 outlined surface. Show events: `flex: 1`, 48px height, `LinearGradient` with `Gradients.primaryCta`. See `docs/design/mobile-explore-ui.md` §6 for the full footer contract. |
+| **Near me** | Distinct full-width location card with `MapPin` icon + label + subtitle + compact toggle circle. Neutral `surfaceGlass` background in both off and on states — no purple card fill. |
+| **Categories** | Per-category `exploreCategory` colors + `Check` icon on selection. Wrapping row of compact rounded chips. |
+| **Distance** | Visible only when Near me is enabled. Own `DISTANCE` label. Five equal-width segmented chips (5/10/25/50/100 km). |
+| **Location warning** | Status-specific copy (resolving/denied/unavailable/error) below the Near me card. No Open Settings button. |
+| **Dependencies** | `Colors`, `Gradients`, `Radii`, `Spacing`, `Typography`, `Modal`, `ScrollView`, `LinearGradient` |
+
+---
+
 ### FomoMap
 
 | Field | Value |
@@ -307,7 +326,7 @@ No BlurView exists on: filter panel, category chips, individual icon buttons, ad
 | `DiscoveryScreen` | `app/(tabs)/index.tsx` | ✅ Production | `useDiscovery` + `useEventRelationships` |
 | `MyEventsScreen` | `app/(tabs)/saved.tsx` | ✅ Production | `useMyEvents` × 2 |
 | `ProfileScreen` | `app/(tabs)/profile.tsx` | ✅ Production | `useAuth()` (background sync) |
-| `SearchScreen` | `app/(tabs)/search.tsx` | ⏳ Placeholder (deferred to FOMO-172) | None |
+| `ExploreScreen` | `app/(tabs)/search.tsx` | ✅ Production | `useExploreSearch` + `useEventRelationships` |
 | `LoginScreen` | `app/login.tsx` | ✅ Production | `useAuth()` |
 | `TabsLayout` | `app/(tabs)/_layout.tsx` | ✅ Production | `expo-router` |
 | `RootLayout` | `app/_layout.tsx` | ✅ Production | `AuthProvider` + font loader |
@@ -353,14 +372,6 @@ RootLayout
                  │    ├─ Avatar ring
                  │    ├─ Info rows
                  │    └─ FomoButton (logout)
-                 │
-                 ├─ ExploreScreen               ← search.tsx
-                 │    ├─ ExploreSearchInput       ← editable search field
-                 │    ├─ ExploreFilterModal       ← bottom sheet filters
-                 │    ├─ FlatList
-                 │    │    └─ ExploreEventListItem[] ← React.memo, branded cells
-                 │    └─ EventDetails             ← Modal + BlurView + IntentSelector
-                 │         └─ IntentSelector
                  │
                  └─ LoginScreen
                       └─ Auth buttons
