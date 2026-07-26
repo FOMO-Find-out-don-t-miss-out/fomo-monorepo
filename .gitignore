@@ -47,8 +47,6 @@ dmypy.json
 local.properties
 *.keystore
 !debug.keystore
-android/app/build/
-android/build/
 .cxx/
 *.apk
 *.aab

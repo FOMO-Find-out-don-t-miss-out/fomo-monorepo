@@ -33,7 +33,7 @@ This monorepo uses a modern, high-performance stack:
 - **API Contracts**: FastAPI → OpenAPI → openapi-typescript (Python models are source of truth)
 - **Backend**: FastAPI, SQLModel, PostGIS
 - **Frontend**: Next.js 16+, Tailwind, Shadcn UI
-- **Mobile**: Expo 55+, React Native 0.81.5+
+- **Mobile**: Expo SDK 54, React Native 0.81.5
 
 ---
 
@@ -43,7 +43,7 @@ This monorepo uses a modern, high-performance stack:
 - **Node.js 20+** & **pnpm 9+**
 - **Python 3.12+** & **uv**
 - **Docker Desktop**
-- **Android Studio** & **JDK 17** (for mobile development)
+- **Android Studio** & **JDK 21** (for mobile development). Gradle selects the JDK through your environment's `JAVA_HOME` / `PATH` — no JDK path is committed to the repo. Point `JAVA_HOME` at a JDK 21 installation.
 
 ### 🪟 Windows 11 Specifics (CRITICAL)
 To support native builds and bypass long-path limits on Windows, you **MUST** have:
@@ -149,6 +149,11 @@ pnpm db:seed
 - **Mobile (Expo)**: `adb reverse tcp:8081 tcp:8081` then `pnpm --filter @fomo/mobile start`
 
 ### Mobile Build, Sync, and Device Run
+
+**Project model:** the Android native project at `apps/mobile/android/` is **committed and hand-maintained** (it contains required Windows/monorepo fixes) — do not delete or regenerate it with `expo prebuild`. The canonical development workflow is a **local Android debug build** attached to Metro. **Expo Go is not the canonical workflow**: the app depends on native modules (`@rnmapbox/maps`, `expo-location`) that Expo Go does not include.
+
+See [docs/mobile/staging-mobile-setup.md](./docs/mobile/staging-mobile-setup.md) for environment/token setup and [docs/mobile/android-expo-debugging-guide.md](./docs/mobile/android-expo-debugging-guide.md) for the device workflow and troubleshooting.
+
 Use the monorepo root for dependency sync, then run Expo from the mobile workspace:
 ```bash
 # Root: install JS dependencies and sync Python workspace tooling
@@ -190,16 +195,18 @@ pnpm --filter @fomo/mobile android
 `pnpm --filter @fomo/mobile start` should be treated as the Metro/dev server command, not the command that chooses which Android emulator to run.
 
 #### iOS
-iOS native builds require macOS with Xcode installed.
+iOS remains a supported product target, but native iOS setup begins after the Android MVP. There is currently no committed `apps/mobile/ios/` project. When that phase begins, local iOS development will use Xcode on macOS:
 ```bash
-# Build and launch on the iOS simulator or a connected device
+# Future workflow (requires macOS + Xcode; no ios/ project exists yet)
 pnpm --filter @fomo/mobile ios
 
 # Start Expo/Metro
 pnpm --filter @fomo/mobile start
 ```
 
-For production binaries, the mobile workspace currently uses EAS rather than a local `build` script.
+#### Release builds & EAS status
+- **EAS is not currently configured** (no `eas.json`, no EAS project). Adopting EAS is optional and deferred.
+- **Production signing (Android and iOS) is deferred.** The Android `release` build type currently signs with the tracked debug keystore — any release APK built locally is for local validation only and must never be distributed or uploaded to Google Play.
 
 ### Database Migrations (Alembic)
 When you modify models in `packages/domain/models/`:

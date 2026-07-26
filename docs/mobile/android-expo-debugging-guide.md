@@ -419,6 +419,21 @@ in `apps/mobile/.env`, then restart Metro with `start:clear`.
 
 ---
 
+## ⚠️ Release Builds Are NOT Distributable
+
+The Android `release` build type currently signs with the tracked **debug keystore**
+(`signingConfig signingConfigs.debug` in `apps/mobile/android/app/build.gradle`).
+Its credentials are publicly known.
+
+- A `gradlew assembleRelease` APK is for **local validation only** (e.g. testing
+  Metro-free startup or release-mode performance).
+- **Never distribute** a release APK built from this project in its current state.
+- **Never upload** one to Google Play — it is debug-signed and insecure.
+- Proper production signing is intentionally **deferred** until a release phase
+  introduces real keystores and credential management.
+
+---
+
 ## Safe Rules
 
 1. **Never log tokens** — not in Logcat, not in Metro console, not in Sentry
