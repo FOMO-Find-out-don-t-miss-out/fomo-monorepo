@@ -2,6 +2,12 @@
 
 For FOMO mobile developers working on the React Native Android dev build.
 
+> **Role of this document: troubleshooting and recovery.** The canonical
+> start-to-finish setup and daily workflow live in
+> [local-android-development.md](./local-android-development.md) — start
+> there; come here when something breaks. The Prerequisites and
+> "Running the App" sections below are kept as a compact recap only.
+
 ---
 
 ## Prerequisites

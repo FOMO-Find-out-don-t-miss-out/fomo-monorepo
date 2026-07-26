@@ -152,7 +152,7 @@ pnpm db:seed
 
 **Project model:** the Android native project at `apps/mobile/android/` is **committed and hand-maintained** (it contains required Windows/monorepo fixes) — do not delete or regenerate it with `expo prebuild`. The canonical development workflow is a **local Android debug build** attached to Metro. **Expo Go is not the canonical workflow**: the app depends on native modules (`@rnmapbox/maps`, `expo-location`) that Expo Go does not include.
 
-See [docs/mobile/staging-mobile-setup.md](./docs/mobile/staging-mobile-setup.md) for environment/token setup and [docs/mobile/android-expo-debugging-guide.md](./docs/mobile/android-expo-debugging-guide.md) for the device workflow and troubleshooting.
+**Start here:** [docs/mobile/local-android-development.md](./docs/mobile/local-android-development.md) — the canonical fresh-machine-to-running-app runbook. Supporting docs: [staging-mobile-setup.md](./docs/mobile/staging-mobile-setup.md) (staging env/values) and [android-expo-debugging-guide.md](./docs/mobile/android-expo-debugging-guide.md) (troubleshooting).
 
 Use the monorepo root for dependency sync, then run Expo from the mobile workspace:
 ```bash

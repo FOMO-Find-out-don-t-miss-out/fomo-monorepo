@@ -2,6 +2,14 @@
 
 > FOMO-167 — bootstrap mobile app against staging services.
 
+> **Canonical workflow lives elsewhere:** for toolchain setup, building,
+> installing, and the daily development loop, follow
+> [local-android-development.md](./local-android-development.md). This
+> document owns **staging-specific service URLs and environment values**.
+> The feature-state tables below are a historical snapshot from the
+> FOMO-167/168/169 era; auth (FOMO-170), saved/interested/going (FOMO-171)
+> and Explore search (FOMO-172) have shipped since.
+
 ## Required Environment Variables
 
 Copy `apps/mobile/.env.example` to `apps/mobile/.env` and fill in the values below.
@@ -33,8 +41,10 @@ Copy `apps/mobile/.env.example` to `apps/mobile/.env` and fill in the values bel
 
 - Android phone with USB debugging enabled
 - ADB installed (`adb devices` should list your phone)
-- Node 20+, pnpm, Java 17+
-- Mapbox `sk.*` token in `~/.gradle/gradle.properties` (required for first native build)
+- Node 20+, pnpm, **JDK 21 via `JAVA_HOME`** (see the
+  [canonical runbook](./local-android-development.md) for toolchain setup)
+- Mapbox `sk.*` token in `~/.gradle/gradle.properties` (see the runbook's
+  Mapbox section — requirement is inconclusive when the Gradle cache is warm)
 
 ### First-time build (required — Expo Go cannot run this app)
 
@@ -94,7 +104,10 @@ pnpm --filter @fomo/mobile start:clear
 | Mapbox map | ❌ (native module) | ✅ |
 | expo-location | ❌ (native module) | ✅ |
 
-**Conclusion: a dev build is required.** Expo Go will render a dark placeholder instead of the Mapbox map but all other screens (Search, Saved, Profile) and the event carousel work.
+**Conclusion: a dev build is required.** Expo Go additionally cannot complete
+the `fomo://` authentication redirect, and the app is login-gated since
+FOMO-170 — so Expo Go is not a supported workflow at all (see the
+[canonical runbook](./local-android-development.md)).
 
 ## Event Detail Screen (FOMO-169)
 
@@ -266,9 +279,9 @@ Opens `https://www.google.com/maps/dir/?api=1&destination=<lat>,<lng>`.
 | 2 | Directions uses device location as Google Maps origin, but app has no turn-by-turn routing | Future: compute route from device coords in-app |
 | 3 | Map pins do not cluster — overlapping events in dense areas are hard to tap | Future clustering task |
 | 4 | Map-area panning does not refetch events for new area | Future: pan-to-load |
-| 5 | No auth wiring | Port FOMO-147/151 patterns from dashboard |
+| 5 | ~~No auth wiring~~ **Resolved** — Keycloak PKCE auth shipped in FOMO-170 | See [mobile-auth-keycloak.md](./mobile-auth-keycloak.md) |
 | 6 | Mapbox token in `.env` should be `pk.*` not `sk.*` | Replace in local `.env`; never commit |
-| 7 | Search/Saved/Profile tabs are stub screens | Future iterations |
+| 7 | ~~Search/Saved/Profile tabs are stub screens~~ **Resolved** — Explore search (FOMO-172), Saved (FOMO-171), Profile (FOMO-170) shipped | — |
 | 8 | No pagination on discovery endpoint | Backend + mobile work required |
 | 9 | Calendar date matching uses local timezone — UTC events near midnight may appear on wrong date | Fix date parsing to use UTC display |
 
