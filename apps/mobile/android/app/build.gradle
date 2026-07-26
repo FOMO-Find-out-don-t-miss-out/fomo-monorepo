@@ -112,10 +112,14 @@ packagingOptions {
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
 
-        externalNativeBuild {
-            cmake {
-                arguments "-DCMAKE_MAKE_PROGRAM=C:/ninja/ninja.exe",
-                          "-DCMAKE_OBJECT_PATH_MAX=1024"
+        // Windows-only toolchain workaround (see root build.gradle). Non-Windows
+        // hosts use the platform's normal CMake/Ninja resolution.
+        if (rootProject.ext.isWindowsHost) {
+            externalNativeBuild {
+                cmake {
+                    arguments "-DCMAKE_MAKE_PROGRAM=C:/ninja/ninja.exe",
+                              "-DCMAKE_OBJECT_PATH_MAX=1024"
+                }
             }
         }
     }

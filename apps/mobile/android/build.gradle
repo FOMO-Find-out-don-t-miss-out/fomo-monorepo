@@ -2,6 +2,13 @@
 
 // C:\fomo-monorepo\apps\mobile\android\build.gradle
 
+// Host-OS decision for the Windows-only native toolchain workaround below.
+// This is about the machine RUNNING Gradle, never the Android target.
+// Defined FIRST because the expo/react root plugins applied below can trigger
+// early evaluation of :app, which reads rootProject.ext.isWindowsHost.
+// Consumed here and in app/build.gradle.
+ext.isWindowsHost = System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('windows')
+
 def resolveWorkletsDir() {
     try {
         // Χρησιμοποιούμε το node για να βρούμε το πακέτο μέσα στο monorepo
@@ -77,6 +84,9 @@ allprojects {
 // the Android SDK's bundled Ninja 1.10 and the 250-char object-path cap,
 // producing "manifest 'build.ninja' still dirty after 100 tries" on Windows
 // monorepos where pnpm paths are long.
+// Windows-only: Linux/macOS hosts must keep their normal CMake/Ninja
+// resolution and must never receive a C:/ path.
+if (ext.isWindowsHost) {
 subprojects { proj ->
     def applyCmakeFlags = {
         def cmakeArgs = proj.android.defaultConfig.externalNativeBuild.cmake.arguments
@@ -89,4 +99,5 @@ subprojects { proj ->
     }
     proj.plugins.withId('com.android.library')     { applyCmakeFlags() }
     proj.plugins.withId('com.android.application') { applyCmakeFlags() }
+}
 }

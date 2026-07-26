@@ -8,7 +8,21 @@ For FOMO mobile developers working on the React Native Android dev build.
 
 - **Node 20+** — check with `node --version`
 - **pnpm** — `pnpm --version`
-- **Java 17** — `java -version` (Gradle requires exactly Java 17)
+- **JDK 21** — Gradle selects the JDK via `JAVA_HOME`; verify with
+  `& "$env:JAVA_HOME\bin\java.exe" -version` (plain `java -version` may show a
+  different PATH-resolved JDK). No JDK path is committed to the repo.
+- **Ninja 1.13.2+ at `C:\ninja\ninja.exe` (Windows only)** — required for native
+  builds on Windows. Download the ninja binary and place it exactly at
+  `C:\ninja\ninja.exe`, then verify with:
+  ```powershell
+  C:\ninja\ninja.exe --version
+  ```
+  The Gradle workaround that injects this path (plus `CMAKE_OBJECT_PATH_MAX=1024`)
+  is applied **only when Gradle runs on a Windows host** — Linux/macOS use their
+  normal CMake/Ninja toolchain resolution and never receive this path.
+  These are hand-maintained edits in `apps/mobile/android/build.gradle` and
+  `apps/mobile/android/app/build.gradle`; **never run `expo prebuild` to
+  regenerate the android/ project** — it would destroy them.
 - **Android SDK** — installed via Android Studio or standalone CLI tools
   - Set `ANDROID_HOME` env var: `%LOCALAPPDATA%\Android\Sdk` (Windows)
 - **ADB (Android Debug Bridge)** — comes with the Android SDK; ensure it's on your `PATH`
