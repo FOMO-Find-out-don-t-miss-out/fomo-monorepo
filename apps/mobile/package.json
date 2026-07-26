@@ -11,6 +11,9 @@
     "web": "expo start --web",
     "build": "echo 'Use EAS Build for production builds'",
     "lint": "expo lint",
+    "typecheck": "tsc --noEmit",
+    "validate:config": "node ./scripts/validate-expo-config.mjs",
+    "ci:quality": "pnpm lint && pnpm typecheck && pnpm validate:config",
     "test": "echo 'No tests yet'",
     "generate:types": "node ../../tooling/generate-frontend-types.mjs"
   },

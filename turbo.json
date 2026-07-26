@@ -24,6 +24,9 @@
     "check-quality": {
       "dependsOn": ["lint", "test", "verify-schema"]
     },
+    "@fomo/mobile#check-quality": {
+      "dependsOn": []
+    },
     "dev": {
       "cache": false,
       "persistent": true
