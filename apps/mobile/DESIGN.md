@@ -221,3 +221,53 @@ API-backed screens (Discover, My Events, Profile) remain API-backed. No screen i
 - Authentication behaviour
 - Loading/error semantics
 - Accessibility semantics
+
+---
+
+## 11. Physical-device UI validation
+
+Visual UI changes require physical Android validation. No other validation
+is sufficient.
+
+### Mandatory gates
+
+- **Static inspection** — JSX structure and StyleSheet completeness
+- **`pnpm --filter @fomo/mobile lint`** — must pass
+- **`pnpm --filter @fomo/mobile exec tsc --noEmit`** — must pass
+- **Physical Android screenshot** at 360px, 390px, and 412px
+- **Physical interaction check** (press, scroll, keyboard, modal open/close)
+
+Lint is not design validation. TypeScript is not layout validation.
+Static JSX structure is not rendered proof. Implementation reports are
+not sufficient without physical evidence.
+
+### Design gates
+
+Change only one visual region per phase. Approve before moving to the next.
+
+Regions: Discover header, Explore shell, event result cell, filter modal,
+future entity states.
+
+### Diagnostic workflow
+
+When rendered layout contradicts JSX/styles:
+
+1. Add temporary high-contrast diagnostic colors (red/green/blue) to root,
+   fixed, and flexible children.
+2. Capture a physical screenshot.
+3. Interpret which styles reach native rendering.
+4. Apply the smallest proven correction.
+5. Remove every diagnostic color before committing.
+
+### Production requirements
+
+- Use semantic tokens (`Colors`, `Spacing`, `Typography`, `Radii`) — no raw
+  hex or bare pixel values in UI components.
+- Real and fallback media must preserve identical geometry.
+- Responsive flex children must be verified at 360px, 390px, and 412px.
+- Diagnostic colors must not appear in committed code.
+- Do not document inferred root causes as proven unless a diagnostic
+  screenshot confirms them.
+
+See `docs/design/mobile-explore-ui.md` for the canonical Explore UI
+specification and physical-validation workflow.

@@ -101,21 +101,39 @@ Confirmed implemented and API-backed:
 filtering happen entirely client-side over the radius result set. There is
 no server-side text-search or category-query parameter on this endpoint.
 
-### 4.3 Search (`apps/mobile/app/(tabs)/search.tsx`)
+### 4.2 Discover header (post-FOMO-172 Phase 6C1)
 
-Confirmed placeholder — verbatim current content:
+As of commit `268960b`, the Discover header is a single compact row containing
+only local controls: FOMO logo (left) + category filter, calendar/map toggle,
+and notification bell (right). There is no search/Explore launcher in Discover.
+Explore is reached from the bottom-navigation Explore tab.
 
-```tsx
-<FomoEmptyState
-  icon={<Search size={48} color={Colors.purple} strokeWidth={1.2} />}
-  message="Search is coming soon"
-  sub="Browse events from the Discover tab for now."
-/>
-```
+### 4.3 Search / Explore (`apps/mobile/app/(tabs)/search.tsx`)
 
-No data fetching, no input, no search behavior of any kind
-(`docs/design/mobile-global-ui-audit.md` §4 independently confirms: "the
-only placeholder screen").
+**Implemented and API-backed** (FOMO-172, commits `be36ce6` and `2aa29de`).
+Replaces the former Search placeholder. Current implementation:
+
+- `useExploreSearch()` (`apps/mobile/hooks/use-explore-search.ts`) — real
+  event search via `GET /api/v1/events/search?...` with text query, category,
+  date-preset, and radius filters. Approximately 380 ms debounce, two-character
+  minimum, pagination via limit/offset/has_more.
+- `ExploreSearchInput` — 44px editable search field with focus-aware border,
+  leading search icon, clear button. Placeholder: "Search events by name,
+  venue, or organizer".
+- Entity scope tabs: All, Events, Organizers, People, Places. Text-first
+  underline tabs with honest counts (N / N+). Future scopes render confident
+  product-facing zero-states — no mock data, no fake endpoints.
+- `ExploreFilterModal` — bottom sheet with category, date-preset, Near me,
+  and radius controls. Draft/Apply semantics. "Show events" primary action.
+- Active-filter chip strip — horizontal scroller with Clear all.
+- `ExploreEventListItem` — branded inline result cells with fixed 56×56
+  thumbnail slot, category-colored FOMO fallback, and opening existing
+  `EventDetails` on tap.
+- `EventDetails` shared overlay with Interested/Going behavior.
+- Discover→Explore handoff: one-time parameter consumption via nonce,
+  location context pre-fill.
+
+See `docs/design/mobile-explore-ui.md` for the canonical design specification.
 
 ### 4.4 My Events (`apps/mobile/app/(tabs)/saved.tsx`)
 
@@ -243,27 +261,14 @@ Explore on a specific need.
 ### SearchBar boundary
 
 The `SearchBar` component rendered inside Discover
-(`apps/mobile/components/fomo/search-bar.tsx`) must not become a second,
-independent search system. Its long-term role is a **launcher into Explore**,
-not a parallel query engine. Desired conceptual flow:
+(`apps/mobile/components/fomo/search-bar.tsx`) is a **Discover-local control
+bar** containing FOMO branding and local utility controls (category filter
+panel, calendar/map toggle, notification bell). It does not contain an
+editable search input, a query state, or a navigation launcher.
 
-1. User is viewing Discover.
-2. User taps the Discover search field.
-3. The application navigates to Explore.
-4. Explore starts with a nearby scope derived from Discover context (current
-   or selected location, current radius, and date/category context where
-   applicable).
-5. Search and result behavior are owned entirely by Explore from that point.
-
-This document does **not** prescribe the exact Expo Router navigation call
-or param-passing mechanism — the current codebase has no existing
-tab-to-tab deep-link pattern with pre-filled state to model this on
-unambiguously, so that remains an implementation decision for FOMO-172 (see
-§18).
-
-Discover's own local controls — category filter chips, calendar/map toggle,
-radius — **remain Discover-owned** and are not duplicated blindly inside
-Explore; Explore has its own entity-scoped filters (§8).
+**Explore is reached from the bottom-navigation Explore tab** — not from any
+Discover control. There is no Discover→Explore launcher. The Discover header
+was simplified in commit `268960b` to remove the former fake search field.
 
 ---
 

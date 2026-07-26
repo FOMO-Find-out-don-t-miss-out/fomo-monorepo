@@ -96,8 +96,9 @@
 |-------|-------|
 | **File** | `components/fomo/event-card.tsx` |
 | **Export** | `EventCard` (memoized) |
-| **Props** | `event: Event`, `isActive?`, `onPress?: (id: string) => void` |
-| **Purpose** | Discover carousel card: image, category badge, title, venue, date/time, CTA |
+| **Props** | `event: Event`, `isActive?`, `onPress?: (id: string) => void`, `categoryLabel?` |
+| **Purpose** | **Discover-only** carousel card: image, category badge, title, venue, date/time, CTA |
+| **Boundary** | Must not be reused for Explore search results. Explore uses `ExploreEventListItem`. |
 | **Architecture** | `Animated.View` (shadow/scale/transform) → `Pressable` (bg/clip/padding) → content |
 | **Memoized** | `React.memo` — FOMO-175: stable `onPress` + stable event identity |
 | **Press animation** | Spring scale 1→0.97 on press-in, 0.97→1 on press-out |
@@ -200,8 +201,9 @@
 |-------|-------|
 | **File** | `components/fomo/search-bar.tsx` |
 | **Export** | `SearchBar` (named) |
-| **Props** | `onFilterChange?`, `onSearchChange?`, `isCalendarView?`, `onViewToggle?` |
-| **Purpose** | Floating top search bar with animated focus border, category filter panel, view toggle, bell |
+| **Props** | `onFilterChange?`, `isCalendarView?`, `onViewToggle?` |
+| **Purpose** | **Discover-only** floating top bar: FOMO branding, local category filter panel, calendar/map toggle, notification bell |
+| **Boundary** | Owns Discover's local controls only. No editable search input, no query state, no navigation launcher. |
 | **Architecture** | Absolute positioned, safe-area-aware, `Animated.View` with mount animation |
 | **Blur** | Experiment rejected and rolled back (see Phase 4 decision below) |
 | **Fallback** | `Colors.surfaceGlass` on `inputContainer` — translucent solid surface, no native blur on Android |
@@ -236,6 +238,37 @@ The experimental Android native-blur configuration was tested on a physical devi
 No BlurView exists on: filter panel, category chips, individual icon buttons, adjacent controls, event cards, list rows, CalendarView, or screen backgrounds.
 
 ---
+
+### ExploreSearchInput
+
+| Field | Value |
+|-------|-------|
+| **File** | `components/fomo/explore-search-input.tsx` |
+| **Export** | `ExploreSearchInput` (named) |
+| **Props** | `value: string`, `onChangeText: (text: string) => void`, `onClear: () => void` |
+| **Purpose** | **Explore-only** editable search field. Screen-embedded — no floating layout, no BlurView. |
+| **Architecture** | `View` (container, border animates on focus) → `Search` icon + `TextInput` + conditional `X` clear |
+| **Dimensions** | Height 44px, border radius `Radii.lg`, border 1px, padding 12px |
+| **Focus** | Border color switches from `Colors.borderGlass` to `Colors.borderFocus` on focus |
+| **Boundary** | Owns visual input behavior only. Does not own debounce, networking, or filter state. |
+
+---
+
+### ExploreEventListItem
+
+| Field | Value |
+|-------|-------|
+| **File** | `components/fomo/explore-event-list-item.tsx` |
+| **Export** | `ExploreEventListItem` (memoized — `React.memo`) |
+| **Props** | `event: ExploreEvent`, `onPress: (id: string) => void` |
+| **Purpose** | **Explore-only** compact search-result cell. Opens existing `EventDetails` on tap. |
+| **Architecture** | `TouchableOpacity` (static `style`, `activeOpacity: 0.65`) → 56×56 thumbnail (always present, FOMO fallback underneath) + content column |
+| **Thumbnail** | 56×56, `borderRadius: 10`. Always renders. Real `Image` overlaid via `StyleSheet.absoluteFillObject`. FOMO fallback underneath with category-colored background + "FOMO" text. |
+| **Content** | `flex: 1, minWidth: 0` — title (14px SemiBold, 2 lines) → date/time (11px, textMuted) → venue + category footer |
+| **Cell** | `surfaceCard` bg, `borderSubtle` hairline border, 12px radius, 16px horizontal margin, 8px bottom margin, 10px internal padding, `flexDirection: 'row'` |
+| **Boundary** | Must not be used outside Explore. No "View Details" child button, no per-row relationship requests, no inline Interested/Going. |
+| **Image instrumentation** | Capped sample via `perfClaimImageSample()` (matches EventCard's pool). Only for real images — image-less rows never claim a sample. `onError` does not emit a success log. |
+| **Dependencies** | `Colors.exploreCategory` (9 backend categories), `backendCategoryLabel`, perf helpers |
 
 ### FomoMap
 
@@ -308,12 +341,26 @@ RootLayout
                  │    └─ EventDetails           ← shared component
                  │         └─ IntentSelector    ← shared component
                  │
+                 ├─ ExploreScreen               ← search.tsx
+                 │    ├─ ExploreSearchInput       ← editable search field
+                 │    ├─ ExploreFilterModal       ← bottom sheet filters
+                 │    ├─ FlatList
+                 │    │    └─ ExploreEventListItem[] ← React.memo, branded cells
+                 │    └─ EventDetails             ← Modal + BlurView + IntentSelector
+                 │         └─ IntentSelector
+                 │
                  ├─ ProfileScreen               ← profile.tsx
                  │    ├─ Avatar ring
                  │    ├─ Info rows
                  │    └─ FomoButton (logout)
                  │
-                 ├─ SearchScreen                ← placeholder
+                 ├─ ExploreScreen               ← search.tsx
+                 │    ├─ ExploreSearchInput       ← editable search field
+                 │    ├─ ExploreFilterModal       ← bottom sheet filters
+                 │    ├─ FlatList
+                 │    │    └─ ExploreEventListItem[] ← React.memo, branded cells
+                 │    └─ EventDetails             ← Modal + BlurView + IntentSelector
+                 │         └─ IntentSelector
                  │
                  └─ LoginScreen
                       └─ Auth buttons
@@ -331,6 +378,8 @@ Every component that imports from `../../theme` (or `../../../theme`):
 | `MyEventListItem` | `Colors`, `Radii`, `Spacing`, `Typography` |
 | `IntentSelector` | `Colors`, `Radii`, `Typography` |
 | `EventDetails` | `Colors`, `Gradients`, `Shadows` |
+| `ExploreSearchInput` | `Colors`, `Radii`, `Spacing` |
+| `ExploreEventListItem` | `Colors`, `Typography` |
 | `SearchBar` | `Colors` |
 | `FomoMap` | `Colors` |
 | `CalendarView` | `Colors` |
