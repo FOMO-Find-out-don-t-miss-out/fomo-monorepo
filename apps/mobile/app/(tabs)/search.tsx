@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { EventCard } from '../../components/fomo/event-card';
+import { ExploreEventListItem } from '../../components/fomo/explore-event-list-item';
 import { EventDetails } from '../../components/fomo/event-details';
 import { ExploreFilterModal } from '../../components/fomo/explore-filter-modal';
 import { ExploreSearchInput } from '../../components/fomo/explore-search-input';
@@ -208,11 +208,7 @@ export default function ExploreScreen() {
 
   const renderItem = useCallback(
     ({ item }: ListRenderItemInfo<ExploreEvent>) => (
-      <EventCard
-        event={item}
-        onPress={handleEventSelect}
-        categoryLabel={backendCategoryLabel(item.rawCategory)}
-      />
+      <ExploreEventListItem event={item} onPress={handleEventSelect} />
     ),
     [handleEventSelect],
   );
@@ -733,9 +729,7 @@ const styles = StyleSheet.create({
 
   // ── Result list ────────────────────────────────────────────────────────────
   listContent: {
-    alignItems: 'center',
     paddingTop: Spacing.sm,
-    gap: Spacing.md,
   },
   footer: {
     paddingVertical: Spacing.lg,

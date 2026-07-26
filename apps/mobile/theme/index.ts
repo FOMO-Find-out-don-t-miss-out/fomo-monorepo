@@ -66,7 +66,7 @@ export const Colors = {
   feedbackWarning:  '#FBBF24',   // warning feedback = amber
   feedbackError:    '#F87171',   // error feedback = red
 
-  // ── Category swatches (keyed by UiEventCategory) ──────────────────────────────
+  // ── Category swatches (keyed by UiEventCategory — Discover 6-bucket) ────────
   category: {
     Music:    { border: 'rgba(168, 85,  247, 0.5)', text: '#A855F7', bg: 'rgba(168, 85,  247, 0.10)' },
     Arts:     { border: 'rgba(236, 72,  153, 0.5)', text: '#EC4899', bg: 'rgba(236, 72,  153, 0.10)' },
@@ -75,6 +75,20 @@ export const Colors = {
     Comedy:   { border: 'rgba(249, 115, 22,  0.5)', text: '#F97316', bg: 'rgba(249, 115, 22,  0.10)' },
     Festival: { border: 'rgba(34,  211, 238, 0.5)', text: '#22D3EE', bg: 'rgba(34,  211, 238, 0.10)' },
   },
+
+  // ── Explore category tokens (keyed by backend EventCategory — 9 entries) ────
+  // Scoped to Explore result rows; does not affect Discover's 6-bucket system.
+  exploreCategory: {
+    Music:      { border: 'rgba(168, 85,  247, 0.40)', text: '#C084FC', bg: 'rgba(168, 85,  247, 0.15)' },
+    Art:        { border: 'rgba(236, 72,  153, 0.40)', text: '#F472B6', bg: 'rgba(236, 72,  153, 0.15)' },
+    Tech:       { border: 'rgba(34,  211, 238, 0.40)', text: '#22D3EE', bg: 'rgba(34,  211, 238, 0.15)' },
+    Food:       { border: 'rgba(251, 191, 36,  0.40)', text: '#FBBF24', bg: 'rgba(251, 191, 36,  0.15)' },
+    Nightlife:  { border: 'rgba(236, 72,  153, 0.40)', text: '#F472B6', bg: 'rgba(236, 72,  153, 0.15)' },
+    Sports:     { border: 'rgba(57,  255, 136, 0.40)', text: '#39FF88', bg: 'rgba(57,  255, 136, 0.15)' },
+    Business:   { border: 'rgba(249, 115, 22,  0.40)', text: '#FB923C', bg: 'rgba(249, 115, 22,  0.15)' },
+    Community:  { border: 'rgba(168, 85,  247, 0.40)', text: '#C084FC', bg: 'rgba(168, 85,  247, 0.15)' },
+    Other:      { border: 'rgba(156, 163, 175, 0.40)', text: '#9CA3AF', bg: 'rgba(156, 163, 175, 0.12)' },
+  } as Record<string, { border: string; text: string; bg: string }>,
 };
 
 // ── Gradients ─────────────────────────────────────────────────────────────────
