@@ -2,6 +2,7 @@
   "name": "@fomo/api",
   "version": "1.0.0",
   "private": true,
+  "license": "MIT",
   "scripts": {
     "lint": "uv run ruff check .",
     "test": "cross-env PYTHONPATH=../../ uv run pytest tests --cov=app --cov-fail-under=95",
